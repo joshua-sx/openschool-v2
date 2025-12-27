@@ -1,0 +1,27 @@
+{
+    "name": "openschool",
+    "private": true,
+    "workspaces": [
+      "apps/*",
+      "packages/*"
+    ],
+    "scripts": {
+      "dev": "turbo run dev",
+      "build": "turbo run build",
+      "lint": "turbo run lint",
+      "typecheck": "turbo run typecheck",
+      "clean": "turbo run clean",
+      "format": "biome format --write .",
+      "check": "biome check .",
+      "db:generate": "turbo run db:generate --filter=@openschool/db",
+      "db:migrate": "turbo run db:migrate --filter=@openschool/db",
+      "db:seed": "turbo run db:seed --filter=@openschool/db",
+      "db:studio": "turbo run db:studio --filter=@openschool/db"
+    },
+    "devDependencies": {
+      "@biomejs/biome": "^1.9.0",
+      "turbo": "^2.3.0",
+      "typescript": "^5.7.0"
+    },
+    "packageManager": "bun@1.1.0"
+  }
