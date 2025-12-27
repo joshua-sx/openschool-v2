@@ -1,150 +1,149 @@
-# OpenSchool
+![hero](OpenSchool-Cover.PNG)
 
-A modern K-12 school management platform built for developing and semi-digital contexts.
+<p align="center">
+	<h1 align="center"><b>OpenSchool</b></h1>
+<p align="center">
+    The OS for School Management
+    <br />
+    <br />
+    <a href="https://github.com/joshua-sx/openschool-v2/issues">Issues</a>
+  </p>
+</p>
+
+<p align="center">
+  <a href="https://supabase.com">
+    <img src="https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase" />
+  </a>
+  <a href="https://nextjs.org">
+    <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js" />
+  </a>
+  <a href="https://bun.sh">
+    <img src="https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white" alt="Bun" />
+  </a>
+</p>
+
+## About OpenSchool
+
+OpenSchool is a modern K-12 school management platform built for developing and semi-digital contexts. It helps organizations manage multiple schools under one main account, with each school managing classes, students, and staff.
 
 ## Features
 
-- 🏢 **Multi-tenant**: Organization → School → Class hierarchy
-- 🔐 **Role-based access**: 7 roles with granular permissions
-- 📊 **Student management**: Enrollment, grades, attendance
-- 👨‍🏫 **Teacher tools**: Class rosters, gradebook, assignments
-- 👨‍👩‍👧 **Parent portal**: View child's progress
-- 📝 **Audit logging**: Compliance-ready activity tracking
+**Student Management**: Comprehensive student profiles with enrollment tracking, academic history, and parent contact management for complete digital student records.<br/>
+**Smart Gradebook**: Intuitive grading system with automated calculations, assignment distribution, and real-time progress updates for teachers.<br/>
+**Advanced Analytics**: Data-driven insights into student performance with visual dashboards, trend analysis, and custom reports for administrators.<br/>
+**Multi-school organizations**: One organization can manage many schools, each with their own classes and data.<br/>
+**Role-based access**: Different user types get the right level of access (admins, teachers, parents, students).<br/>
 
-## Tech Stack
+## Get started
 
-- **Monorepo**: Turborepo + Bun
-- **Frontend**: Next.js 15 (App Router) + shadcn/ui + Tailwind
-- **API**: tRPC v11 + Hono
-- **Database**: Supabase PostgreSQL + Drizzle ORM
-- **Auth**: Supabase Auth + Custom RBAC
+We are working on comprehensive documentation. For local development setup, see [LOCAL_DEV.md](./LOCAL_DEV.md).
 
-## Getting Started
+### Quick Start
 
-### Prerequisites
-
-- [Bun](https://bun.sh) >= 1.0
-- [Supabase CLI](https://supabase.com/docs/guides/cli)
-- PostgreSQL (via Supabase)
-
-### Installation
-
+```bash
 # Clone the repository
-
-git clone hhttps://github.com/joshua-sx/openschool-v2.git
-
-cd openschool
+git clone https://github.com/joshua-sx/openschool-v2.git
+cd openschool-v2
 
 # Install dependencies
-
 bun install
 
-# Copy environment variables
+# Set up environment variables
+bash scripts/setup-env.sh
 
-cp .env.example .env.local
+# Set up localhost entries
+bash scripts/setup-localhost.sh
 
-# Set up the database
-
+# Run migrations
 bun run db:migrate
 
-bun run db:seed
-
-# Start development
-
+# Start development server
 bun run dev
+```
 
+## App Architecture
 
-### Environment Variables
+- **Monorepo**: Turborepo
+- **Runtime**: Bun
+- **Frontend**: Next.js + React + TypeScript
+- **Database**: Supabase (Postgres)
+- **UI**: shadcn/ui + TailwindCSS
+- **Auth**: Supabase Auth + role-based permissions
 
-See `.env.example` for required variables.
+### Hosting
+
+- **Supabase** (database, auth)
+- **Vercel** (web app)
+
+### Services
+
+- **GitHub Actions** (CI/CD)
+
+## Security & Compliance
+
+OpenSchool is built with security and compliance in mind:
+
+- **Access control**: Permission checks to prevent unauthorized actions
+- **Audit logging**: Track key actions for accountability
+- **Education data privacy**: Built with student data protection in mind
 
 ## Project Structure
 
-openschool/
-
+```
+openschool-v2/
 ├── apps/
-
 │   ├── web/                    # Next.js web application
-
-│   └── api/                    # Standalone API server
-
+│   └── api/                    # Standalone API server (planned)
 ├── packages/
-
 │   ├── db/                     # Database schema & migrations
-
 │   ├── rbac/                   # Role-based access control
-
 │   ├── auth/                   # Authentication utilities
-
 │   ├── audit/                  # Audit logging
-
 │   ├── ui/                     # Shared UI components
-
 │   └── config/                 # Shared configurations
-
 ├── scripts/                    # Build & utility scripts
-
 └── docs/                       # Documentation
-
 ```
 
 ## Development
 
-```
-
+```bash
 # Run all apps
-
 bun run dev
 
 # Run specific app
-
 bun run dev --filter=web
 
 # Type check
-
 bun run typecheck
 
 # Lint
-
 bun run lint
 
 # Build
-
 bun run build
-
 ```
 
 ## Database
 
-```
-
+```bash
 # Generate types after schema changes
-
 bun run db:generate
 
 # Run migrations
-
 bun run db:migrate
 
 # Seed database
-
 bun run db:seed
 
 # Open Drizzle Studio
-
 bun run db:studio
+```
 
+## Repo Activity
 
-## Documentation
-
-- [Architecture Guide](./docs/ARCHITECTURE.md)
-- [RBAC System](./docs/RBAC.md)
-- [API Reference](./docs/API.md)
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+![Alt](https://repobeats.axiom.co/api/embed/e55f0c74b33085545ccf3410aae537fa0cd917af.svg "Repobeats analytics image")
 
 ## License
 
-MIT
+License is not finalized yet. If you plan to deploy OpenSchool commercially, please open an issue to discuss licensing.
