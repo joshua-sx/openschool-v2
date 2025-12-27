@@ -34,10 +34,10 @@ export async function resolveTenantContext(
     .where(eq(parentStudent.parentId, userId))
 
   // Resolve accessible IDs
-  const orgIds = [orgMemberships.map](http://orgMemberships.map)((m) => m.orgId)
-  const schoolIds = [schoolMemberships.map](http://schoolMemberships.map)((m) => m.schoolId)
-  const classIds = [classAssignments.map](http://classAssignments.map)((a) => a.classId)
-  const studentIds = [linkedStudents.map](http://linkedStudents.map)((l) => l.studentId)
+  const orgIds = orgMemberships.map((m) => m.orgId)
+  const schoolIds = schoolMemberships.map((m) => m.schoolId)
+  const classIds = classAssignments.map((a) => a.classId)
+  const studentIds = linkedStudents.map((l) => l.studentId)
 
   // Determine effective role for the requested context
   let effectiveRole: Role = 'student' // Default lowest

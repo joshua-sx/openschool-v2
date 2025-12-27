@@ -1,4 +1,4 @@
 export * from './roles'
-export * from './permissions'
-export * from './rbac'
-export * from './types'
+export * from './src/permissions'
+export * from './src/rbac'
+export * from './src/types'
