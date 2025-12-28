@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
 import { createBrowserClient as createBrowserClientSSR, createServerClient as createServerClientSSR } from '@supabase/ssr'
-import type { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/readonly-request-cookies'
 
 // Legacy browser client (for backward compatibility)
 export function createSupabaseClient() {
@@ -11,7 +10,7 @@ export function createSupabaseClient() {
 }
 
 // SSR-compatible server client
-export function createServerClient(cookieStore: ReadonlyRequestCookies) {
+export function createServerClient(cookieStore: any) {
   return createServerClientSSR(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -20,7 +19,7 @@ export function createServerClient(cookieStore: ReadonlyRequestCookies) {
         getAll() {
           return cookieStore.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
