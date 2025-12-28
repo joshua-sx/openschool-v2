@@ -1,5 +1,6 @@
 import { pgTable, uuid, text, timestamp, date } from 'drizzle-orm/pg-core'
 import { schools } from './schools'
+import { ENTITY_STATUS } from './status'
 
 export const students = pgTable('students', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -9,6 +10,9 @@ export const students = pgTable('students', {
   dateOfBirth: date('date_of_birth'),
   studentNumber: text('student_number').unique(),
   email: text('email'),
+  status: text('status', { enum: ['active', 'archived', 'read_only'] })
+    .default(ENTITY_STATUS.ACTIVE)
+    .notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
