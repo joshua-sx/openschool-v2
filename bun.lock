@@ -91,6 +91,9 @@
     "sharp",
     "unrs-resolver",
   ],
+  "overrides": {
+    "@trpc/server": "^11.0.0",
+  },
   "packages": {
     "@alloc/quick-lru": ["@alloc/quick-lru@5.2.0", "", {}, "sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw=="],
 
@@ -386,11 +389,11 @@
 
     "@tanstack/react-query": ["@tanstack/react-query@5.90.13", "", { "dependencies": { "@tanstack/query-core": "5.90.13" }, "peerDependencies": { "react": "^18 || ^19" } }, "sha512-i6DY9wnghE0ghHJfDrnnFNatn4CNBzMZv4xPzKB7Lb9zMAoImAxPKoGK9gLOm79aopDa07p6ytlFFWotvwj3DQ=="],
 
-    "@trpc/client": ["@trpc/client@11.0.0", "", { "peerDependencies": { "@trpc/server": "11.0.0", "typescript": ">=5.7.2" } }, "sha512-U2THlxsdr4ykAX5lpTU8k5WRADPQ+68Ex2gfUht3MlCxGK7njBmNSSzjpQSWNt7tMI/xsYrddFiRlmEPrh+Cbg=="],
+    "@trpc/client": ["@trpc/client@11.8.1", "", { "peerDependencies": { "@trpc/server": "11.8.1", "typescript": ">=5.7.2" } }, "sha512-L/SJFGanr9xGABmuDoeXR4xAdHJmsXsiF9OuH+apecJ+8sUITzVT1EPeqp0ebqA6lBhEl5pPfg3rngVhi/h60Q=="],
 
-    "@trpc/next": ["@trpc/next@11.0.0", "", { "peerDependencies": { "@tanstack/react-query": "^5.59.15", "@trpc/client": "11.0.0", "@trpc/react-query": "11.0.0", "@trpc/server": "11.0.0", "next": ">=15.2.2", "react": ">=16.8.0", "react-dom": ">=16.8.0", "typescript": ">=5.7.2" }, "optionalPeers": ["@tanstack/react-query", "@trpc/react-query"] }, "sha512-HpowgsF0jfXG30jEBVK8v90ltbEZiQZq/x0rsjScfZuedkAfapqZvrsrkzv6Pkemz7sxaxJcZB3HEqXxWfkGoA=="],
+    "@trpc/next": ["@trpc/next@11.8.1", "", { "peerDependencies": { "@tanstack/react-query": "^5.59.15", "@trpc/client": "11.8.1", "@trpc/react-query": "11.8.1", "@trpc/server": "11.8.1", "next": "*", "react": ">=16.8.0", "react-dom": ">=16.8.0", "typescript": ">=5.7.2" }, "optionalPeers": ["@tanstack/react-query", "@trpc/react-query"] }, "sha512-nn9e7+k4uWaZnB2fruH1qoBKni2LG+FRNxvddp1pFzjsyNFdPWFiHWKTM8/McDFw6GQ2CorXs+ceCfgFNA+9zQ=="],
 
-    "@trpc/react-query": ["@trpc/react-query@11.0.0", "", { "peerDependencies": { "@tanstack/react-query": "^5.67.1", "@trpc/client": "11.0.0", "@trpc/server": "11.0.0", "react": ">=18.2.0", "react-dom": ">=18.2.0", "typescript": ">=5.7.2" } }, "sha512-HeE9bBLA6nqC2xk5wlNZIPQ5vmyli3tgNNab8fTE489+ksNMKxaIx66pZKsMJIorDcP1wS0rWNV+GroU0iR98g=="],
+    "@trpc/react-query": ["@trpc/react-query@11.8.1", "", { "peerDependencies": { "@tanstack/react-query": "^5.80.3", "@trpc/client": "11.8.1", "@trpc/server": "11.8.1", "react": ">=18.2.0", "react-dom": ">=18.2.0", "typescript": ">=5.7.2" } }, "sha512-0Vu55ld/oINb4U6nIPPi7eZMhxUop6K+4QUK90RVsfSD5r+957sM80M4c8bjh/JBZUxMFv9JOhxxlWcrgHxHow=="],
 
     "@trpc/server": ["@trpc/server@11.8.1", "", { "peerDependencies": { "typescript": ">=5.7.2" } }, "sha512-P4rzZRpEL7zDFgjxK65IdyH0e41FMFfTkQkuq0BA5tKcr7E6v9/v38DEklCpoDN6sPiB1Sigy/PUEzHENhswDA=="],
 
@@ -1111,12 +1114,6 @@
     "@tailwindcss/oxide-wasm32-wasi/@tybys/wasm-util": ["@tybys/wasm-util@0.10.1", "", { "dependencies": { "tslib": "^2.4.0" }, "bundled": true }, "sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg=="],
 
     "@tailwindcss/oxide-wasm32-wasi/tslib": ["tslib@2.8.1", "", { "bundled": true }, "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="],
-
-    "@trpc/client/@trpc/server": ["@trpc/server@11.0.0", "", { "peerDependencies": { "typescript": ">=5.7.2" } }, "sha512-xY9q/b/wR/tWGYTm5xmRjivkYD2EZZXmOKmHuNJRYZuLbieeNUsdfQRjJC409WB1pjKWInomhHwuA8bahZJ4lQ=="],
-
-    "@trpc/next/@trpc/server": ["@trpc/server@11.0.0", "", { "peerDependencies": { "typescript": ">=5.7.2" } }, "sha512-xY9q/b/wR/tWGYTm5xmRjivkYD2EZZXmOKmHuNJRYZuLbieeNUsdfQRjJC409WB1pjKWInomhHwuA8bahZJ4lQ=="],
-
-    "@trpc/react-query/@trpc/server": ["@trpc/server@11.0.0", "", { "peerDependencies": { "typescript": ">=5.7.2" } }, "sha512-xY9q/b/wR/tWGYTm5xmRjivkYD2EZZXmOKmHuNJRYZuLbieeNUsdfQRjJC409WB1pjKWInomhHwuA8bahZJ4lQ=="],
 
     "@typescript-eslint/eslint-plugin/ignore": ["ignore@7.0.5", "", {}, "sha512-Hs59xBNfUIunMFgWAbGX5cq6893IbWg4KnrjbYwX3tx0ztorVgTDA6B2sxf8ejHJ4wz8BqGUMYlnzNBer5NvGg=="],
 

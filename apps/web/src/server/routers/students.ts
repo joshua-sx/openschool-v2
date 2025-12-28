@@ -112,7 +112,7 @@ export const studentsRouter = router({
         schoolId: input.schoolId,
         firstName: input.firstName,
         lastName: input.lastName,
-        dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
+        dateOfBirth: input.dateOfBirth ?? null,
         studentNumber: input.studentNumber ?? null,
         email: input.email ?? null,
         status: 'active',
@@ -156,7 +156,7 @@ export const studentsRouter = router({
       return await updateStudent(ctx.tenantContext, studentId, {
         firstName: updateData.firstName,
         lastName: updateData.lastName,
-        dateOfBirth: updateData.dateOfBirth ? new Date(updateData.dateOfBirth) : undefined,
+        dateOfBirth: updateData.dateOfBirth ?? undefined,
         studentNumber: updateData.studentNumber ?? undefined,
         email: updateData.email ?? undefined,
       })
