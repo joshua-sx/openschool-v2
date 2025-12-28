@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import "../globals.css";
 import { createServerClient } from "@openschool/auth/server";
 import { cookies } from "next/headers";
+import { TRPCProvider } from "@/lib/trpc/provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -44,7 +45,7 @@ export default async function AppLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
-        {children}
+        <TRPCProvider>{children}</TRPCProvider>
       </body>
     </html>
   );

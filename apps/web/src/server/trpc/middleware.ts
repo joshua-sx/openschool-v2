@@ -4,13 +4,33 @@ import type { Permission, PermissionCheckOptions } from '@openschool/rbac'
 import { publicProcedure } from './context'
 
 /**
- * Middleware to require authentication
+ * Middleware to require authentication (Session only, no Tenant required)
+ * Use this for onboarding or user-profile operations
+ */
+export const requireSession = publicProcedure.use(async ({ ctx, next }) => {
+  if (!ctx.userId) {
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+      message: 'You must be logged in to access this resource',
+    })
+  }
+
+  return next({
+    ctx: {
+      ...ctx,
+      userId: ctx.userId,
+    },
+  })
+})
+
+/**
+ * Middleware to require authentication AND Tenant Context
  */
 export const requireAuth = publicProcedure.use(async ({ ctx, next }) => {
   if (!ctx.tenantContext || !ctx.userId) {
     throw new TRPCError({
       code: 'UNAUTHORIZED',
-      message: 'You must be logged in to access this resource',
+      message: 'You must be logged in and belong to an organization to access this resource',
     })
   }
 
