@@ -26,6 +26,11 @@ export default async function DashboardPage() {
     tenantContext = null;
   }
 
+  // If user has no tenant context, redirect to onboarding
+  if (!tenantContext || tenantContext.orgIds.length === 0) {
+    redirect('/onboarding');
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -147,16 +152,6 @@ export default async function DashboardPage() {
                 </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm mb-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">
-              Getting Started
-            </h2>
-            <p className="text-gray-500 mb-4">
-              You don't have any organization or school memberships yet. Contact
-              your administrator to get started.
-            </p>
           </div>
         )}
 

@@ -1,4 +1,4 @@
-import { createServerClient } from '@openschool/auth/server'
+import { createServerClient, resolveTenantContext } from '@openschool/auth/server'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { BookOpen } from 'lucide-react'
@@ -17,6 +17,17 @@ export default async function OnboardingLayout({
 
   if (!session) {
     redirect('/auth/login')
+  }
+
+  // If user already has a tenant context, redirect to dashboard
+  try {
+    const tenantContext = await resolveTenantContext(session.user.id)
+    if (tenantContext && tenantContext.orgIds.length > 0) {
+      redirect('/dashboard')
+    }
+  } catch (error) {
+    // No tenant context - user needs onboarding, continue
+    console.log('User needs onboarding:', error)
   }
 
   return (
