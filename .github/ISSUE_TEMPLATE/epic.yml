@@ -1,0 +1,134 @@
+name: Epic
+description: Large feature or initiative spanning multiple stories
+title: "[Epic] "
+labels: ["type:epic", "status:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for large features or initiatives that will be broken down into multiple stories.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Goal
+      description: What problem are we solving? What's the goal?
+      placeholder: |
+        Example: Currently, students must be manually added to classes via database scripts. We need a self-service enrollment system that allows students to enroll in available classes, teachers to approve/reject enrollments, and admins to manage enrollment periods.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What's in scope? What's explicitly out of scope?
+      placeholder: |
+        ### In Scope
+        - Student enrollment UI
+        - Enrollment API endpoints
+        - Approval workflow
+        - Waitlist management
+
+        ### Out of Scope
+        - Payment processing (future epic)
+        - Course prerequisites (future epic)
+        - Bulk enrollment (separate story)
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: How do we know this epic is complete? List high-level criteria.
+      placeholder: |
+        - [ ] Students can view available classes
+        - [ ] Students can submit enrollment requests
+        - [ ] Teachers receive enrollment notifications
+        - [ ] Teachers can approve/reject from dashboard
+        - [ ] Waitlist automatically promotes when spots open
+        - [ ] Admins can configure enrollment periods
+        - [ ] All enrollment actions are audit logged
+        - [ ] RBAC permissions enforced
+    validations:
+      required: true
+
+  - type: textarea
+    id: stories
+    attributes:
+      label: Stories
+      description: List stories that make up this epic. Create story issues first, then link them here.
+      placeholder: |
+        - [ ] #124 Student enrollment UI
+        - [ ] #125 Enrollment API endpoint
+        - [ ] #126 Approval workflow
+        - [ ] #127 Waitlist management
+        - [ ] #128 Enrollment period configuration
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: What needs to be completed before this epic can start? What does this epic block?
+      placeholder: |
+        - Requires #89 (RBAC system) to be complete
+        - Blocks #145 (Grade management)
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks / Notes
+      description: Any risks, technical considerations, or important notes?
+      placeholder: |
+        - Need to handle concurrent enrollment requests
+        - Consider rate limiting for enrollment API
+        - Waitlist promotion logic needs careful testing
+
+  - type: dropdown
+    id: estimate
+    attributes:
+      label: Estimate
+      description: Size estimate for this epic
+      options:
+        - S (Small - 1-2 weeks)
+        - M (Medium - 2-4 weeks)
+        - L (Large - 1+ months)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Business priority
+      options:
+        - P0 - Critical
+        - P1 - High
+        - P2 - Medium
+        - P3 - Low
+      default: P2
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: areas
+    attributes:
+      label: Areas
+      description: Which parts of the system are affected?
+      options:
+        - label: Frontend
+          id: area-frontend
+        - label: Backend
+          id: area-backend
+        - label: Database
+          id: area-db
+        - label: Infrastructure
+          id: area-infra
+        - label: Documentation
+          id: area-docs
+        - label: Auth
+          id: area-auth
+        - label: Audit
+          id: area-audit
+

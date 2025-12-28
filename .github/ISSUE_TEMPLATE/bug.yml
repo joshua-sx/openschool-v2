@@ -1,0 +1,153 @@
+name: Bug
+description: Defect, error, or unexpected behavior
+title: "[Bug] "
+labels: ["type:bug", "status:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to report bugs, defects, or unexpected behavior.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Goal
+      description: What's wrong? What should happen instead?
+      placeholder: |
+        Example: Final grades are calculated incorrectly when assignments have different weights. A student with 90% on a 50% weighted assignment and 80% on a 50% weighted assignment should get 85%, but the system shows 80%.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this bug?
+      placeholder: |
+        1. Create a class with two assignments
+        2. Set Assignment A weight to 50%
+        3. Set Assignment B weight to 50%
+        4. Grade student: 90% on A, 80% on B
+        5. View final grade calculation
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should happen?
+      placeholder: |
+        Final grade = (90 × 0.5) + (80 × 0.5) = 85%
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happens?
+      placeholder: |
+        Final grade shows 80% (appears to be averaging without weights)
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser, OS, user role, school ID, etc.
+      placeholder: |
+        - Browser: Chrome 120
+        - OS: macOS 14.2
+        - User Role: Teacher
+        - School ID: 5
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: How do we know this bug is fixed?
+      placeholder: |
+        - [ ] Weighted grade calculation uses correct formula
+        - [ ] Final grade matches manual calculation
+        - [ ] Edge cases handled (zero weights, missing grades)
+        - [ ] Unit tests added for grade calculation
+        - [ ] Existing grades recalculated correctly
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Any dependencies for fixing this bug?
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks / Notes
+      description: Any risks or important notes?
+      placeholder: |
+        - May need to recalculate all existing final grades
+        - Verify calculation logic in service layer
+        - Check for similar issues in other calculation functions
+
+  - type: dropdown
+    id: estimate
+    attributes:
+      label: Estimate
+      description: Size estimate for fixing this bug
+      options:
+        - S (Small - < 1 day)
+        - M (Medium - 1-2 days)
+        - L (Large - 3+ days)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How urgent is this bug?
+      options:
+        - P0 - Critical (production broken, security issue)
+        - P1 - High (major feature blocker)
+        - P2 - Medium (minor bug, workaround exists)
+        - P3 - Low (cosmetic, edge case)
+      default: P2
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: areas
+    attributes:
+      label: Areas
+      description: Which parts of the system are affected?
+      options:
+        - label: Frontend
+          id: area-frontend
+        - label: Backend
+          id: area-backend
+        - label: Database
+          id: area-db
+        - label: Infrastructure
+          id: area-infra
+        - label: Documentation
+          id: area-docs
+        - label: Auth
+          id: area-auth
+        - label: Audit
+          id: area-audit
+
+  - type: checkboxes
+    id: security
+    attributes:
+      label: Security
+      description: Is this a security issue?
+      options:
+        - label: This is a security vulnerability
+          id: security-vuln
+

@@ -1,0 +1,129 @@
+name: Story
+description: User-facing feature or requirement
+title: "[Story] "
+labels: ["type:story", "status:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for user-facing features or requirements that can be completed independently.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Goal
+      description: What problem are we solving? What's the goal?
+      placeholder: |
+        Example: Students need a way to browse available classes and submit enrollment requests through the web application.
+    validations:
+      required: true
+
+  - type: input
+    id: epic
+    attributes:
+      label: Epic
+      description: Link to parent epic issue (if applicable)
+      placeholder: "#123 Student Enrollment System"
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What's in scope? What's explicitly out of scope?
+      placeholder: |
+        ### In Scope
+        - Class listing page with filters
+        - Class detail view
+        - Enrollment request form
+        - Success/error messaging
+
+        ### Out of Scope
+        - Payment processing
+        - Enrollment history (separate story)
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: How do we know this story is complete? Be specific and testable.
+      placeholder: |
+        - [ ] Students can view all available classes for their school
+        - [ ] Students can filter classes by subject, grade level, and teacher
+        - [ ] Students can view class details (description, schedule, capacity)
+        - [ ] Students can submit enrollment request with one click
+        - [ ] Success message shown after submission
+        - [ ] Error handling for full classes or closed enrollment
+        - [ ] Loading spinner during API calls
+        - [ ] Responsive design (mobile-friendly)
+        - [ ] Accessible (WCAG 2.1 AA)
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: What needs to be completed before this story can start?
+      placeholder: |
+        - Requires #125 (Enrollment API endpoint) to be complete
+        - Depends on #89 (RBAC) for permission checks
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks / Notes
+      description: Any risks, technical considerations, or important notes?
+      placeholder: |
+        - Need to handle race conditions (multiple students enrolling simultaneously)
+        - Consider pagination for schools with many classes
+        - Cache class availability to reduce API calls
+
+  - type: dropdown
+    id: estimate
+    attributes:
+      label: Estimate
+      description: Size estimate for this story
+      options:
+        - S (Small - 1-2 days)
+        - M (Medium - 3-5 days)
+        - L (Large - 1+ weeks)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Business priority
+      options:
+        - P0 - Critical
+        - P1 - High
+        - P2 - Medium
+        - P3 - Low
+      default: P2
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: areas
+    attributes:
+      label: Areas
+      description: Which parts of the system are affected?
+      options:
+        - label: Frontend
+          id: area-frontend
+        - label: Backend
+          id: area-backend
+        - label: Database
+          id: area-db
+        - label: Infrastructure
+          id: area-infra
+        - label: Documentation
+          id: area-docs
+        - label: Auth
+          id: area-auth
+        - label: Audit
+          id: area-audit
+

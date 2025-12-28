@@ -1,0 +1,118 @@
+name: Chore
+description: Maintenance, refactoring, or non-feature work
+title: "[Chore] "
+labels: ["type:chore", "status:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for maintenance, refactoring, tooling, or other non-feature work.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Goal
+      description: What needs to be done? Why?
+      placeholder: |
+        Example: Grade calculation logic is duplicated across multiple components and API routes. Need to centralize in a service layer for maintainability and consistency.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What's in scope? What's explicitly out of scope?
+      placeholder: |
+        ### In Scope
+        - Create GradeCalculationService
+        - Move calculation logic from components
+        - Move calculation logic from API routes
+        - Add unit tests
+        - Update imports across codebase
+
+        ### Out of Scope
+        - Changing calculation formulas
+        - Adding new calculation features
+        - UI changes
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: How do we know this chore is complete?
+      placeholder: |
+        - [ ] All grade calculation logic in GradeCalculationService
+        - [ ] No duplicate calculation code
+        - [ ] All existing tests pass
+        - [ ] New service has 100% test coverage
+        - [ ] All components/routes use service
+        - [ ] No breaking changes to API
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Any dependencies for this work?
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks / Notes
+      description: Any risks or important notes?
+      placeholder: |
+        - Need to ensure no behavior changes
+        - May need to update multiple files
+        - Consider backward compatibility during migration
+
+  - type: dropdown
+    id: estimate
+    attributes:
+      label: Estimate
+      description: Size estimate for this chore
+      options:
+        - S (Small - 1-2 days)
+        - M (Medium - 3-5 days)
+        - L (Large - 1+ weeks)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Business priority
+      options:
+        - P0 - Critical
+        - P1 - High
+        - P2 - Medium
+        - P3 - Low
+      default: P3
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: areas
+    attributes:
+      label: Areas
+      description: Which parts of the system are affected?
+      options:
+        - label: Frontend
+          id: area-frontend
+        - label: Backend
+          id: area-backend
+        - label: Database
+          id: area-db
+        - label: Infrastructure
+          id: area-infra
+        - label: Documentation
+          id: area-docs
+        - label: Auth
+          id: area-auth
+        - label: Audit
+          id: area-audit
+

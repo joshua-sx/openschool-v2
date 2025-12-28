@@ -1,0 +1,146 @@
+name: Spike
+description: Research, exploration, or proof-of-concept work
+title: "[Spike] "
+labels: ["type:spike", "status:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for research, exploration, or proof-of-concept work that will inform future implementation.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Goal
+      description: What are we researching? What question needs answering?
+      placeholder: |
+        Example: We need to send real-time notifications to teachers when students submit assignments. Need to evaluate if Supabase Realtime is suitable and how to implement it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: questions
+    attributes:
+      label: Questions to Answer
+      description: What specific questions need answers?
+      placeholder: |
+        1. Can Supabase Realtime handle our notification volume?
+        2. What's the latency for real-time updates?
+        3. How do we handle connection failures?
+        4. What's the cost impact?
+        5. Are there alternatives (WebSockets, Server-Sent Events)?
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What's in scope? What's explicitly out of scope?
+      placeholder: |
+        ### In Scope
+        - Research Supabase Realtime capabilities
+        - Build small POC for notification delivery
+        - Performance testing (latency, throughput)
+        - Cost analysis
+        - Comparison with alternatives
+
+        ### Out of Scope
+        - Full implementation (separate story)
+        - Integration with existing notification system
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: How do we know this spike is complete?
+      placeholder: |
+        - [ ] POC demonstrates real-time notification delivery
+        - [ ] Performance benchmarks documented
+        - [ ] Cost analysis completed
+        - [ ] Recommendation provided (use Supabase Realtime or alternative)
+        - [ ] Implementation approach outlined (if proceeding)
+    validations:
+      required: true
+
+  - type: textarea
+    id: deliverables
+    attributes:
+      label: Deliverables
+      description: What will be produced?
+      placeholder: |
+        - [ ] Research document with findings
+        - [ ] POC code (in separate branch)
+        - [ ] Performance test results
+        - [ ] Recommendation and next steps
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: What's needed to complete this spike?
+      placeholder: |
+        - Requires Supabase project access
+        - May need to create test data
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks / Notes
+      description: Any risks or important notes?
+      placeholder: |
+        - Realtime may not scale to our needs
+        - May need to consider hybrid approach
+        - Keep POC code for reference but don't merge
+
+  - type: dropdown
+    id: estimate
+    attributes:
+      label: Estimate
+      description: Size estimate for this spike
+      options:
+        - S (Small - 1-2 days)
+        - M (Medium - 3-5 days)
+        - L (Large - 1+ weeks)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Business priority
+      options:
+        - P0 - Critical
+        - P1 - High
+        - P2 - Medium
+        - P3 - Low
+      default: P2
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: areas
+    attributes:
+      label: Areas
+      description: Which parts of the system are affected?
+      options:
+        - label: Frontend
+          id: area-frontend
+        - label: Backend
+          id: area-backend
+        - label: Database
+          id: area-db
+        - label: Infrastructure
+          id: area-infra
+        - label: Documentation
+          id: area-docs
+        - label: Auth
+          id: area-auth
+        - label: Audit
+          id: area-audit
+
