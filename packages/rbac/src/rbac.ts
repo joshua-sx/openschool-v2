@@ -50,7 +50,13 @@ export function hasPermission(
   try {
     checkPermission(ctx, permission, options)
     return true
-  } catch {
+  } catch (error) {
+    // Expected: TRPCError with FORBIDDEN code for permission denied
+    if (error instanceof TRPCError && error.code === 'FORBIDDEN') {
+      return false
+    }
+    // Unexpected error - log it for debugging
+    console.error('Unexpected error in hasPermission:', error)
     return false
   }
 }

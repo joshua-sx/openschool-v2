@@ -36,12 +36,9 @@ export function createServerClient(cookieStore: any) {
 
 // Browser client for client components
 export function createBrowserClient() {
-  // #region agent log
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  fetch('http://127.0.0.1:7246/ingest/476ce0c7-201e-4257-ab00-c987a877a23c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'packages/auth/src/session.ts:39',message:'createBrowserClient env check',data:{urlExists:!!url,keyExists:!!key,urlLength:url?.length||0,keyLength:key?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
-  // #endregion
-  
+
   if (!url || !key) {
     throw new Error(
       `Missing Supabase environment variables. ` +

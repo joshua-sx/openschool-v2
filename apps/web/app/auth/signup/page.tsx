@@ -9,12 +9,6 @@ import Link from "next/link";
 import { BookOpen } from "lucide-react";
 
 export default function SignupPage() {
-  // #region agent log
-  const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const envKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  fetch('http://127.0.0.1:7246/ingest/476ce0c7-201e-4257-ab00-c987a877a23c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apps/web/app/auth/signup/page.tsx:12',message:'SignupPage env check',data:{urlExists:!!envUrl,keyExists:!!envKey,urlValue:envUrl?.substring(0,20)||'undefined',keyValue:envKey?.substring(0,10)||'undefined'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
-  // #endregion
-  
   const [supabase] = useState(() => createBrowserClient());
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
