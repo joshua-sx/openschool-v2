@@ -28,15 +28,33 @@ export async function createTRPCContext(): Promise<{
   }
 
   // Extract orgId and schoolId from custom headers
-  // These should be set by the client based on user's current selection
-  const orgId = headerStore.get('x-org-id') || undefined
-  const schoolId = headerStore.get('x-school-id') || undefined
+  const requestedOrgId = headerStore.get('x-org-id') || undefined
+  const requestedSchoolId = headerStore.get('x-school-id') || undefined
 
-  // Resolve tenant context with the active org/school if provided
-  const tenantContext = await resolveTenantContext(session.user.id, {
-    orgId,
-    schoolId,
-  })
+  // First resolve tenant context to get user's actual memberships
+  const tenantContext = await resolveTenantContext(session.user.id, {})
+
+  // Validate requested org/school against user's actual memberships
+  // Only use header values if user actually has access to them
+  const validatedOrgId = requestedOrgId && tenantContext.orgIds.includes(requestedOrgId)
+    ? requestedOrgId
+    : undefined
+  const validatedSchoolId = requestedSchoolId && tenantContext.schoolIds.includes(requestedSchoolId)
+    ? requestedSchoolId
+    : undefined
+
+  // If valid headers were provided, re-resolve with the active context
+  // This sets the effectiveRole based on the selected org/school
+  if (validatedOrgId || validatedSchoolId) {
+    const contextWithActive = await resolveTenantContext(session.user.id, {
+      orgId: validatedOrgId,
+      schoolId: validatedSchoolId,
+    })
+    return {
+      tenantContext: contextWithActive,
+      userId: session.user.id,
+    }
+  }
 
   return {
     tenantContext,
