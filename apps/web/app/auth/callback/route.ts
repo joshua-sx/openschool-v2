@@ -24,10 +24,9 @@ export async function GET(request: NextRequest) {
         // Resolve tenant context (optional - for future use)
         try {
           await resolveTenantContext(session.user.id);
-        } catch (err) {
-          // Tenant resolution is optional at this stage
-          // User might not have any org/school memberships yet
-          console.log("No tenant context found for user:", session.user.id);
+        } catch {
+          // New users won't have memberships yet - this is expected
+          console.info("No tenant context found for new user:", session.user.id);
         }
 
         // Redirect to dashboard

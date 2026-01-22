@@ -1,6 +1,6 @@
 import { TRPCError } from '@trpc/server'
 import { checkPermission } from '@openschool/rbac'
-import type { Permission, PermissionCheckOptions } from '@openschool/rbac'
+import type { Permission, PermissionCheckOptions, TenantContext } from '@openschool/rbac'
 import { publicProcedure } from './context'
 
 /**
@@ -26,6 +26,9 @@ export const requireAuth = publicProcedure.use(async ({ ctx, next }) => {
 /**
  * Protected procedure with permission check
  * Usage: protectedProcedure('students:read').query(...)
+ *
+ * For permissions with :own, :own_class, :own_child modifiers, use requireAuth
+ * and call assertPermission() in the handler after fetching the resource.
  */
 export function protectedProcedure(
   permission: Permission,
@@ -59,5 +62,40 @@ export function protectedProcedure(
       },
     })
   })
+}
+
+/**
+ * Check permission with options in a handler.
+ * Use this for permissions that need :own, :own_class, or :own_child modifiers
+ * where the resource ID comes from the input.
+ *
+ * @example
+ * // In a router handler:
+ * getById: requireAuth
+ *   .input(z.object({ studentId: z.string().uuid() }))
+ *   .query(async ({ ctx, input }) => {
+ *     const student = await getStudentById(ctx.tenantContext, input.studentId)
+ *     assertPermission(ctx.tenantContext, 'students:read', {
+ *       resourceStudentId: student.id,
+ *     })
+ *     return student
+ *   })
+ */
+export function assertPermission(
+  tenantContext: TenantContext,
+  permission: Permission,
+  options: PermissionCheckOptions = {}
+): void {
+  try {
+    checkPermission(tenantContext, permission, options)
+  } catch (error) {
+    if (error instanceof TRPCError) {
+      throw error
+    }
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: `Permission denied: ${permission}`,
+    })
+  }
 }
 

@@ -96,9 +96,12 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(redirectUrl);
       }
     } catch (error) {
-      // If there's an error, allow the request to continue
-      // The layout will handle auth checks
+      // On auth error, redirect to login for safety rather than allowing unauthenticated access
       console.error("Middleware auth error:", error);
+      const wwwUrl = process.env.NEXT_PUBLIC_WWW_URL || "http://www.openschool.local:3000";
+      const redirectUrl = new URL("/auth/login", wwwUrl);
+      redirectUrl.searchParams.set("error", "session_error");
+      return NextResponse.redirect(redirectUrl);
     }
 
     return response;

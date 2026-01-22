@@ -1,5 +1,5 @@
 import { initTRPC, TRPCError } from '@trpc/server'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { createServerClient, resolveTenantContext } from '@openschool/auth/server'
 import type { TenantContext } from '@openschool/rbac'
 
@@ -12,7 +12,8 @@ export async function createTRPCContext(): Promise<{
   userId: string | null
 }> {
   const cookieStore = await cookies()
-  
+  const headerStore = await headers()
+
   const supabase = createServerClient(cookieStore)
 
   const {
@@ -26,10 +27,16 @@ export async function createTRPCContext(): Promise<{
     }
   }
 
-  // Extract orgId and schoolId from headers or query params
-  // For now, we'll resolve without specific context
-  // In the future, these can come from request headers
-  const tenantContext = await resolveTenantContext(session.user.id, {})
+  // Extract orgId and schoolId from custom headers
+  // These should be set by the client based on user's current selection
+  const orgId = headerStore.get('x-org-id') || undefined
+  const schoolId = headerStore.get('x-school-id') || undefined
+
+  // Resolve tenant context with the active org/school if provided
+  const tenantContext = await resolveTenantContext(session.user.id, {
+    orgId,
+    schoolId,
+  })
 
   return {
     tenantContext,
