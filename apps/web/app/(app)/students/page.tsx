@@ -182,7 +182,7 @@ export default function StudentsPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {student.dateOfBirth
-                      ? new Date(student.dateOfBirth).toLocaleDateString()
+                      ? new Date(student.dateOfBirth + 'T00:00:00').toLocaleDateString()
                       : '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

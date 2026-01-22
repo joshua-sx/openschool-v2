@@ -203,11 +203,12 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* First Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
                 First Name
               </label>
               {isEditing ? (
                 <input
+                  id="firstName"
                   type="text"
                   value={formData.firstName}
                   onChange={(e) =>
@@ -225,11 +226,12 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
 
             {/* Last Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
                 Last Name
               </label>
               {isEditing ? (
                 <input
+                  id="lastName"
                   type="text"
                   value={formData.lastName}
                   onChange={(e) =>
@@ -247,11 +249,12 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
 
             {/* Student Number */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="studentNumber" className="block text-sm font-medium text-gray-700 mb-1">
                 Student Number
               </label>
               {isEditing ? (
                 <input
+                  id="studentNumber"
                   type="text"
                   value={formData.studentNumber}
                   onChange={(e) =>
@@ -270,11 +273,12 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
 
             {/* Date of Birth */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700 mb-1">
                 Date of Birth
               </label>
               {isEditing ? (
                 <input
+                  id="dateOfBirth"
                   type="date"
                   value={formData.dateOfBirth}
                   onChange={(e) =>
@@ -286,7 +290,7 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
                 <div className="flex items-center text-gray-900">
                   <Calendar className="w-4 h-4 text-gray-400 mr-2" />
                   {student.dateOfBirth
-                    ? new Date(student.dateOfBirth).toLocaleDateString()
+                    ? new Date(student.dateOfBirth + 'T00:00:00').toLocaleDateString()
                     : '-'}
                 </div>
               )}
@@ -294,11 +298,12 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email
               </label>
               {isEditing ? (
                 <input
+                  id="email"
                   type="email"
                   value={formData.email}
                   onChange={(e) =>
