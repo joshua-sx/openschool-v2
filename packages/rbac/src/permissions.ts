@@ -1,4 +1,14 @@
 export const PERMISSIONS = {
+    // Schools - everyone can read schools they belong to
+    'schools:read': [
+      'org_admin',
+      'school_admin',
+      'staff',
+      'teacher',
+      'parent',
+      'student',
+    ],
+
     // Student management
     'students:create': ['org_admin', 'school_admin', 'staff'],
     'students:read': [

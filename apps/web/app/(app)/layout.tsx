@@ -1,19 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import { redirect } from "next/navigation";
-import "../globals.css";
-import { createServerClient } from "@openschool/auth/server";
+import { createServerClient, resolveTenantContext } from "@openschool/auth/server";
 import { cookies } from "next/headers";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { AppShell } from "@/components/layout";
+import { TRPCProvider } from "@/lib/trpc/provider";
 
 export const metadata: Metadata = {
   title: "OpenSchool - Dashboard",
@@ -33,20 +23,27 @@ export default async function AppLayout({
   } = await supabase.auth.getSession();
 
   if (!session) {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://app.openschool.local:3000";
     const wwwUrl = process.env.NEXT_PUBLIC_WWW_URL || "http://www.openschool.local:3000";
     redirect(`${wwwUrl}/auth/login`);
   }
 
+  // Resolve tenant context
+  let tenantContext = null;
+  try {
+    tenantContext = await resolveTenantContext(session.user.id);
+  } catch (error) {
+    console.error("Error resolving tenant context:", error);
+  }
+
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        suppressHydrationWarning
+    <TRPCProvider>
+      <AppShell
+        user={{ email: session.user.email || "" }}
+        tenantContext={tenantContext}
       >
         {children}
-      </body>
-    </html>
+      </AppShell>
+    </TRPCProvider>
   );
 }
 
