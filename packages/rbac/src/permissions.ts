@@ -1,4 +1,15 @@
 export const PERMISSIONS = {
+  // Schools - everyone can read schools they belong to
+  'schools:read': [
+    'org_admin',
+    'org_viewer',
+    'school_admin',
+    'staff',
+    'teacher',
+    'parent',
+    'student',
+  ],
+
   // Student management
   'students:create': ['org_admin', 'school_admin', 'staff'],
   'students:read': [
@@ -63,5 +74,5 @@ export const PERMISSIONS = {
   // Audit logs
   'audit:read': ['org_admin', 'school_admin'],
 } as const
-  
-  export type Permission = keyof typeof PERMISSIONS
+
+export type Permission = keyof typeof PERMISSIONS
