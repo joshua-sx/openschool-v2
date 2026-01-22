@@ -2,6 +2,7 @@ import { getDb, usersOnOrg, usersOnSchool, teachersOnClass, parentStudent } from
 import { eq } from 'drizzle-orm'
 import type { TenantContext } from '@openschool/rbac'
 import type { Role } from '@openschool/rbac'
+import { safeParseRole } from '@openschool/rbac'
 
 export async function resolveTenantContext(
   userId: string,
@@ -44,15 +45,21 @@ export async function resolveTenantContext(
 
   if (requestContext.orgId && orgMemberships.some((m) => m.orgId === requestContext.orgId)) {
     const membership = orgMemberships.find((m) => m.orgId === requestContext.orgId)
-    effectiveRole = membership?.role as Role
+    effectiveRole = safeParseRole(membership?.role, 'org_viewer')
   } else if (
     requestContext.schoolId &&
     schoolMemberships.some((m) => m.schoolId === requestContext.schoolId)
   ) {
     const membership = schoolMemberships.find((m) => m.schoolId === requestContext.schoolId)
-    effectiveRole = membership?.role as Role
+    effectiveRole = safeParseRole(membership?.role, 'staff')
   } else if (linkedStudents.length > 0) {
     effectiveRole = 'parent'
+  } else if (orgMemberships.length > 0) {
+    // User has org membership but no specific context requested
+    effectiveRole = safeParseRole(orgMemberships[0].role, 'org_viewer')
+  } else if (schoolMemberships.length > 0) {
+    // User has school membership but no specific context requested
+    effectiveRole = safeParseRole(schoolMemberships[0].role, 'staff')
   }
 
   return {
