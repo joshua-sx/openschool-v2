@@ -52,7 +52,7 @@ export default function SignupPage() {
             className="inline-flex items-center space-x-2 mb-6 hover:opacity-80 transition-opacity"
           >
             <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center">
-              <BookOpen className="w-4 h-4 text-white" />
+              <BookOpen className="w-4 h-4 text-brand-foreground" />
             </div>
             <span className="text-lg font-bold tracking-tight">
               OpenSchool

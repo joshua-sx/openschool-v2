@@ -8,6 +8,7 @@
   /* Brand colors */
   --brand: #000000;
   --brand-hover: #1f1f1f;
+  --brand-foreground: #ffffff;
 
   /* Gray scale - semantic naming */
   --border-light: #f3f4f6;   /* gray-100 */
@@ -35,6 +36,7 @@
   /* Brand */
   --color-brand: var(--brand);
   --color-brand-hover: var(--brand-hover);
+  --color-brand-foreground: var(--brand-foreground);
 
   /* Borders */
   --color-border-light: var(--border-light);
@@ -57,9 +59,10 @@
     --background: #0a0a0a;
     --foreground: #ededed;
 
-    /* Dark mode brand */
+    /* Dark mode brand - inverted for contrast */
     --brand: #ffffff;
     --brand-hover: #e5e5e5;
+    --brand-foreground: #000000;
 
     /* Dark mode borders */
     --border-light: #27272a;

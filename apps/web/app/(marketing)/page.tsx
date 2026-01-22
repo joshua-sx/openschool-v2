@@ -278,7 +278,7 @@ export default function LandingPage() {
               className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
             >
               <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center">
-                <BookOpen className="w-4 h-4 text-white" />
+                <BookOpen className="w-4 h-4 text-brand-foreground" />
               </div>
               <span className="text-lg font-bold tracking-tight">
                 OpenSchool
@@ -306,7 +306,7 @@ export default function LandingPage() {
               </Link>
               <Link
                 href="/auth/signup"
-                className="bg-brand text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-hover transition-all duration-200 shadow-sm hover:shadow-md"
+                className="bg-brand text-brand-foreground px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-hover transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 Get Started
               </Link>
@@ -345,7 +345,7 @@ export default function LandingPage() {
                   </Link>
                   <Link
                     href="/auth/signup"
-                    className="bg-brand text-white px-6 py-3 rounded-lg font-medium text-center"
+                    className="bg-brand text-brand-foreground px-6 py-3 rounded-lg font-medium text-center"
                   >
                     Get Started
                   </Link>
@@ -386,7 +386,7 @@ export default function LandingPage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
                   href="/auth/signup"
-                  className="bg-brand text-white px-8 py-4 rounded-xl font-medium hover:bg-brand-hover transition-all flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5 duration-200"
+                  className="bg-brand text-brand-foreground px-8 py-4 rounded-xl font-medium hover:bg-brand-hover transition-all flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5 duration-200"
                 >
                   <span>Start Free Trial</span>
                   <ArrowRight className="w-4 h-4" />
@@ -640,7 +640,7 @@ export default function LandingPage() {
                 }`}
               >
                 {tier.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand text-white text-xs font-medium px-3 py-1 rounded-full">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand text-brand-foreground text-xs font-medium px-3 py-1 rounded-full">
                     Most Popular
                   </div>
                 )}
@@ -668,7 +668,7 @@ export default function LandingPage() {
                   href="/auth/signup"
                   className={`w-full py-2.5 rounded-xl font-medium transition-all duration-200 block text-center ${
                     tier.popular
-                      ? "bg-brand text-white hover:bg-brand-hover"
+                      ? "bg-brand text-brand-foreground hover:bg-brand-hover"
                       : "bg-surface-primary border border-border-default text-text-primary hover:bg-surface-secondary"
                   }`}
                 >
@@ -733,7 +733,7 @@ export default function LandingPage() {
           <div className="flex justify-center gap-4">
             <Link
               href="/auth/signup"
-              className="bg-brand text-white px-8 py-4 rounded-xl font-medium hover:bg-brand-hover transition-all duration-200"
+              className="bg-brand text-brand-foreground px-8 py-4 rounded-xl font-medium hover:bg-brand-hover transition-all duration-200"
             >
               Start Free Trial
             </Link>
