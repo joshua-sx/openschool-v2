@@ -3,9 +3,11 @@
 import { trpc } from '@/lib/trpc/client'
 import { AlertCircle, Loader2, Plus, Search, User } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 export default function StudentsPage() {
+  const router = useRouter()
   const [selectedSchoolId, setSelectedSchoolId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -33,6 +35,10 @@ export default function StudentsPage() {
     const query = searchQuery.toLowerCase()
     return fullName.includes(query) || studentNumber.includes(query)
   })
+
+  const navigateToStudent = (studentId: string) => {
+    router.push(`/students/${studentId}`)
+  }
 
   return (
     <div>
@@ -151,9 +157,23 @@ export default function StudentsPage() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredStudents.map((student) => (
-                <tr key={student.id} className="hover:bg-gray-50">
+                <tr
+                  key={student.id}
+                  className="hover:bg-gray-50 cursor-pointer"
+                  tabIndex={0}
+                  onClick={() => navigateToStudent(student.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      navigateToStudent(student.id)
+                    }
+                  }}
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <Link href={`/students/${student.id}`} className="flex items-center">
+                    <Link
+                      href={`/students/${student.id}`}
+                      className="flex items-center"
+                      onClick={(event) => event.stopPropagation()}
+                    >
                       <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3">
                         <span className="text-sm font-medium text-gray-600">
                           {student.firstName[0]}
