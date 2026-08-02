@@ -1,7 +1,9 @@
 # OpenSchool Phase 1 Gap Analysis
 
 **Date:** January 2025  
-**Status:** Current Implementation vs. Requirements
+**Status:** Historical snapshot; superseded for current capability claims
+
+> This document is retained as planning history and must not be used as evidence of current completion. Its percentages and “done” labels predate the current audit and production-readiness gates. Use [CAPABILITY_STATUS.md](./CAPABILITY_STATUS.md) and the active [M0 milestone](https://github.com/joshua-sx/openschool-v2/milestone/1) instead.
 
 This document provides a comprehensive gap analysis between what's currently implemented in the codebase and what's required for Phase 1 MVP.
 
@@ -344,4 +346,3 @@ This document provides a comprehensive gap analysis between what's currently imp
 
 **Last Updated:** January 2025  
 **Next Review:** After EPIC 1 verification complete
-

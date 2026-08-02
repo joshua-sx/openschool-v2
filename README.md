@@ -1,149 +1,125 @@
-![hero](OpenSchool-Cover.PNG)
+![OpenSchool cover](OpenSchool-Cover.PNG)
 
-<p align="center">
-	<h1 align="center"><b>OpenSchool</b></h1>
-<p align="center">
-    The OS for School Management
-    <br />
-    <br />
-    <a href="https://github.com/joshua-sx/openschool-v2/issues">Issues</a>
-  </p>
-</p>
+# OpenSchool
 
-<p align="center">
-  <a href="https://supabase.com">
-    <img src="https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase" />
-  </a>
-  <a href="https://nextjs.org">
-    <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js" />
-  </a>
-  <a href="https://bun.sh">
-    <img src="https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white" alt="Bun" />
-  </a>
-</p>
+OpenSchool is a pre-production school administration platform under active development. The long-term goal is an operating system that can support one school or a multi-school education organization without duplicating core workflows.
 
-## About OpenSchool
+> **Development status:** This repository is not approved for production use and must not be used with real student, family, staff, health, financial, or safeguarding data.
 
-OpenSchool is a modern K-12 school management platform built for developing and semi-digital contexts. It helps organizations manage multiple schools under one main account, with each school managing classes, students, and staff.
+[Current capability evidence](./docs/CAPABILITY_STATUS.md) · [M0 delivery milestone](https://github.com/joshua-sx/openschool-v2/milestone/1) · [Issue tracker](https://github.com/joshua-sx/openschool-v2/issues)
 
-## Features
+## What works today
 
-**Student Management**: Comprehensive student profiles with enrollment tracking, academic history, and parent contact management for complete digital student records.<br/>
-**Smart Gradebook**: Intuitive grading system with automated calculations, assignment distribution, and real-time progress updates for teachers.<br/>
-**Advanced Analytics**: Data-driven insights into student performance with visual dashboards, trend analysis, and custom reports for administrators.<br/>
-**Multi-school organizations**: One organization can manage many schools, each with their own classes and data.<br/>
-**Role-based access**: Different user types get the right level of access (admins, teachers, parents, students).<br/>
+The current development preview contains a narrow administrator-facing slice:
 
-## Get started
+- a Next.js application shell and marketing/auth routes;
+- Supabase email authentication helpers and callback/sign-out routes;
+- schemas for organizations, schools, users, memberships, classes, enrollments, students, grades, and audit events;
+- basic student list, create, detail, and edit flows;
+- early tenant-context, permission, and audit primitives;
+- CI-enforced formatting, linting, workspace type checks, unit tests, and production build.
 
-We are working on comprehensive documentation. For local development setup, see [LOCAL_DEV.md](./LOCAL_DEV.md).
+These components are not equivalent to a production-ready student information system. Multi-tenant isolation, scoped authorization, RLS, invitations, audit integrity, operational recovery, and complete school workflows remain active work.
 
-### Quick Start
+## What is not available
 
-```bash
-# Clone the repository
-git clone https://github.com/joshua-sx/openschool-v2.git
-cd openschool-v2
+OpenSchool does not currently provide production-ready attendance, gradebook/report cards, parent or student portals, messaging, announcements, admissions, scheduling, billing, document management, analytics, integrations, native mobile apps, compliance reporting, or customer support.
 
-# Install dependencies
-bun install
+See [docs/CAPABILITY_STATUS.md](./docs/CAPABILITY_STATUS.md) for the evidence and status of each area.
 
-# Set up environment variables
-bash scripts/setup-env.sh
+## Product direction
 
-# Set up localhost entries
-bash scripts/setup-localhost.sh
+The intended platform serves primary and high schools through one shared domain model. High-school requirements drive the complex course, schedule, credit, and assessment cases; primary schools use the same foundations through simpler operating profiles.
 
-# Run migrations
-bun run db:migrate
+Implementation is dependency-ordered:
 
-# Start development server
-bun run dev
-```
+1. truthful, reproducible engineering foundation;
+2. verified tenant isolation, identity, authorization, RLS, and audit;
+3. people, school, enrollment, and academic structure;
+4. complete operational workflows such as attendance and reporting;
+5. portals, communications, admissions, documents, finance, analytics, and integrations.
 
-## App Architecture
+## Technology
 
-- **Monorepo**: Turborepo
-- **Runtime**: Bun
-- **Frontend**: Next.js + React + TypeScript
-- **Database**: Supabase (Postgres)
-- **UI**: shadcn/ui + TailwindCSS
-- **Auth**: Supabase Auth + role-based permissions
+- **Monorepo:** Turborepo
+- **Runtime and package manager:** Bun 1.3.14
+- **Web:** Next.js 16, React 19, TypeScript
+- **Styling:** Tailwind CSS 4
+- **API:** tRPC 11
+- **Authentication:** Supabase Auth helpers
+- **Database:** PostgreSQL with Drizzle ORM
+- **Quality:** Biome, ESLint, TypeScript, Node-compatible tests, GitHub Actions
 
-### Hosting
+No supported production hosting configuration is published yet.
 
-- **Supabase** (database, auth)
-- **Vercel** (web app)
+## Repository structure
 
-### Services
-
-- **GitHub Actions** (CI/CD)
-
-## Security & Compliance
-
-OpenSchool is built with security and compliance in mind:
-
-- **Access control**: Permission checks to prevent unauthorized actions
-- **Audit logging**: Track key actions for accountability
-- **Education data privacy**: Built with student data protection in mind
-
-## Project Structure
-
-```
+```text
 openschool-v2/
 ├── apps/
-│   ├── web/                    # Next.js web application
-│   └── api/                    # Standalone API server (planned)
+│   └── web/             # Next.js application
 ├── packages/
-│   ├── db/                     # Database schema & migrations
-│   ├── rbac/                   # Role-based access control
-│   ├── auth/                   # Authentication utilities
-│   ├── audit/                  # Audit logging
-│   ├── ui/                     # Shared UI components
-│   └── config/                 # Shared configurations
-├── scripts/                    # Build & utility scripts
-└── docs/                       # Documentation
+│   ├── audit/           # Early audit-event helper
+│   ├── auth/            # Supabase and tenant-context helpers
+│   ├── db/              # Drizzle schema and migrations
+│   └── rbac/            # Role and permission primitives
+├── scripts/             # Local development utilities
+└── docs/                # Product, engineering, and workflow documentation
 ```
 
-## Development
+## Local development
+
+Environment and migration reproducibility is being corrected in [#66](https://github.com/joshua-sx/openschool-v2/issues/66). Until that work is complete, local setup is for contributors who can inspect and supply the required development-only configuration themselves.
 
 ```bash
-# Run all apps
+git clone https://github.com/joshua-sx/openschool-v2.git
+cd openschool-v2
+bun install --frozen-lockfile
+```
+
+The application currently reads these variables:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `DATABASE_URL`
+- `NEXT_PUBLIC_APP_URL`
+- `NEXT_PUBLIC_WWW_URL`
+
+Do not commit credentials. See [LOCAL_DEV.md](./LOCAL_DEV.md) for the current development workflow and #66 for known setup limitations.
+
+```bash
+# Start development
 bun run dev
 
-# Run specific app
-bun run dev --filter=web
-
-# Type check
-bun run typecheck
-
-# Lint
+# Run the enforced local quality gate
+bun run check
 bun run lint
+bun run typecheck
+bun test
 
-# Build
+# Build with valid development configuration
 bun run build
 ```
 
-## Database
+Database generation and migration commands exist, but the seed command and migration/RLS history are not yet a verified clean-setup path. Track that work in #66 rather than using the repository with real data.
 
-```bash
-# Generate types after schema changes
-bun run db:generate
+## Security and privacy status
 
-# Run migrations
-bun run db:migrate
+Security-sensitive code exists, but the platform has not completed a production security or privacy review. In particular:
 
-# Seed database
-bun run db:seed
+- tenant isolation is not yet proven across all access paths;
+- the permission model and organization hierarchy require redesign and negative testing;
+- existing RLS policies are not an approved production boundary;
+- audit writes are not yet guaranteed to be atomic with mutations;
+- backup, restore, incident response, retention, and offboarding are not demonstrated;
+- no FERPA, GDPR, or jurisdiction-specific compliance claim is made.
 
-# Open Drizzle Studio
-bun run db:studio
-```
+Security and privacy decisions are tracked in [#68](https://github.com/joshua-sx/openschool-v2/issues/68) and subsequent M1 work.
 
-## Repo Activity
+## Contributing
 
-![Alt](https://repobeats.axiom.co/api/embed/e55f0c74b33085545ccf3410aae537fa0cd917af.svg "Repobeats analytics image")
+Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a change. Pull requests must pass the same frozen-install, check, lint, type-check, test, and build workflow enforced in GitHub Actions.
 
 ## License
 
-License is not finalized yet. If you plan to deploy OpenSchool commercially, please open an issue to discuss licensing.
+The repository does not currently state a reuse or deployment license. Obtain appropriate guidance before planning reuse or deployment.

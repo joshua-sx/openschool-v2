@@ -3,122 +3,106 @@
 import { motion } from 'framer-motion'
 import {
   ArrowRight,
-  Award,
   BarChart3,
   BookOpen,
   Check,
   ChevronDown,
   Menu,
-  MessageSquare,
-  Play,
   Shield,
-  Smartphone,
-  Star,
   Users,
   X,
-  Zap,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 
 const navigationLinks = [
-  { id: 'features', label: 'Features', href: '#features' },
-  { id: 'how-it-works', label: 'How It Works', href: '#how-it-works' },
-  { id: 'pricing', label: 'Pricing', href: '#pricing' },
+  { id: 'current-scope', label: 'Current Scope', href: '#current-scope' },
+  { id: 'approach', label: 'Approach', href: '#approach' },
+  { id: 'roadmap', label: 'Roadmap', href: '#roadmap' },
   { id: 'faq', label: 'FAQ', href: '#faq' },
 ]
 
 const howItWorksSteps = [
   {
-    id: 'setup',
-    title: 'Quick Setup',
-    description: 'Create your school profile and customize your dashboard in minutes',
+    id: 'evidence',
+    title: 'Show the evidence',
+    description: 'Tie every public capability to working code, tests, or an explicit roadmap item.',
     icon: BookOpen,
   },
   {
-    id: 'connect',
-    title: 'Connect Everyone',
-    description: 'Invite teachers, students, and parents to join your digital ecosystem',
+    id: 'foundation',
+    title: 'Harden the foundation',
+    description: 'Prove tenant isolation, authorization, auditability, and recovery before pilots.',
+    icon: Shield,
+  },
+  {
+    id: 'workflow',
+    title: 'Deliver complete workflows',
+    description: 'Build school outcomes end to end instead of shipping disconnected feature demos.',
+    icon: Users,
+  },
+]
+
+const validationPriorities = [
+  {
+    id: 'isolation',
+    title: 'Tenant isolation',
+    description:
+      'Prove that organization and school data remains isolated across every API, database, file, job, cache, and export path.',
+    icon: Shield,
+  },
+  {
+    id: 'school-fit',
+    title: 'School workflow fit',
+    description:
+      'Validate primary and high-school workflows with administrators, teachers, families, and students before calling them complete.',
     icon: Users,
   },
   {
-    id: 'succeed',
-    title: 'Watch Success',
-    description: 'Track progress, improve outcomes, and celebrate achievements together',
-    icon: Award,
+    id: 'operations',
+    title: 'Operational readiness',
+    description:
+      'Demonstrate monitoring, backup and restore, incident response, accessibility, support, and safe data offboarding.',
+    icon: BarChart3,
   },
 ]
 
-const testimonials = [
+const roadmapStages = [
   {
-    id: 'sarah',
-    name: 'Sarah Johnson',
-    role: 'Principal, Riverside Elementary',
-    content:
-      'OpenSchool transformed how we manage our school. Communication is seamless and parents are more engaged than ever.',
-    rating: 5,
-  },
-  {
-    id: 'michael',
-    name: 'Michael Chen',
-    role: 'Teacher, Lincoln High School',
-    content:
-      'The gradebook and assignment features save me hours each week. My students love the interactive learning tools.',
-    rating: 5,
-  },
-  {
-    id: 'maria',
-    name: 'Maria Rodriguez',
-    role: 'Parent of 2 students',
-    content:
-      "Finally, I can stay connected with my children's education. The app makes it so easy to track their progress.",
-    rating: 5,
-  },
-]
-
-const testimonialStars = [1, 2, 3, 4, 5] as const
-
-const pricingTiers = [
-  {
-    id: 'starter',
-    name: 'Starter',
-    price: 'Free',
-    description: 'Perfect for small schools getting started',
+    id: 'preview',
+    name: 'Development preview',
+    status: 'Available now',
+    description: 'Useful for evaluating the direction—not for operating a school with real data.',
     features: [
-      'Up to 100 students',
-      'Basic gradebook',
-      'Parent communication',
-      'Mobile app access',
+      'Organization and school schema',
+      'Email authentication shell',
+      'Basic student list, create, view, and edit flows',
+      'Early role and audit primitives',
     ],
-    popular: false,
   },
   {
-    id: 'professional',
-    name: 'Professional',
-    price: '$29/month',
-    description: 'Everything you need for growing schools',
+    id: 'foundation',
+    name: 'Production foundation',
+    status: 'In progress',
+    description: 'Security and operational gates required before controlled school pilots.',
     features: [
-      'Up to 500 students',
-      'Advanced analytics',
-      'Custom reports',
-      'Priority support',
-      'Integration tools',
+      'Verified tenant isolation and organization hierarchy',
+      'Identity, scoped authorization, and privileged access',
+      'Auditable migrations, RLS, and recovery evidence',
+      'Production monitoring and go/no-go review',
     ],
-    popular: true,
   },
   {
-    id: 'enterprise',
-    name: 'Enterprise',
-    price: 'Custom',
-    description: 'Tailored solutions for large institutions',
+    id: 'operations',
+    name: 'School operations',
+    status: 'Planned',
+    description: 'Complete workflows delivered in dependency order after the foundation is proven.',
     features: [
-      'Unlimited students',
-      'Custom integrations',
-      'Dedicated support',
-      'Advanced security',
-      'Training included',
+      'Admissions, people, enrollment, and academic structure',
+      'Attendance, assessment, gradebook, and report cards',
+      'Portals, communications, scheduling, and documents',
+      'Billing, analytics, reporting, and integrations',
     ],
-    popular: false,
   },
 ]
 
@@ -126,93 +110,67 @@ const features = [
   {
     id: 'student-management',
     icon: Users,
-    title: 'Student Management',
+    title: 'Basic student records',
     description:
-      'Comprehensive student profiles, enrollment tracking, and academic history management.',
-    benefits: ['Digital student records', 'Attendance tracking', 'Parent contact management'],
-    userType: 'Administrators',
+      'Authenticated administrators can list, create, view, and edit a limited student record.',
+    status: 'Preview',
   },
   {
-    id: 'gradebook',
+    id: 'organization-model',
     icon: BookOpen,
-    title: 'Smart Gradebook',
+    title: 'Organization and school model',
     description:
-      'Intuitive grading system with automated calculations and real-time progress updates.',
-    benefits: ['Automated calculations', 'Assignment distribution', 'Progress reports'],
-    userType: 'Teachers',
+      'The schema represents organizations, schools, memberships, classes, and enrollments; hierarchy behavior is still being hardened.',
+    status: 'Partial',
   },
   {
-    id: 'analytics',
-    icon: BarChart3,
-    title: 'Advanced Analytics',
-    description: 'Data-driven insights into student performance with visual dashboards.',
-    benefits: ['Performance dashboards', 'Trend analysis', 'Custom reports'],
-    userType: 'Administrators',
-  },
-  {
-    id: 'communication',
-    icon: MessageSquare,
-    title: 'Unified Communication',
-    description: 'Seamless messaging between teachers, students, and parents.',
-    benefits: ['Real-time messaging', 'Announcements', 'Discussion forums'],
-    userType: 'Everyone',
-  },
-  {
-    id: 'security',
+    id: 'access-foundation',
     icon: Shield,
-    title: 'Enterprise Security',
-    description: 'Bank-level security with data encryption and role-based access.',
-    benefits: ['Data encryption', 'Role-based access', 'FERPA compliance'],
-    userType: 'IT Teams',
+    title: 'Access-control foundation',
+    description:
+      'Authentication, tenant context, permission primitives, and focused authorization tests exist; the model is not yet production-approved.',
+    status: 'Partial',
   },
   {
-    id: 'mobile',
-    icon: Smartphone,
-    title: 'Mobile Experience',
-    description: 'Native mobile apps ensuring access anytime, anywhere.',
-    benefits: ['Native apps', 'Push notifications', 'Offline access'],
-    userType: 'Parents & Students',
-  },
-  {
-    id: 'integrations',
-    icon: Zap,
-    title: 'Smart Integrations',
-    description: 'Connect with existing school systems and third-party tools.',
-    benefits: ['LMS integration', 'SIS connectivity', 'API access'],
-    userType: 'IT Teams',
+    id: 'delivery-foundation',
+    icon: BarChart3,
+    title: 'Verified delivery gate',
+    description:
+      'Frozen installs, formatting, lint, workspace type checks, unit tests, and production builds run in GitHub Actions.',
+    status: 'Available',
   },
 ]
 
 const faqs = [
   {
-    id: '1',
-    question: 'Is OpenSchool free to use?',
+    id: 'available',
+    question: 'What works today?',
     answer:
-      'Yes, our Starter plan is completely free for schools with up to 100 students. It includes all essential features to get you up and running.',
+      'The development preview includes the application shell, email authentication, organization and school data models, and limited administrator student-record flows. The public capability status links each claim to code.',
   },
   {
-    id: '2',
-    question: 'Can I import data from my existing system?',
+    id: 'real-data',
+    question: 'Can a school use real student data yet?',
     answer:
-      'Absolutely. We offer easy import tools for CSV files and direct integrations with many popular SIS platforms on our Professional and Enterprise plans.',
+      'No. OpenSchool is pre-production software. Tenant isolation, access control, privacy, recovery, and operational readiness must be independently verified before any real school data is used.',
   },
   {
-    id: '3',
-    question: 'Is my data secure?',
+    id: 'school-types',
+    question: 'Is OpenSchool for primary schools or high schools?',
     answer:
-      'Security is our top priority. We use bank-level encryption for all data and are fully FERPA and GDPR compliant. Your data is backed up daily.',
+      'The target architecture is shared across both. High schools drive the more complex scheduling, course, credit, and assessment requirements; primary schools use the same foundations with simpler operating profiles. These workflows still require field validation.',
   },
   {
-    id: '4',
-    question: 'Do you offer training for teachers?',
+    id: 'multi-school',
+    question: 'Does multi-school management work?',
     answer:
-      'Yes! We provide comprehensive video tutorials, a help center, and live onboarding sessions for your staff to ensure a smooth transition.',
+      'The schema and early tenant context support organizations with multiple schools, but descendant visibility, scoped roles, isolation, and context selection are part of the active production-foundation roadmap.',
   },
   {
-    id: '5',
-    question: 'Can parents access OpenSchool?',
+    id: 'pricing',
+    question: 'Is there a free trial or published pricing?',
     answer:
-      "Yes, we have a dedicated mobile app and web portal for parents to track their child's progress, attendance, and communicate with teachers.",
+      'No commercial plans or trial are currently offered. Pricing will be evaluated only after the product is safe for controlled pilots and the support and hosting model is understood.',
   },
 ]
 
@@ -268,14 +226,15 @@ export default function LandingPage() {
                 href="/auth/login"
                 className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-150"
               >
-                Sign In
+                Developer Sign In
               </Link>
-              <Link
-                href="/auth/signup"
+              <button
+                type="button"
+                onClick={() => scrollToSection('#current-scope')}
                 className="bg-brand text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-hover transition-all duration-200 shadow-sm hover:shadow-md"
               >
-                Get Started
-              </Link>
+                View Current Scope
+              </button>
             </div>
 
             <button
@@ -306,14 +265,15 @@ export default function LandingPage() {
                 ))}
                 <div className="flex flex-col space-y-3 pt-4 border-t border-border-light">
                   <Link href="/auth/login" className="text-left text-text-primary font-medium py-2">
-                    Sign In
+                    Developer Sign In
                   </Link>
-                  <Link
-                    href="/auth/signup"
+                  <button
+                    type="button"
+                    onClick={() => scrollToSection('#current-scope')}
                     className="bg-brand text-white px-6 py-3 rounded-lg font-medium text-center"
                   >
-                    Get Started
-                  </Link>
+                    View Current Scope
+                  </button>
                 </div>
               </nav>
             </motion.div>
@@ -335,33 +295,36 @@ export default function LandingPage() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-text-muted opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-text-primary" />
                 </span>
-                <span>Now available for districts</span>
+                <span>Early development preview</span>
               </div>
 
               <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-text-primary tracking-tight mb-6 leading-[1.1]">
-                The modern operating system for schools.
+                Building the operating system schools deserve.
               </h1>
 
               <p className="text-xl text-text-secondary leading-relaxed max-w-2xl mx-auto mb-10">
-                Streamline operations, enhance learning, and build stronger communities with a
-                platform designed for the future of education.
+                OpenSchool is an early-stage, publicly developed school administration platform. The
+                current preview demonstrates basic organization, school, account, and student record
+                flows while the production foundation is being hardened.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link
-                  href="/auth/signup"
-                  className="bg-brand text-white px-8 py-4 rounded-xl font-medium hover:bg-brand-hover transition-all flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5 duration-200"
-                >
-                  <span>Start Free Trial</span>
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
                 <button
                   type="button"
+                  onClick={() => scrollToSection('#current-scope')}
+                  className="bg-brand text-white px-8 py-4 rounded-xl font-medium hover:bg-brand-hover transition-all flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5 duration-200"
+                >
+                  <span>See What Works</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+                <Link
+                  href="https://github.com/joshua-sx/openschool-v2/milestone/1"
+                  target="_blank"
+                  rel="noreferrer"
                   className="bg-surface-primary text-text-primary border border-border-default px-8 py-4 rounded-xl font-medium hover:bg-surface-secondary transition-all duration-200 flex items-center justify-center space-x-2"
                 >
-                  <Play className="w-4 h-4" />
-                  <span>Watch Demo</span>
-                </button>
+                  <span>Review the Roadmap</span>
+                </Link>
               </div>
             </motion.div>
           </div>
@@ -426,29 +389,29 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
+            <p className="text-center text-xs text-text-muted mt-4">
+              Illustrative interface preview. No customer or live school data is shown.
+            </p>
           </motion.div>
         </div>
       </section>
 
-      {/* Trusted By Strip */}
+      {/* Public Build Principles */}
       <section className="py-12 border-b border-border-light bg-surface-primary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <p className="text-sm font-medium text-text-secondary mb-8 uppercase tracking-wider">
-            Trusted by leading institutions
+            Built in public
           </p>
-          <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-50 grayscale">
-            {/* Placeholder Logos - using text for simplicity but styled to look like logos */}
-            <div className="text-xl font-bold font-serif">HARVARD</div>
-            <div className="text-xl font-bold font-mono">Stanford</div>
-            <div className="text-xl font-extrabold tracking-tighter">MIT</div>
-            <div className="text-xl font-bold">Berkeley</div>
-            <div className="text-xl font-bold font-serif italic">Oxford</div>
+          <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16 text-sm font-semibold text-text-primary">
+            <div>Public issue tracker</div>
+            <div>Evidence-backed capability status</div>
+            <div>Reviewable delivery gates</div>
           </div>
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section id="features" className="py-24 bg-surface-secondary/50">
+      {/* Current Scope Grid */}
+      <section id="current-scope" className="py-24 bg-surface-secondary/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -457,10 +420,10 @@ export default function LandingPage() {
             className="text-center mb-16"
           >
             <h2 className="text-3xl font-bold text-text-primary tracking-tight mb-4">
-              Everything you need to run a modern school
+              What the preview supports today
             </h2>
             <p className="text-text-secondary max-w-2xl mx-auto">
-              Powerful tools for administrators, teachers, students, and parents.
+              A narrow, inspectable slice of the intended platform—not a production school system.
             </p>
           </motion.div>
 
@@ -480,6 +443,9 @@ export default function LandingPage() {
                     <IconComponent className="w-5 h-5 text-text-primary" />
                   </div>
                   <h3 className="text-lg font-semibold text-text-primary mb-2">{feature.title}</h3>
+                  <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-surface-secondary border border-border-light text-text-secondary mb-3">
+                    {feature.status}
+                  </span>
                   <p className="text-sm text-text-secondary leading-relaxed">
                     {feature.description}
                   </p>
@@ -490,15 +456,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* How It Works */}
-      <section id="how-it-works" className="py-24 bg-surface-primary border-t border-border-light">
+      {/* Delivery Approach */}
+      <section id="approach" className="py-24 bg-surface-primary border-t border-border-light">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-text-primary tracking-tight mb-4">
-              How it works
+              How we are building it
             </h2>
             <p className="text-text-secondary max-w-2xl mx-auto">
-              Get started in minutes, not months.
+              Trust must be earned before breadth is marketed.
             </p>
           </div>
 
@@ -530,83 +496,73 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* Validation Priorities */}
       <section className="py-24 bg-surface-secondary/50 border-t border-border-light">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-text-primary tracking-tight mb-4">
-              Loved by educators
+              What must be proven before pilots
             </h2>
             <p className="text-text-secondary max-w-2xl mx-auto">
-              Don&apos;t just take our word for it.
+              These are active validation gates, not completed security or readiness claims.
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((item, index) => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-surface-primary p-8 rounded-xl border border-border-default shadow-sm"
-              >
-                <div className="flex gap-1 mb-4">
-                  {testimonialStars.slice(0, item.rating).map((star) => (
-                    <Star key={star} className="w-4 h-4 fill-current text-text-primary" />
-                  ))}
-                </div>
-                <p className="text-text-secondary mb-6 leading-relaxed">
-                  &ldquo;{item.content}&rdquo;
-                </p>
-                <div>
-                  <div className="font-semibold text-text-primary">{item.name}</div>
-                  <div className="text-sm text-text-secondary">{item.role}</div>
-                </div>
-              </motion.div>
-            ))}
+            {validationPriorities.map((item, index) => {
+              const Icon = item.icon
+              return (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  className="bg-surface-primary p-8 rounded-xl border border-border-default shadow-sm"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-surface-secondary border border-border-light flex items-center justify-center mb-5">
+                    <Icon className="w-5 h-5 text-text-primary" />
+                  </div>
+                  <h3 className="font-semibold text-text-primary mb-3">{item.title}</h3>
+                  <p className="text-text-secondary leading-relaxed">{item.description}</p>
+                </motion.div>
+              )
+            })}
           </div>
         </div>
       </section>
 
-      {/* Pricing */}
-      <section id="pricing" className="py-24 bg-surface-primary border-t border-border-light">
+      {/* Roadmap */}
+      <section id="roadmap" className="py-24 bg-surface-primary border-t border-border-light">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-text-primary tracking-tight mb-4">
-              Simple pricing
+              A staged path to school readiness
             </h2>
             <p className="text-text-secondary max-w-2xl mx-auto">
-              Transparent pricing for schools of all sizes.
+              No commercial plans or free trial are offered while the platform remains
+              pre-production.
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {pricingTiers.map((tier, index) => (
+            {roadmapStages.map((stage, index) => (
               <motion.div
-                key={tier.id}
+                key={stage.id}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className={`relative p-8 rounded-xl border ${
-                  tier.popular
-                    ? 'border-brand shadow-lg'
-                    : 'border-border-default bg-surface-secondary/50'
-                }`}
+                className="relative p-8 rounded-xl border border-border-default bg-surface-secondary/50"
               >
-                {tier.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand text-white text-xs font-medium px-3 py-1 rounded-full">
-                    Most Popular
-                  </div>
-                )}
-                <h3 className="text-lg font-semibold text-text-primary mb-2">{tier.name}</h3>
-                <div className="text-3xl font-bold text-text-primary mb-4">{tier.price}</div>
-                <p className="text-text-secondary text-sm mb-6">{tier.description}</p>
+                <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-surface-primary border border-border-default text-text-secondary mb-4">
+                  {stage.status}
+                </span>
+                <h3 className="text-lg font-semibold text-text-primary mb-2">{stage.name}</h3>
+                <p className="text-text-secondary text-sm mb-6">{stage.description}</p>
 
                 <ul className="space-y-3 mb-8">
-                  {tier.features.map((feature) => (
+                  {stage.features.map((feature) => (
                     <li
                       key={feature}
                       className="flex items-center gap-3 text-sm text-text-secondary"
@@ -618,14 +574,12 @@ export default function LandingPage() {
                 </ul>
 
                 <Link
-                  href="/auth/signup"
-                  className={`w-full py-2.5 rounded-xl font-medium transition-all duration-200 block text-center ${
-                    tier.popular
-                      ? 'bg-brand text-white hover:bg-brand-hover'
-                      : 'bg-surface-primary border border-border-default text-text-primary hover:bg-surface-secondary'
-                  }`}
+                  href="https://github.com/joshua-sx/openschool-v2/milestone/1"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full py-2.5 rounded-xl font-medium transition-all duration-200 block text-center bg-surface-primary border border-border-default text-text-primary hover:bg-surface-secondary"
                 >
-                  Get Started
+                  View delivery issues
                 </Link>
               </motion.div>
             ))}
@@ -675,24 +629,28 @@ export default function LandingPage() {
       <section className="py-24 bg-surface-primary border-t border-border-light">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold text-text-primary tracking-tight mb-6">
-            Ready to get started?
+            Follow the build, not a promise
           </h2>
           <p className="text-lg text-text-secondary mb-8">
-            Join thousands of forward-thinking schools today.
+            Review the evidence, open issues, and production gates as OpenSchool develops.
           </p>
           <div className="flex justify-center gap-4">
             <Link
-              href="/auth/signup"
+              href="https://github.com/joshua-sx/openschool-v2/milestone/1"
+              target="_blank"
+              rel="noreferrer"
               className="bg-brand text-white px-8 py-4 rounded-xl font-medium hover:bg-brand-hover transition-all duration-200"
             >
-              Start Free Trial
+              Review the Roadmap
             </Link>
-            <button
-              type="button"
+            <Link
+              href="https://github.com/joshua-sx/openschool-v2"
+              target="_blank"
+              rel="noreferrer"
               className="bg-surface-primary text-text-primary border border-border-default px-8 py-4 rounded-xl font-medium hover:bg-surface-secondary transition-all duration-200"
             >
-              Contact Sales
-            </button>
+              Inspect the Source
+            </Link>
           </div>
         </div>
       </section>
@@ -701,7 +659,7 @@ export default function LandingPage() {
       <footer className="py-12 bg-surface-primary border-t border-border-light">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <p className="text-text-muted text-sm">
-            © 2025 OpenSchool. Designed for the future of education.
+            © 2026 OpenSchool. Pre-production software—do not use with real student data.
           </p>
         </div>
       </footer>

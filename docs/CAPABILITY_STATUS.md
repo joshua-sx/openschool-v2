@@ -1,0 +1,56 @@
+# OpenSchool Capability Status
+
+**Last verified:** 2026-08-02
+**Product stage:** Pre-production development preview
+
+This document is the evidence source for public capability claims. A schema or placeholder does not count as an operational feature. A capability is marked available only when a user-facing workflow exists and the repository contains supporting implementation evidence.
+
+## Status definitions
+
+- **Preview:** A narrow workflow can be exercised locally, but it is not approved for real school data.
+- **Partial:** Some schema or code exists, but the workflow, isolation, integrity, or UX is incomplete.
+- **Planned:** No supported user workflow exists.
+- **Blocked:** Work requires a governing architecture, security, privacy, or product decision.
+
+## Current evidence
+
+| Capability | Status | Evidence | Limits |
+|---|---|---|---|
+| Marketing and authentication routes | Preview | [Marketing routes](../apps/web/app/%28marketing%29), [auth routes](../apps/web/app/auth) | No supported customer onboarding or tenant provisioning |
+| Organization and school data model | Partial | [Organizations](../packages/db/src/schema/organizations.ts), [schools](../packages/db/src/schema/schools.ts) | Hierarchy, effective dating, descendant access, and isolation require M1 decisions |
+| Users and memberships | Partial | [Users](../packages/db/src/schema/users.ts), [memberships](../packages/db/src/schema/memberships.ts) | Person/account lifecycle and scoped role assignments are incomplete |
+| Tenant context | Partial | [Tenant-context resolver](../packages/auth/src/context.ts) | Context selection and organization-level visibility are not production-approved |
+| Role/permission primitives | Partial | [RBAC package](../packages/rbac), [focused tests](../packages/rbac/src/rbac.test.ts) | Flat role modifiers do not yet provide the required capability model or full tenant isolation |
+| Basic student records | Preview | [Student pages](../apps/web/app/%28app%29/students), [router](../apps/web/src/server/routers/students.ts), [service](../apps/web/src/services/students.ts) | Limited fields and workflows; no production isolation, duplicate resolution, history, households, or complete enrollment lifecycle |
+| Classes, enrollments, and grade schema | Partial | [Classes](../packages/db/src/schema/classes.ts), [enrollments](../packages/db/src/schema/enrollments.ts), [grades](../packages/db/src/schema/grades.ts) | Schema presence only; no complete supported gradebook or scheduling workflow |
+| Audit helper | Partial | [Audit package](../packages/audit), [student service calls](../apps/web/src/services/students.ts) | Writes are not yet atomic with business mutations and coverage is incomplete |
+| Repository quality gate | Preview | [Quality workflow](../.github/workflows/quality.yml), [workspace type configs](../tsconfig.base.json), [unit tests](../packages/rbac/src/rbac.test.ts) | Covers build-time quality; it is not a security, integration, performance, accessibility, or disaster-recovery certification |
+
+## Not currently available
+
+The following areas are planned and must not be described as working product features:
+
+- admissions, applications, enrollment offers, and re-enrollment;
+- full student information management, households, guardianship, contacts, and documents;
+- attendance, absence workflows, corrections, safety notifications, and history;
+- assessments, assignments, grade entry, gradebook, report cards, transcripts, and credits;
+- academic years, terms, calendars, periods, courses, sections, rooms, and timetables;
+- parent, student, teacher, staff, and organization-level portals;
+- announcements, messaging, email/SMS/push delivery, and notification preferences;
+- behavior, discipline, safeguarding, health, medication, accommodations, and student support;
+- fees, tuition, invoicing, payments, refunds, and finance reconciliation;
+- file storage, official records, e-signatures, retention, and malware scanning;
+- operational analytics, statutory/government reporting, EMIS, imports, exports, APIs, webhooks, SSO, OneRoster, and Ed-Fi;
+- native mobile applications, offline operation, and a supported production deployment.
+
+## Security, privacy, and compliance
+
+OpenSchool is not certified or represented as compliant with FERPA, GDPR, or any jurisdiction-specific education, privacy, accessibility, finance, health, safeguarding, or records law. The repository must not be used with real school data until tenant isolation, authentication, authorization, RLS, audit integrity, recovery, retention, incident response, and customer operations have been independently reviewed and approved for a selected jurisdiction.
+
+## Commercial status
+
+No free trial, paid plan, customer support package, service level, implementation service, or production hosting offer is currently published. No customer adoption count, testimonial, logo, outcome, or savings claim is retained without evidence.
+
+## Maintenance rule
+
+Any pull request that adds or removes a user-facing capability must update this file and link the implementation evidence. Marketing, README, sales, security, compliance, pricing, and adoption claims must remain consistent with this status.
