@@ -33,3 +33,5 @@ Tree changes and School transfers are privileged, effective-dated operations. Cl
 ## Migration path and rollback
 
 Create the tree and closure structures alongside existing organizations, import each current organization as a root, and attach existing Schools. Dual-read consistency tests precede cutover. Rollback returns reads to the flat tables while preserving the new records for diagnosis.
+
+The concrete write contract, staged migration boundary, and automated evidence are documented in [`packages/db/TENANT_HIERARCHY.md`](../../packages/db/TENANT_HIERARCHY.md).

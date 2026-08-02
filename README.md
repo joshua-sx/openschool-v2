@@ -12,7 +12,7 @@ The current development preview contains a narrow administrator-facing slice:
 
 - a Next.js application shell and marketing/auth routes;
 - Supabase email authentication helpers and callback/sign-out routes;
-- schemas for organizations, schools, users, memberships, classes, enrollments, students, grades, and audit events;
+- staged schemas for Tenants, pooled placement, versioned Education Organization trees, effective School governance, Schools, users, memberships, classes, enrollments, students, grades, and audit events;
 - basic student list, create, detail, and edit flows;
 - early tenant-context, permission, and audit primitives;
 - CI-enforced formatting, linting, workspace type checks, unit tests, and production build.
@@ -114,14 +114,14 @@ bun run audit:security
 bun run build
 ```
 
-CI provisions a clean PostgreSQL service and repeats migration plus seed operations to prove idempotence. The unapproved RLS proposal is quarantined outside the executable migration path pending the security and tenancy decision in #68.
+CI provisions clean PostgreSQL services, repeats migration plus seed operations, proves the Tenant/hierarchy constraints, and upgrades representative migration-`0002` data twice. The unapproved legacy RLS proposal remains quarantined outside the executable migration path; production RLS for the first vertical slice is tracked in #87.
 
 ## Security and privacy status
 
 Security-sensitive code exists, but the platform has not completed a production security or privacy review. In particular:
 
 - tenant isolation is not yet proven across all access paths;
-- the permission model and organization hierarchy require redesign and negative testing;
+- hierarchy storage and Tenant-safe foreign keys have targeted negative tests, but authorization over organization subtrees is not yet implemented;
 - existing RLS policies are not an approved production boundary;
 - audit writes are not yet guaranteed to be atomic with mutations;
 - backup, restore, incident response, retention, and offboarding are not demonstrated;
