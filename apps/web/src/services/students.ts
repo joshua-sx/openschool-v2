@@ -1,8 +1,9 @@
 import { logAuditEvent } from '@openschool/audit'
-import { type NewStudent, type Student, getDb, schools, students } from '@openschool/db'
+import { type NewStudent, type Student, getDb, students } from '@openschool/db'
 import type { TenantContext } from '@openschool/rbac'
 import { TRPCError } from '@trpc/server'
 import { and, eq } from 'drizzle-orm'
+import { getSchoolById } from './schools'
 
 /**
  * Student Service
@@ -21,8 +22,7 @@ export async function getStudentsBySchool(
   ctx: TenantContext,
   schoolId: string
 ): Promise<Student[]> {
-  // Verify tenant access
-  if (!ctx.schoolIds.includes(schoolId)) {
+  if (!(await getSchoolById(ctx, schoolId))) {
     throw new TRPCError({
       code: 'FORBIDDEN',
       message: 'Access denied to this school',
@@ -33,7 +33,13 @@ export async function getStudentsBySchool(
   return await db
     .select()
     .from(students)
-    .where(and(eq(students.schoolId, schoolId), eq(students.status, 'active')))
+    .where(
+      and(
+        eq(students.tenantId, ctx.tenantId),
+        eq(students.schoolId, schoolId),
+        eq(students.status, 'active')
+      )
+    )
 }
 
 /**
@@ -48,7 +54,7 @@ export async function getStudentById(
   const student = await db
     .select()
     .from(students)
-    .where(eq(students.id, studentId))
+    .where(and(eq(students.tenantId, ctx.tenantId), eq(students.id, studentId)))
     .limit(1)
     .then((rows) => rows[0] ?? null)
 
@@ -56,8 +62,7 @@ export async function getStudentById(
     return null
   }
 
-  // Verify tenant access
-  if (!ctx.schoolIds.includes(student.schoolId)) {
+  if (!(await getSchoolById(ctx, student.schoolId))) {
     throw new TRPCError({
       code: 'FORBIDDEN',
       message: 'Access denied to this student',
@@ -75,8 +80,8 @@ export async function createStudent(
   ctx: TenantContext,
   data: Omit<NewStudent, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>
 ): Promise<Student> {
-  // Verify tenant access
-  if (!ctx.schoolIds.includes(data.schoolId)) {
+  const school = await getSchoolById(ctx, data.schoolId)
+  if (!school) {
     throw new TRPCError({
       code: 'FORBIDDEN',
       message: 'Access denied to this school',
@@ -84,15 +89,6 @@ export async function createStudent(
   }
 
   const db = getDb()
-  const [school] = await db
-    .select({ tenantId: schools.tenantId })
-    .from(schools)
-    .where(eq(schools.id, data.schoolId))
-    .limit(1)
-
-  if (!school) {
-    throw new TRPCError({ code: 'NOT_FOUND', message: 'School not found' })
-  }
 
   const [student] = await db
     .insert(students)
@@ -139,7 +135,7 @@ export async function updateStudent(
       ...data,
       updatedAt: new Date(),
     })
-    .where(eq(students.id, studentId))
+    .where(and(eq(students.tenantId, ctx.tenantId), eq(students.id, studentId)))
     .returning()
 
   // Audit log

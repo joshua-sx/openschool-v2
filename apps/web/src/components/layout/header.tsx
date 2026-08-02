@@ -6,33 +6,41 @@ interface HeaderProps {
   user: {
     email: string
   }
-  tenantContext?: {
-    effectiveRole: string
-    orgIds: string[]
-    schoolIds: string[]
+  requestContext?: {
+    tenantName: string
+    activeEducationOrganizationName?: string
+    activeSchoolName?: string
+    roleTemplateKeys: readonly string[]
   } | null
 }
 
-export function Header({ user, tenantContext }: HeaderProps) {
+export function Header({ user, requestContext }: HeaderProps) {
+  const contextLabel =
+    requestContext?.activeSchoolName ??
+    requestContext?.activeEducationOrganizationName ??
+    requestContext?.tenantName
+
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
       <div className="flex items-center space-x-4">
-        {/* School Selector - placeholder for now */}
-        {tenantContext && tenantContext.schoolIds.length > 0 && (
-          <div className="flex items-center space-x-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
-            <span className="text-sm text-gray-600">
-              {tenantContext.schoolIds.length} school
-              {tenantContext.schoolIds.length !== 1 ? 's' : ''}
-            </span>
-            <ChevronDown className="w-4 h-4 text-gray-400" />
-          </div>
+        {contextLabel && (
+          <form action="/context/clear" method="POST">
+            <button
+              type="submit"
+              className="flex items-center space-x-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+              aria-label={`Change context from ${contextLabel}`}
+            >
+              <span className="max-w-64 truncate">{contextLabel}</span>
+              <ChevronDown className="w-4 h-4 text-gray-400" aria-hidden="true" />
+            </button>
+          </form>
         )}
       </div>
 
       <div className="flex items-center space-x-4">
-        {tenantContext && (
+        {requestContext && (
           <span className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-600 capitalize">
-            {tenantContext.effectiveRole}
+            {requestContext.roleTemplateKeys.join(', ').replaceAll('_', ' ')}
           </span>
         )}
         <span className="text-sm text-gray-600">{user.email}</span>

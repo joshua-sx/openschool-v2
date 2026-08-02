@@ -1,46 +1,31 @@
-import { createServerClient, resolveTenantContext } from '@openschool/auth/server'
+import type {
+  TenantContextDenialReason,
+  TenantRequestContext,
+  VerifiedAccountIdentity,
+} from '@openschool/auth/server'
 import type { TenantContext } from '@openschool/rbac'
 import { initTRPC } from '@trpc/server'
 import { cookies, headers } from 'next/headers'
+import { resolveVerifiedRequestState } from '../request-context'
 
 /**
  * Create tRPC context from Next.js request
  * Resolves user session and tenant context
  */
 export async function createTRPCContext(): Promise<{
+  denialReason: TenantContextDenialReason | null
+  identity: VerifiedAccountIdentity | null
+  requestContext: TenantRequestContext | null
   tenantContext: TenantContext | null
   userId: string | null
 }> {
   const cookieStore = await cookies()
   const headerStore = await headers()
-
-  const supabase = createServerClient(cookieStore)
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-
-  if (!session?.user?.id) {
-    return {
-      tenantContext: null,
-      userId: null,
-    }
-  }
-
-  // Extract orgId and schoolId from custom headers
-  // These should be set by the client based on user's current selection
-  const orgId = headerStore.get('x-org-id') || undefined
-  const schoolId = headerStore.get('x-school-id') || undefined
-
-  // Resolve tenant context with the active org/school if provided
-  const tenantContext = await resolveTenantContext(session.user.id, {
-    orgId,
-    schoolId,
-  })
+  const state = await resolveVerifiedRequestState(cookieStore, headerStore)
 
   return {
-    tenantContext,
-    userId: session.user.id,
+    ...state,
+    userId: state.requestContext?.accountId ?? null,
   }
 }
 

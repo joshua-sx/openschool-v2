@@ -24,7 +24,7 @@ export const exampleRouter = router({
       return {
         greeting: `Hello ${input.text}!`,
         userId: ctx.userId,
-        role: ctx.tenantContext?.effectiveRole,
+        roles: ctx.tenantContext?.roles,
       }
     }),
 })
