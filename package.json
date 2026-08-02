@@ -8,6 +8,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "bun test",
+    "audit:security": "bun audit --audit-level=high",
     "clean": "turbo run clean",
     "format": "biome format --write .",
     "check": "biome check .",
@@ -17,12 +18,17 @@
     "db:studio": "turbo run db:studio --filter=@openschool/db"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.0",
-    "turbo": "^2.3.0",
-    "typescript": "^5.7.0"
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^20.19.33",
+    "turbo": "^2.10.8",
+    "typescript": "^5.9.3"
   },
   "resolutions": {
     "@trpc/server": "^11.0.0"
+  },
+  "overrides": {
+    "postcss": "^8.5.25",
+    "sharp": "^0.35.0"
   },
   "packageManager": "bun@1.3.14"
 }

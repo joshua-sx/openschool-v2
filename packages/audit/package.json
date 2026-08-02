@@ -8,7 +8,8 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@openschool/db": "workspace:*"
+    "@openschool/db": "workspace:*",
+    "@openschool/rbac": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.0"
