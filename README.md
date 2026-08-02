@@ -1,5 +1,3 @@
-![OpenSchool cover](OpenSchool-Cover.PNG)
-
 # OpenSchool
 
 OpenSchool is a pre-production school administration platform under active development. The long-term goal is an operating system that can support one school or a multi-school education organization without duplicating core workflows.
