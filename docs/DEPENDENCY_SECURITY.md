@@ -32,7 +32,7 @@ Do not rely on accidental workspace hoisting. Every imported package must be dec
 
 - `bun run audit:security` fails local and GitHub quality checks when the lockfile contains a known high or critical advisory.
 - GitHub dependency review rejects pull requests that introduce high or critical advisories in development, runtime, or unknown scopes.
-- Dependabot checks the Bun lockfile and GitHub Actions weekly. Dependabot alerts and automatic security updates are enabled at repository level.
+- Dependabot checks the Bun lockfile and GitHub Actions weekly. Routine Bun minor/patch updates, security updates, and Actions updates are grouped separately; major Bun upgrades remain individual for focused review. Dependabot alerts and automatic security updates are enabled at repository level.
 - GitHub secret scanning and push protection are enabled. There were no open secret-scanning alerts when this policy was last verified.
 - Frozen installs, linting, type checks, tests, and the production build must pass after every dependency change.
 

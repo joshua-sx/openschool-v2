@@ -9,6 +9,18 @@ updates:
       time: "09:00"
       timezone: Etc/UTC
     open-pull-requests-limit: 10
+    groups:
+      routine-minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
     commit-message:
       prefix: chore
       include: scope
@@ -21,6 +33,10 @@ updates:
       time: "09:30"
       timezone: Etc/UTC
     open-pull-requests-limit: 5
+    groups:
+      routine-actions:
+        patterns:
+          - "*"
     commit-message:
       prefix: chore
       include: scope
