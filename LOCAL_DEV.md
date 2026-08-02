@@ -1,123 +1,136 @@
-# Local Development Setup
+# Local development
 
-## Quick Start
+OpenSchool currently uses two development services:
 
-### 1. Set up localhost entries
+- PostgreSQL for the application schema, migrations, and representative seed data;
+- Supabase Auth for browser authentication.
 
-Run the setup script (requires sudo password):
+The repository provides a deterministic PostgreSQL container. Use a dedicated hosted Supabase development project for authentication, or operate a complete local Supabase stack separately. Do not use production projects, credentials, or real school data.
+
+## Prerequisites
+
+- Bun 1.3.14
+- Docker with Compose support for the repository-managed database
+- a dedicated Supabase development project if testing sign-up or sign-in
+
+## One-time setup
+
+```bash
+git clone https://github.com/joshua-sx/openschool-v2.git
+cd openschool-v2
+bun install --frozen-lockfile
+bun run env:setup
+```
+
+`env:setup` creates a root `.env.local` without overwriting an existing file. Replace the two Supabase placeholders with the project URL and publishable key from the project's API Keys settings. A legacy anon JWT remains accepted during Supabase's key transition, but a secret or service-role key is rejected.
+
+The supported variables are:
+
+| Variable | Exposure | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | browser | Dedicated development Supabase origin |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | browser | Publishable key or legacy anon key; never a secret/service-role key |
+| `DATABASE_URL` | server only | Application PostgreSQL connection |
+| `NEXT_PUBLIC_APP_URL` | browser | Authenticated application origin |
+| `NEXT_PUBLIC_WWW_URL` | browser | Marketing and authentication origin |
+
+Validate the file without printing credentials:
+
+```bash
+bun run env:check
+```
+
+The command reports only origins, key type, and database host. Configuration errors identify the invalid variable and stop startup/build paths that consume it.
+
+## Local hostnames
+
+Add the development origins to `/etc/hosts`:
+
+```text
+127.0.0.1 app.openschool.local
+127.0.0.1 www.openschool.local
+```
+
+The included helper performs the same change and requires administrator access:
 
 ```bash
 bash scripts/setup-localhost.sh
 ```
 
-Or manually add to `/etc/hosts`:
-```
-127.0.0.1 www.openschool.local
-127.0.0.1 app.openschool.local
-```
+In the dedicated Supabase project's Authentication URL settings, configure:
 
-### 2. Create environment file
+- Site URL: `http://www.openschool.local:3000`
+- Redirect URL: `http://app.openschool.local:3000/auth/callback`
+- Redirect URL: `http://www.openschool.local:3000/auth/callback`
 
-Create `apps/web/.env.local` with your Supabase credentials:
+## Database setup
 
-```bash
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
-
-# Local Development URLs
-NEXT_PUBLIC_APP_URL=http://app.openschool.local:3000
-NEXT_PUBLIC_WWW_URL=http://www.openschool.local:3000
-
-# Database (if needed)
-DATABASE_URL=your_database_connection_string
-```
-
-### 3. Configure Supabase
-
-In your Supabase dashboard, add these redirect URLs under Authentication > URL Configuration:
-
-- **Site URL**: `http://www.openschool.local:3000`
-- **Redirect URLs**:
-  - `http://app.openschool.local:3000/auth/callback`
-  - `http://www.openschool.local:3000/auth/callback`
-
-### 4. Install dependencies (if not done)
+Start PostgreSQL, validate the migration journal, migrate, and seed:
 
 ```bash
-bun install
+bun run db:start
+bun run db:check
+bun run db:migrate
+bun run db:seed
 ```
 
-### 5. Run the development server
+The seed is idempotent and creates two organizations, three schools spanning primary and high-school profiles, organization and school roles, classes, students, enrollments, a parent relationship, and a representative grade. Seeded user records are application fixtures; they are not login identities in Supabase Auth.
 
-**Using Bun (recommended):**
+Stop PostgreSQL without deleting its named volume:
 
-From the root directory:
+```bash
+bun run db:stop
+```
+
+To deliberately reset the development database, stop the stack and remove the `openschool_openschool-postgres` Docker volume manually. This erases local data and should never be run against a shared environment.
+
+## Run the application
+
 ```bash
 bun run dev
 ```
 
-Or from `apps/web`:
+Open:
+
+- marketing and authentication: <http://www.openschool.local:3000>
+- application: <http://app.openschool.local:3000>
+
+The middleware redirects unauthenticated application requests to the marketing hostname's login route and authenticated users away from its auth pages.
+
+## Verification before a pull request
+
 ```bash
-cd apps/web
-bun dev
-# or
-bun run dev
+bun install --frozen-lockfile
+bun run env:check
+bun run audit:security
+bun run check
+bun run lint
+bun run typecheck
+bun test
+bun run db:check
+bun run build
 ```
 
-**Note:** Bun can run Next.js directly - no need for npm/node. The scripts are already configured to work with Bun.
+GitHub Actions additionally provisions a clean PostgreSQL service, applies all migrations, seeds it, and repeats both operations to prove the baseline and seed are idempotent.
 
-### 6. Access the app
+## Database policy safety
 
-- **Marketing/Landing Page**: http://www.openschool.local:3000
-- **App Dashboard** (after login): http://app.openschool.local:3000/dashboard
-- **Login Page**: http://www.openschool.local:3000/auth/login
-- **Signup Page**: http://www.openschool.local:3000/auth/signup
-
-## How It Works
-
-### Subdomain Routing
-
-- `www.openschool.local` → Marketing site (landing page, auth pages)
-- `app.openschool.local` → Authenticated app (dashboard, protected routes)
-
-The middleware automatically:
-- Redirects unauthenticated users from `app.*` to `www.*/auth/login`
-- Redirects authenticated users from `www.*/auth/*` to `app.*/dashboard`
-- Enforces authentication on all `app.*` routes
-
-### Testing the Flow
-
-1. Visit http://www.openschool.local:3000 → See landing page
-2. Click "Get Started" → Goes to signup page
-3. Create account → Redirects to app subdomain dashboard
-4. Sign out → Redirects back to marketing site
+Only SQL files recorded in `packages/db/migrations/meta/_journal.json` are executable migrations. The previous RLS proposal is preserved as a disabled design draft under `packages/db/policy-drafts/`; it is intentionally excluded from the migration path until the tenant execution model and policies receive dedicated security review in #68.
 
 ## Troubleshooting
 
-### "Cannot connect to localhost"
+### Environment validation fails
 
-- Make sure you're using `www.openschool.local:3000` not `localhost:3000`
-- Verify `/etc/hosts` entries are correct
-- Try `ping www.openschool.local` to verify DNS resolution
+Run `bun run env:check` and correct the named variable in the root `.env.local`. The example values for the Supabase URL and key are intentionally invalid placeholders.
 
-### "Auth redirect not working"
+### PostgreSQL is unavailable
 
-- Check Supabase redirect URLs are configured correctly
-- Verify `NEXT_PUBLIC_APP_URL` and `NEXT_PUBLIC_WWW_URL` in `.env.local`
-- Check browser console for errors
+Confirm Docker is running and inspect `docker compose ps`. The container binds PostgreSQL to `127.0.0.1:54322` through the URL in `.env.example`.
 
-### "Middleware not detecting subdomain"
+### Authentication callback is rejected
 
-- Make sure you're accessing via the full subdomain URL
-- Check middleware logs in terminal
-- For localhost testing, you can use `?subdomain=app` query param as fallback
+Confirm the exact callback origins are allowed in the dedicated Supabase development project and that the two application origins in `.env.local` remain distinct.
 
-## Alternative: Port-based routing (if subdomains don't work)
+### Seeded users cannot sign in
 
-If you can't set up subdomains, you can modify the middleware to use ports:
-- `localhost:3000` → Marketing
-- `localhost:3001` → App
-
-But subdomain routing is recommended for production-like testing.
-
+That is expected: database fixtures do not create Supabase Auth identities. Create a development-only account through the sign-up flow when testing authentication. Full identity provisioning and tenant invitation workflows are tracked beyond this foundation milestone.
