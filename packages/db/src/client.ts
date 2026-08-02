@@ -8,9 +8,8 @@ import * as schema from './schema'
  * Product code must use the transaction adapters exported from
  * `tenant-transaction.ts`; CI rejects application imports of this function.
  */
-export function createMigrationClient(connectionString?: string) {
-  const url = connectionString ?? getMigrationEnv().DATABASE_MIGRATION_URL
-  const client = postgres(url, { max: 1, prepare: false })
+export function createMigrationClient() {
+  const client = postgres(getMigrationEnv().DATABASE_MIGRATION_URL, { max: 1, prepare: false })
   return drizzle(client, { schema })
 }
 

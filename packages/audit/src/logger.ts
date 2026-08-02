@@ -37,8 +37,21 @@ export async function logAuditEvent(
 
   // Story #88 will make this insert atomic with its product mutation and add
   // tamper evidence. Until then it still runs through the same non-owner,
-  // transaction-scoped Tenant boundary and reports failures to the caller.
-  await withTenantTransaction(databaseContext, async (db) => {
-    await db.insert(auditLogs).values(log).execute()
-  })
+  // transaction-scoped Tenant boundary and reports failures to operations.
+  try {
+    await withTenantTransaction(databaseContext, async (db) => {
+      await db.insert(auditLogs).values(log).execute()
+    })
+  } catch (error) {
+    // The product mutation has already committed. Until #88 provides an atomic
+    // outbox, report the operational failure without returning a false mutation
+    // failure that could cause a duplicate client retry.
+    console.error('Audit event insert failed after product mutation', {
+      action: event.action,
+      resource: event.resource,
+      resourceId: event.resourceId,
+      requestId: databaseContext.requestId,
+      error: error instanceof Error ? error.message : 'Unknown audit insert error',
+    })
+  }
 }

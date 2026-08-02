@@ -12,6 +12,8 @@ const validPublicEnv = {
   DATABASE_RUNTIME_URL: 'postgresql://should-not-be-public',
   DATABASE_WORKER_URL: 'postgresql://should-not-be-public',
   DATABASE_MIGRATION_ROLE: 'should-not-be-public',
+  DATABASE_RUNTIME_ROLE: 'should-not-be-public',
+  DATABASE_WORKER_ROLE: 'should-not-be-public',
 }
 
 describe('public environment validation', () => {
@@ -28,6 +30,8 @@ describe('public environment validation', () => {
     assert.equal('DATABASE_RUNTIME_URL' in parsed, false)
     assert.equal('DATABASE_WORKER_URL' in parsed, false)
     assert.equal('DATABASE_MIGRATION_ROLE' in parsed, false)
+    assert.equal('DATABASE_RUNTIME_ROLE' in parsed, false)
+    assert.equal('DATABASE_WORKER_ROLE' in parsed, false)
   })
 
   it('reports a missing variable by name', () => {
@@ -99,29 +103,35 @@ describe('server environment validation', () => {
       parseServerEnv({
         DATABASE_RUNTIME_URL: 'postgresql://runtime:secret@localhost:5432/db',
         DATABASE_MIGRATION_ROLE: 'migration',
+        DATABASE_RUNTIME_ROLE: 'runtime',
+        DATABASE_WORKER_ROLE: 'worker',
       }),
       {
         DATABASE_RUNTIME_URL: 'postgresql://runtime:secret@localhost:5432/db',
         DATABASE_MIGRATION_ROLE: 'migration',
+        DATABASE_RUNTIME_ROLE: 'runtime',
+        DATABASE_WORKER_ROLE: 'worker',
       }
     )
   })
 
-  it('rejects non-PostgreSQL URLs with a variable-specific error', () => {
+  it('rejects non-PostgreSQL migration URLs with a variable-specific error', () => {
     assert.throws(
       () => parseMigrationEnv({ DATABASE_MIGRATION_URL: 'https://example.com/db' }),
       /DATABASE_MIGRATION_URL: must use one of these protocols: postgres:, postgresql:/
     )
   })
 
-  it('requires distinct migration and runtime roles', () => {
+  it('requires distinct migration, runtime, and worker roles', () => {
     assert.throws(
       () =>
         parseServerEnv({
-          DATABASE_RUNTIME_URL: 'postgresql://owner:two@localhost:5432/db',
+          DATABASE_RUNTIME_URL: 'postgresql://runtime:two@localhost:5432/db',
           DATABASE_MIGRATION_ROLE: 'owner',
+          DATABASE_RUNTIME_ROLE: 'runtime',
+          DATABASE_WORKER_ROLE: 'owner',
         }),
-      /DATABASE_RUNTIME_URL: must use a different database role than DATABASE_MIGRATION_ROLE/
+      /migration, runtime, and worker database roles must be distinct/
     )
   })
 
@@ -130,11 +140,28 @@ describe('server environment validation', () => {
       parseWorkerEnv({
         DATABASE_WORKER_URL: 'postgresql://worker:secret@localhost:5432/db',
         DATABASE_MIGRATION_ROLE: 'migration',
+        DATABASE_RUNTIME_ROLE: 'runtime',
+        DATABASE_WORKER_ROLE: 'worker',
       }),
       {
         DATABASE_WORKER_URL: 'postgresql://worker:secret@localhost:5432/db',
         DATABASE_MIGRATION_ROLE: 'migration',
+        DATABASE_RUNTIME_ROLE: 'runtime',
+        DATABASE_WORKER_ROLE: 'worker',
       }
+    )
+  })
+
+  it('rejects a worker URL that does not match the asserted worker role', () => {
+    assert.throws(
+      () =>
+        parseWorkerEnv({
+          DATABASE_WORKER_URL: 'postgresql://runtime:secret@localhost:5432/db',
+          DATABASE_MIGRATION_ROLE: 'migration',
+          DATABASE_RUNTIME_ROLE: 'runtime',
+          DATABASE_WORKER_ROLE: 'worker',
+        }),
+      /DATABASE_WORKER_URL: username must match the DATABASE_WORKER_ROLE assertion/
     )
   })
 })

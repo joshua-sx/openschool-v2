@@ -193,7 +193,11 @@ export async function getSchoolById(
   return school ?? null
 }
 
-/** Transaction-local variant for multi-step service operations. */
+/**
+ * Transaction-local variant for multi-step service operations.
+ * The caller must bind the Policy Context to the database context before
+ * opening `db` and invoking this function.
+ */
 export async function getSchoolByIdInTransaction(
   db: DatabaseTransaction,
   context: PolicyContext,

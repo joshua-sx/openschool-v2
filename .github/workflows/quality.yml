@@ -23,7 +23,9 @@ jobs:
       DATABASE_MIGRATION_URL: postgresql://migration:ci@127.0.0.1:5432/openschool
       DATABASE_MIGRATION_ROLE: migration
       DATABASE_RUNTIME_URL: postgresql://runtime:ci@127.0.0.1:5432/openschool
+      DATABASE_RUNTIME_ROLE: runtime
       DATABASE_WORKER_URL: postgresql://worker:ci@127.0.0.1:5432/openschool
+      DATABASE_WORKER_ROLE: worker
       NEXT_PUBLIC_APP_URL: http://app.openschool.local:3000
       NEXT_PUBLIC_WWW_URL: http://www.openschool.local:3000
 
@@ -92,7 +94,9 @@ jobs:
       DATABASE_MIGRATION_URL: postgresql://postgres:postgres@127.0.0.1:5432/openschool
       DATABASE_MIGRATION_ROLE: postgres
       DATABASE_RUNTIME_URL: postgresql://openschool_runtime:runtime-ci-only-1@127.0.0.1:5432/openschool
+      DATABASE_RUNTIME_ROLE: openschool_runtime
       DATABASE_WORKER_URL: postgresql://openschool_worker:worker-ci-only-1@127.0.0.1:5432/openschool
+      DATABASE_WORKER_ROLE: openschool_worker
 
     steps:
       - name: Check out repository
@@ -164,7 +168,9 @@ jobs:
       DATABASE_MIGRATION_URL: postgresql://postgres:postgres@127.0.0.1:5432/openschool
       DATABASE_MIGRATION_ROLE: postgres
       DATABASE_RUNTIME_URL: postgresql://openschool_runtime:runtime-ci-only-1@127.0.0.1:5432/openschool
+      DATABASE_RUNTIME_ROLE: openschool_runtime
       DATABASE_WORKER_URL: postgresql://openschool_worker:worker-ci-only-1@127.0.0.1:5432/openschool
+      DATABASE_WORKER_ROLE: openschool_worker
 
     steps:
       - name: Check out repository

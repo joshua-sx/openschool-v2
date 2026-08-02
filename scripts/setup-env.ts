@@ -45,12 +45,6 @@ function check(): void {
       'DATABASE_MIGRATION_URL username must match the non-secret DATABASE_MIGRATION_ROLE assertion.'
     )
   }
-  if (
-    new URL(serverEnv.DATABASE_RUNTIME_URL).username ===
-    new URL(workerEnv.DATABASE_WORKER_URL).username
-  ) {
-    throw new Error('DATABASE_RUNTIME_URL and DATABASE_WORKER_URL must use different roles.')
-  }
   const keyType = publicEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.startsWith('sb_publishable_')
     ? 'publishable'
     : 'legacy anon'
@@ -62,8 +56,8 @@ function check(): void {
   console.log(`- Marketing origin: ${new URL(publicEnv.NEXT_PUBLIC_WWW_URL).origin}`)
   console.log(`- Migration database host: ${new URL(migrationEnv.DATABASE_MIGRATION_URL).host}`)
   console.log(`- Migration database role: ${serverEnv.DATABASE_MIGRATION_ROLE}`)
-  console.log(`- Runtime database role: ${new URL(serverEnv.DATABASE_RUNTIME_URL).username}`)
-  console.log(`- Worker database role: ${new URL(workerEnv.DATABASE_WORKER_URL).username}`)
+  console.log(`- Runtime database role: ${serverEnv.DATABASE_RUNTIME_ROLE}`)
+  console.log(`- Worker database role: ${workerEnv.DATABASE_WORKER_ROLE}`)
 }
 
 const command = process.argv[2]

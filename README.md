@@ -83,14 +83,19 @@ Replace the Supabase placeholders in the generated root `.env.local`, then valid
 bun run env:check
 ```
 
-The application reads these variables:
+The repository uses these variables. The web process receives only the public
+variables, `DATABASE_RUNTIME_URL`, the three non-secret role assertions, and
+`OPENSCHOOL_POLICY_VERSION`. Migration and worker credentials belong only to
+their separately operated tasks/processes.
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-- `DATABASE_MIGRATION_URL` (server-only schema owner)
-- `DATABASE_MIGRATION_ROLE` (non-secret expected owner role name)
+- `DATABASE_MIGRATION_URL` (schema owner; migrations and seed only, never web)
+- `DATABASE_MIGRATION_ROLE` (non-secret migration-role assertion)
 - `DATABASE_RUNTIME_URL` (server-only non-owner application role)
-- `DATABASE_WORKER_URL` (server-only non-owner background role)
+- `DATABASE_RUNTIME_ROLE` (non-secret runtime-role assertion)
+- `DATABASE_WORKER_URL` (non-owner background role; worker processes only)
+- `DATABASE_WORKER_ROLE` (non-secret worker-role assertion)
 - `OPENSCHOOL_POLICY_VERSION` (optional server-only rollback selector)
 - `NEXT_PUBLIC_APP_URL`
 - `NEXT_PUBLIC_WWW_URL`

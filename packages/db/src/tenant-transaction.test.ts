@@ -106,5 +106,28 @@ describe('database execution context validation', () => {
         }),
       isInvalidContext
     )
+    for (const invalid of [
+      { assuranceLevel: 'aal3' as never },
+      { activeEducationOrganizationId: 'not-an-organization' },
+      { activeSchoolId: 'not-a-school' },
+      { membershipVersion: 1.5 },
+    ]) {
+      assert.throws(
+        () =>
+          validateTenantDatabaseContext({
+            accountId: IDS.account,
+            personId: IDS.person,
+            tenantId: IDS.tenant,
+            sessionId: 'verified-session',
+            requestId: IDS.request,
+            assuranceLevel: 'aal1',
+            membershipVersion: 1,
+            securityVersion: 1,
+            contextPolicyVersion: 1,
+            ...invalid,
+          }),
+        isInvalidContext
+      )
+    }
   })
 })

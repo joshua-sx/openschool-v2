@@ -32,15 +32,21 @@ describe('database and policy context binding', () => {
     assert.doesNotThrow(() => assertDatabasePolicyContext(databaseContext, policyContext))
   })
 
-  it('rejects replay of a valid decision under another Tenant context', () => {
-    assert.throws(
-      () =>
-        assertDatabasePolicyContext(
-          { ...databaseContext, tenantId: '00000000-0000-4000-8000-000000000002' },
-          policyContext
-        ),
-      (error: unknown) =>
-        error instanceof TRPCError && error.message === 'DATABASE_POLICY_CONTEXT_MISMATCH'
-    )
+  it('rejects replay when any bound database field differs', () => {
+    const mismatches: readonly Partial<TenantDatabaseContext>[] = [
+      { accountId: '00000000-0000-4000-8000-000000000202' },
+      { personId: '00000000-0000-4000-8000-000000000902' },
+      { tenantId: '00000000-0000-4000-8000-000000000002' },
+      { assuranceLevel: 'aal2' },
+      { activeEducationOrganizationId: '00000000-0000-4000-8000-000000000013' },
+      { activeSchoolId: '00000000-0000-4000-8000-000000000102' },
+    ]
+    for (const mismatch of mismatches) {
+      assert.throws(
+        () => assertDatabasePolicyContext({ ...databaseContext, ...mismatch }, policyContext),
+        (error: unknown) =>
+          error instanceof TRPCError && error.message === 'DATABASE_POLICY_CONTEXT_MISMATCH'
+      )
+    }
   })
 })

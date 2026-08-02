@@ -137,12 +137,12 @@ async function run(): Promise<void> {
     await admin.unsafe(`grant select on tenant_placements, students to ${workerRole}`)
     await admin.unsafe(`grant insert on audit_logs to ${workerRole}`)
 
+    if (migrationRole !== 'postgres' && !ROLE_NAME.test(migrationRole)) {
+      throw new Error('Role provisioning refused: migration role name must be safe.')
+    }
     for (const executionRole of [runtimeRole, workerRole]) {
       await admin.unsafe(`revoke openschool_backup, openschool_emergency from ${executionRole}`)
       if (migrationRole !== 'postgres') {
-        if (!ROLE_NAME.test(migrationRole)) {
-          throw new Error('Role provisioning refused: migration role name must be safe.')
-        }
         await admin.unsafe(`revoke ${migrationRole} from ${executionRole}`)
       }
     }

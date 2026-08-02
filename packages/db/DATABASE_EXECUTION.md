@@ -7,7 +7,9 @@ OpenSchool separates schema ownership from product and background execution:
 | `DATABASE_MIGRATION_URL` | migrations, seed fixtures, restore operations | owns or can create the application schema; never available to the web runtime |
 | `DATABASE_MIGRATION_ROLE` | non-secret runtime assertion input | exact PostgreSQL role name used by the migration URL; safe to provide without the owner credential |
 | `DATABASE_RUNTIME_URL` | verified identity bootstrap and request-scoped product work | login, non-owner, `NOSUPERUSER`, `NOCREATEDB`, `NOCREATEROLE`, `NOBYPASSRLS`, no DDL or `TRUNCATE` |
+| `DATABASE_RUNTIME_ROLE` | non-secret role-separation assertion | exact role name used by the runtime URL; distinct from migration and worker |
 | `DATABASE_WORKER_URL` | explicitly typed Tenant jobs | distinct login with the same safety attributes and narrower table grants |
+| `DATABASE_WORKER_ROLE` | non-secret role-separation assertion | exact role name used by the worker URL; distinct from migration and runtime |
 | `openschool_backup` | future restore delegation | `NOLOGIN`; never granted to runtime or worker |
 | `openschool_emergency` | future controlled break-glass delegation | `NOLOGIN`; never granted to runtime or worker |
 
@@ -35,7 +37,7 @@ Raw SQL is limited to:
 - guarded local role provisioning in `provision-database-roles.ts`;
 - disposable `*-poc.ts` files that prove PostgreSQL behavior.
 
-The `db:boundary-check` CI gate rejects owner/global clients, migration credentials, direct postgres-js access, and raw `.unsafe()` calls in product packages. Schema migrations remain journal-controlled separately.
+The `db:boundary-check` CI gate scans tracked TypeScript under `apps`, `packages/auth`, `packages/audit`, and `packages/rbac`. It rejects owner/global clients, migration credentials, direct postgres-js access, and raw `.unsafe()` calls there. Infrastructure-only database files remain governed by the explicit allowlist above and migration-journal checks.
 
 ## Evidence and rollback
 

@@ -33,7 +33,9 @@ The supported variables are:
 | `DATABASE_MIGRATION_URL` | server only | Schema-owner migration, seed, and recovery connection; never used by the app |
 | `DATABASE_MIGRATION_ROLE` | server only, non-secret | Expected owner role name used by runtime safety assertions |
 | `DATABASE_RUNTIME_URL` | server only | Non-owner request and identity-bootstrap connection |
+| `DATABASE_RUNTIME_ROLE` | server only, non-secret | Expected runtime role name used for three-way role separation |
 | `DATABASE_WORKER_URL` | server only | Separately credentialed non-owner background-work connection |
+| `DATABASE_WORKER_ROLE` | server only, non-secret | Expected worker role name used for three-way role separation |
 | `OPENSCHOOL_POLICY_VERSION` | server only | Optional accepted capability-policy rollback version; an unknown value fails closed |
 | `NEXT_PUBLIC_APP_URL` | browser | Authenticated application origin |
 | `NEXT_PUBLIC_WWW_URL` | browser | Marketing and authentication origin |
@@ -79,7 +81,7 @@ bun run db:seed
 ALLOW_ROLE_PROVISIONING=true bun run db:provision-roles
 ```
 
-Role provisioning is idempotent, refuses non-loopback databases, verifies the migration URL username against `DATABASE_MIGRATION_ROLE`, resets execution-role privileges, and creates the local runtime/worker logins from `.env.local`. Run it after migrations whenever the reviewed grant set changes. Production credentials require separately controlled infrastructure and must not reuse these development passwords. The web process needs only the runtime URL and non-secret migration role name; do not inject the migration or worker URL into it.
+Role provisioning is idempotent, refuses non-loopback databases, verifies every URL username against its non-secret role assertion, resets execution-role privileges, and creates the local runtime/worker logins from `.env.local`. Run it after migrations whenever the reviewed grant set changes. Production credentials require separately controlled infrastructure and must not reuse these development passwords. The web process needs only the runtime URL and three non-secret role assertions; do not inject the migration or worker URL into it.
 
 The seed is idempotent and creates two Tenants with pooled placements; a ministry, board, network, district, and second-Tenant hierarchy; three Schools spanning primary, secondary, and all-through profiles; organization and School roles; classes, students, enrollments, a parent relationship, and a representative grade. Seeded user records are application fixtures; they are not login identities in Supabase Auth.
 

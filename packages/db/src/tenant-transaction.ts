@@ -134,6 +134,10 @@ function createRuntimeDatabase(connectionString: string, max: number) {
     idle_timeout: 20,
     max_lifetime: 60 * 30,
     connect_timeout: 10,
+    connection: {
+      statement_timeout: 15_000,
+      idle_in_transaction_session_timeout: 15_000,
+    },
   })
   return drizzle(client, { schema })
 }
@@ -148,15 +152,18 @@ interface RuntimeRoleEvidence extends Record<string, unknown> {
   canCreateInPublic: boolean
   canTruncateStudents: boolean
   canAssumeMigrationRole: boolean
+  canAssumeOtherExecutionRole: boolean
   canAssumeBackupRole: boolean
   canAssumeEmergencyRole: boolean
+  operationalRolesExist: boolean
   hasUnsafeMembership: boolean
 }
 
 async function assertSafeExecutionRole(
   database: RuntimeDatabase,
   expectedUsername: string,
-  migrationUsername: string
+  migrationUsername: string,
+  otherExecutionUsername: string
 ): Promise<void> {
   const result = await database.execute<RuntimeRoleEvidence>(sql`
     select
@@ -175,20 +182,38 @@ async function assertSafeExecutionRole(
       ) as "ownsProductTables",
       has_schema_privilege(current_user, 'public', 'CREATE') as "canCreateInPublic",
       has_table_privilege(current_user, 'public.students', 'TRUNCATE') as "canTruncateStudents",
-      pg_has_role(current_user, ${migrationUsername}, 'member') as "canAssumeMigrationRole",
-      pg_has_role(current_user, 'openschool_backup', 'member') as "canAssumeBackupRole",
-      pg_has_role(current_user, 'openschool_emergency', 'member') as "canAssumeEmergencyRole",
       exists (
-        select 1
-        from pg_auth_members membership
-        inner join pg_roles granted_role on granted_role.oid = membership.roleid
-        inner join pg_roles member_role on member_role.oid = membership.member
-        where member_role.rolname = current_user
+        select 1 from pg_roles candidate
+        where candidate.rolname = ${migrationUsername}
+          and pg_has_role(current_user, candidate.oid, 'member')
+      ) as "canAssumeMigrationRole",
+      exists (
+        select 1 from pg_roles candidate
+        where candidate.rolname = ${otherExecutionUsername}
+          and pg_has_role(current_user, candidate.oid, 'member')
+      ) as "canAssumeOtherExecutionRole",
+      exists (
+        select 1 from pg_roles candidate
+        where candidate.rolname = 'openschool_backup'
+          and pg_has_role(current_user, candidate.oid, 'member')
+      ) as "canAssumeBackupRole",
+      exists (
+        select 1 from pg_roles candidate
+        where candidate.rolname = 'openschool_emergency'
+          and pg_has_role(current_user, candidate.oid, 'member')
+      ) as "canAssumeEmergencyRole",
+      (
+        select count(*) = 2
+        from pg_roles candidate
+        where candidate.rolname in ('openschool_backup', 'openschool_emergency')
+      ) as "operationalRolesExist",
+      exists (
+        select 1 from pg_roles granted_role
+        where granted_role.rolname <> current_user
+          and pg_has_role(current_user, granted_role.oid, 'member')
           and (
-            granted_role.rolsuper
-            or granted_role.rolbypassrls
-            or granted_role.rolcreatedb
-            or granted_role.rolcreaterole
+            granted_role.rolsuper or granted_role.rolbypassrls
+            or granted_role.rolcreatedb or granted_role.rolcreaterole
           )
       ) as "hasUnsafeMembership"
     from pg_roles role
@@ -206,8 +231,10 @@ async function assertSafeExecutionRole(
     evidence.canCreateInPublic ||
     evidence.canTruncateStudents ||
     evidence.canAssumeMigrationRole ||
+    evidence.canAssumeOtherExecutionRole ||
     evidence.canAssumeBackupRole ||
     evidence.canAssumeEmergencyRole ||
+    !evidence.operationalRolesExist ||
     evidence.hasUnsafeMembership
   ) {
     deny('DATABASE_ROLE_UNSAFE', 'Database execution role failed the least-privilege assertion')
@@ -243,7 +270,8 @@ async function assertRuntimeSecurity(): Promise<void> {
     runtimeSecurityAssertion = assertSafeExecutionRole(
       runtime(),
       databaseUsername(environment.DATABASE_RUNTIME_URL),
-      environment.DATABASE_MIGRATION_ROLE
+      environment.DATABASE_MIGRATION_ROLE,
+      environment.DATABASE_WORKER_ROLE
     ).catch((error) => {
       runtimeSecurityAssertion = undefined
       throw error
@@ -258,7 +286,8 @@ async function assertWorkerSecurity(): Promise<void> {
     workerSecurityAssertion = assertSafeExecutionRole(
       worker(),
       databaseUsername(environment.DATABASE_WORKER_URL),
-      environment.DATABASE_MIGRATION_ROLE
+      environment.DATABASE_MIGRATION_ROLE,
+      environment.DATABASE_RUNTIME_ROLE
     ).catch((error) => {
       workerSecurityAssertion = undefined
       throw error
@@ -271,21 +300,23 @@ async function setContext(
   transaction: DatabaseTransaction,
   settings: Readonly<Record<string, string | undefined>>
 ): Promise<void> {
-  for (const [key, value] of Object.entries(settings)) {
-    // Reviewed raw-SQL allowlist: values are parameters and `true` makes every
-    // setting transaction-local so pool reuse cannot inherit request context.
-    await transaction.execute(sql`select set_config(${key}, ${value ?? ''}, true)`)
-  }
+  const setters = Object.entries(settings).map(
+    ([key, value]) => sql`set_config(${key}, ${value ?? ''}, true)`
+  )
+  if (setters.length === 0) return
+  // Reviewed raw-SQL allowlist: every key/value is bound and `true` makes all
+  // settings transaction-local so pooled sessions cannot inherit context.
+  await transaction.execute(sql`select ${sql.join(setters, sql`, `)}`)
 }
 
 async function withIdentityUsing<T>(
   database: RuntimeDatabase,
-  securityAssertion: Promise<void>,
+  securityAssertion: () => Promise<void>,
   context: IdentityDatabaseContext,
   operation: DatabaseOperation<T>
 ): Promise<T> {
   validateIdentityDatabaseContext(context)
-  await securityAssertion
+  await securityAssertion()
   return database.transaction(async (transaction) => {
     await setContext(transaction, {
       'app.identity_provider': context.identityProvider,
@@ -326,7 +357,7 @@ async function assertCurrentTenantContext(
   transaction: DatabaseTransaction,
   context: TenantDatabaseContext
 ): Promise<void> {
-  const now = new Date()
+  const databaseNow = sql`now()`
   const [anchor] = await transaction
     .select({ accountId: accounts.id })
     .from(accounts)
@@ -345,8 +376,8 @@ async function assertCurrentTenantContext(
         eq(accountLinks.personId, people.id),
         eq(accountLinks.accountId, accounts.id),
         eq(accountLinks.status, 'active'),
-        lte(accountLinks.validFrom, now),
-        or(isNull(accountLinks.validUntil), gt(accountLinks.validUntil, now))
+        lte(accountLinks.validFrom, databaseNow),
+        or(isNull(accountLinks.validUntil), gt(accountLinks.validUntil, databaseNow))
       )
     )
     .innerJoin(
@@ -357,7 +388,7 @@ async function assertCurrentTenantContext(
         eq(accountSessions.status, 'active'),
         eq(accountSessions.securityVersion, context.securityVersion),
         eq(accountSessions.assuranceLevel, context.assuranceLevel),
-        gt(accountSessions.expiresAt, now)
+        gt(accountSessions.expiresAt, databaseNow)
       )
     )
     .where(
@@ -408,19 +439,19 @@ async function assertCurrentTenantContext(
 
 async function withTenantUsing<T>(
   database: RuntimeDatabase,
-  securityAssertion: Promise<void>,
+  securityAssertion: () => Promise<void>,
   context: TenantDatabaseContext,
   operation: DatabaseOperation<T>
 ): Promise<T> {
   validateTenantDatabaseContext(context)
-  await securityAssertion
+  await securityAssertion()
   return database.transaction(async (transaction) => {
+    await setContext(transaction, { 'app.tenant_id': context.tenantId })
     await assertActivePooledPlacement(transaction, context.tenantId)
     await assertCurrentTenantContext(transaction, context)
     await setContext(transaction, {
       'app.account_id': context.accountId,
       'app.person_id': context.personId,
-      'app.tenant_id': context.tenantId,
       'app.session_id': context.sessionId,
       'app.request_id': context.requestId,
       'app.assurance_level': context.assuranceLevel,
@@ -436,16 +467,16 @@ async function withTenantUsing<T>(
 
 async function withWorkerUsing<T>(
   database: RuntimeDatabase,
-  securityAssertion: Promise<void>,
+  securityAssertion: () => Promise<void>,
   context: WorkerDatabaseContext,
   operation: DatabaseOperation<T>
 ): Promise<T> {
   validateWorkerDatabaseContext(context)
-  await securityAssertion
+  await securityAssertion()
   return database.transaction(async (transaction) => {
+    await setContext(transaction, { 'app.tenant_id': context.tenantId })
     await assertActivePooledPlacement(transaction, context.tenantId)
     await setContext(transaction, {
-      'app.tenant_id': context.tenantId,
       'app.job_id': context.jobId,
       'app.job_type': context.jobType,
       'app.request_id': context.requestId,
@@ -460,7 +491,7 @@ export async function withIdentityTransaction<T>(
   operation: DatabaseOperation<T>
 ): Promise<T> {
   validateIdentityDatabaseContext(context)
-  return withIdentityUsing(runtime(), assertRuntimeSecurity(), context, operation)
+  return withIdentityUsing(runtime(), assertRuntimeSecurity, context, operation)
 }
 
 /**
@@ -472,7 +503,7 @@ export async function withTenantTransaction<T>(
   operation: DatabaseOperation<T>
 ): Promise<T> {
   validateTenantDatabaseContext(context)
-  return withTenantUsing(runtime(), assertRuntimeSecurity(), context, operation)
+  return withTenantUsing(runtime(), assertRuntimeSecurity, context, operation)
 }
 
 /** Runs a bounded background job through the separately credentialed worker role. */
@@ -481,7 +512,7 @@ export async function withWorkerTenantTransaction<T>(
   operation: DatabaseOperation<T>
 ): Promise<T> {
   validateWorkerDatabaseContext(context)
-  return withWorkerUsing(worker(), assertWorkerSecurity(), context, operation)
+  return withWorkerUsing(worker(), assertWorkerSecurity, context, operation)
 }
 
 export interface DatabaseSessionContextEvidence extends Record<string, unknown> {
@@ -522,24 +553,33 @@ export function createDatabaseExecutionProofHarness(
   }
 
   const database = createRuntimeDatabase(connectionString, maxConnections)
-  const securityAssertion = assertSafeExecutionRole(
-    database,
-    databaseUsername(connectionString),
-    environment.DATABASE_MIGRATION_ROLE
-  )
+  let securityAssertion: Promise<void> | undefined
+  const assertHarnessSecurity = (): Promise<void> => {
+    securityAssertion ??= assertSafeExecutionRole(
+      database,
+      databaseUsername(connectionString),
+      environment.DATABASE_MIGRATION_ROLE,
+      kind === 'runtime' ? environment.DATABASE_WORKER_ROLE : environment.DATABASE_RUNTIME_ROLE
+    ).catch((error) => {
+      securityAssertion = undefined
+      throw error
+    })
+    return securityAssertion
+  }
 
   return Object.freeze({
     withIdentityTransaction: <T>(
       context: IdentityDatabaseContext,
       operation: DatabaseOperation<T>
-    ) => withIdentityUsing(database, securityAssertion, context, operation),
+    ) => withIdentityUsing(database, assertHarnessSecurity, context, operation),
     withTenantTransaction: <T>(context: TenantDatabaseContext, operation: DatabaseOperation<T>) =>
-      withTenantUsing(database, securityAssertion, context, operation),
+      withTenantUsing(database, assertHarnessSecurity, context, operation),
     withWorkerTenantTransaction: <T>(
       context: WorkerDatabaseContext,
       operation: DatabaseOperation<T>
-    ) => withWorkerUsing(database, securityAssertion, context, operation),
+    ) => withWorkerUsing(database, assertHarnessSecurity, context, operation),
     readSessionContext: async (): Promise<DatabaseSessionContextEvidence> => {
+      await assertHarnessSecurity()
       const result = await database.execute<DatabaseSessionContextEvidence>(sql`
         select
           pg_backend_pid() as "backendPid",
@@ -566,10 +606,18 @@ export function createDatabaseExecutionProofHarness(
 
 /** Guarded proof cleanup only; application code must never close shared pools. */
 export async function closeDatabaseExecutionPoolsForProof(): Promise<void> {
-  await runtimeDatabase?.$client.end({ timeout: 5 })
-  await workerDatabase?.$client.end({ timeout: 5 })
-  runtimeDatabase = undefined
-  workerDatabase = undefined
-  runtimeSecurityAssertion = undefined
-  workerSecurityAssertion = undefined
+  const pools = [runtimeDatabase, workerDatabase]
+  let results: PromiseSettledResult<void>[] = []
+  try {
+    results = await Promise.allSettled(
+      pools.map((pool) => pool?.$client.end({ timeout: 5 }) ?? Promise.resolve())
+    )
+  } finally {
+    runtimeDatabase = undefined
+    workerDatabase = undefined
+    runtimeSecurityAssertion = undefined
+    workerSecurityAssertion = undefined
+  }
+  const failed = results.find((result) => result.status === 'rejected')
+  if (failed?.status === 'rejected') throw failed.reason
 }

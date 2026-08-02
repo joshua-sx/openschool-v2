@@ -29,6 +29,10 @@ import { getSchoolByIdInTransaction } from './schools'
 const MAX_STUDENT_ROWS = 500
 const MAX_POLICY_CONSTRAINTS = 16
 
+function studentAuditSnapshot(student: Student): Record<string, unknown> {
+  return { schoolId: student.schoolId, status: student.status }
+}
+
 function policyScopeDenied(): never {
   throw new TRPCError({ code: 'FORBIDDEN', message: 'POLICY_SCOPE_MISMATCH' })
 }
@@ -321,11 +325,7 @@ export async function createStudent(
     action: 'create',
     resource: 'student',
     resourceId: student.id,
-    newValues: {
-      firstName: student.firstName,
-      lastName: student.lastName,
-      schoolId: student.schoolId,
-    },
+    newValues: studentAuditSnapshot(student),
   })
   return student
 }
@@ -348,6 +348,20 @@ export async function updateStudent(
       { studentId }
     )
     if (!existing) throw new TRPCError({ code: 'NOT_FOUND', message: 'Student not found' })
+    const [locked] = await db
+      .select()
+      .from(students)
+      .where(
+        and(
+          eq(students.tenantId, existing.tenantId),
+          eq(students.id, existing.id),
+          eq(students.schoolId, existing.schoolId),
+          eq(students.status, 'active')
+        )
+      )
+      .for('update')
+      .limit(1)
+    if (!locked) throw new TRPCError({ code: 'CONFLICT', message: 'RESOURCE_CHANGED' })
     const [updated] = await db
       .update(students)
       .set({ ...data, updatedAt: new Date() })
@@ -359,7 +373,7 @@ export async function updateStudent(
         )
       )
       .returning()
-    return { existing, updated }
+    return { existing: locked, updated }
   })
   if (!result.updated) throw new TRPCError({ code: 'CONFLICT', message: 'RESOURCE_CHANGED' })
 
@@ -367,8 +381,9 @@ export async function updateStudent(
     action: 'update',
     resource: 'student',
     resourceId: studentId,
-    oldValues: result.existing,
-    newValues: result.updated,
+    oldValues: studentAuditSnapshot(result.existing),
+    newValues: studentAuditSnapshot(result.updated),
+    metadata: { changedFields: Object.keys(data).sort() },
   })
   return result.updated
 }
