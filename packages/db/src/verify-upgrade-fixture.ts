@@ -34,6 +34,14 @@ async function run(): Promise<void> {
         schools: number
         assignments: number
         missingTenantRows: number
+        accounts: number
+        userPeople: number
+        studentPeople: number
+        accountLinks: number
+        migrationEvents: number
+        affiliations: number
+        roleAssignments: number
+        relationships: number
       }>
     >`
       select
@@ -60,15 +68,69 @@ async function run(): Promise<void> {
             union all select count(*) filter (where tenant_id is null) from enrollments
             union all select count(*) filter (where tenant_id is null) from grades
           ) tenant_nulls
-        ) as "missingTenantRows"
+        ) as "missingTenantRows",
+        (select count(*)::int from accounts) as accounts,
+        (select count(*)::int from people where legacy_user_id is not null) as "userPeople",
+        (select count(*)::int from people where legacy_student_id is not null) as "studentPeople",
+        (select count(*)::int from account_links) as "accountLinks",
+        (select count(*)::int from identity_migration_events) as "migrationEvents",
+        (select count(*)::int from affiliations) as affiliations,
+        (select count(*)::int from role_template_assignments) as "roleAssignments",
+        (select count(*)::int from person_relationships) as relationships
     `
     assert.deepEqual(counts, {
       assignments: 3,
+      accountLinks: 2,
+      accounts: 2,
+      affiliations: 6,
       missingTenantRows: 0,
+      migrationEvents: 2,
       organizations: 2,
+      relationships: 1,
+      roleAssignments: 6,
       roots: 2,
       schools: 3,
+      studentPeople: 2,
       tenants: 2,
+      userPeople: 2,
+    })
+
+    const [parity] = await client<
+      Array<{
+        crossTenantLinks: number
+        legacyStudents: number
+        linkedStudents: number
+        legacyUsers: number
+        linkedUsers: number
+        studentsWithAccounts: number
+      }>
+    >`
+      select
+        (select count(*)::int from users) as "legacyUsers",
+        (select count(distinct legacy_user_id)::int from people where legacy_user_id is not null) as "linkedUsers",
+        (select count(*)::int from students) as "legacyStudents",
+        (select count(*)::int from student_profiles) as "linkedStudents",
+        (
+          select count(*)::int
+          from student_profiles profile
+          join account_links link
+            on link.tenant_id = profile.tenant_id
+           and link.person_id = profile.person_id
+        ) as "studentsWithAccounts",
+        (
+          select count(*)::int
+          from account_links link
+          join people person on person.id = link.person_id
+          where link.tenant_id <> person.tenant_id
+        ) as "crossTenantLinks"
+    `
+    assert.deepEqual(parity, {
+      crossTenantLinks: 0,
+      legacyStudents: 2,
+      legacyUsers: 2,
+      linkedStudents: 2,
+      linkedUsers: 2,
+      studentsWithAccounts: 0,
     })
 
     await assert.rejects(
@@ -87,7 +149,7 @@ async function run(): Promise<void> {
     )
 
     console.log(
-      'Upgrade verification passed: legacy rows retained, Tenant roots and School governance imported, tenant keys complete, and cross-Tenant references rejected.'
+      'Upgrade verification passed: legacy reads retained, Account and Tenant-scoped Person parity proven, non-login students preserved, and cross-Tenant identity links rejected.'
     )
   } finally {
     await client.end()
