@@ -41,6 +41,22 @@ const NON_GUARDIAN_RELATIONSHIP = '00000000-0000-4000-8000-000000000875'
 const AMBIGUOUS_ACCOUNT_LINK = '00000000-0000-4000-8000-000000000876'
 const NOW = new Date('2026-08-02T12:00:00Z')
 
+interface PostgresErrorLike {
+  constraint_name?: string
+  cause?: unknown
+}
+
+function isPostgresConstraint(error: unknown, constraintName: string): boolean {
+  let current = error
+  for (let depth = 0; depth < 5; depth += 1) {
+    if (typeof current !== 'object' || current === null) return false
+    const postgresError = current as PostgresErrorLike
+    if (postgresError.constraint_name === constraintName) return true
+    current = postgresError.cause
+  }
+  return false
+}
+
 function assertLocalDisposableDatabase(databaseUrl: URL): void {
   const loopbackHosts = new Set(['127.0.0.1', 'localhost', '[::1]'])
   if (process.env.ALLOW_TENANT_CONTEXT_POC !== 'true') {
@@ -244,11 +260,7 @@ async function run(): Promise<void> {
         issuanceReason: 'Ambiguous same-Tenant Account Link negative proof',
         activatedAt: NOW,
       }),
-      (error: unknown) =>
-        typeof error === 'object' &&
-        error !== null &&
-        'constraint_name' in error &&
-        error.constraint_name === 'account_links_account_no_active_overlap'
+      (error: unknown) => isPostgresConstraint(error, 'account_links_account_no_active_overlap')
     )
 
     await expectDenial('TENANT_DENIED', () =>
@@ -332,11 +344,7 @@ async function run(): Promise<void> {
         revokedAt: NOW,
         revocationReason: '   ',
       }),
-      (error: unknown) =>
-        typeof error === 'object' &&
-        error !== null &&
-        'constraint_name' in error &&
-        error.constraint_name === 'account_sessions_revocation_evidence_check'
+      (error: unknown) => isPostgresConstraint(error, 'account_sessions_revocation_evidence_check')
     )
     await expectDenial('SESSION_REVOKED', () =>
       resolveTenantRequestContext(
