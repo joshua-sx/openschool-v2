@@ -64,6 +64,27 @@
       "when": 1785694222661,
       "tag": "0008_tenant_hierarchy_value_constraints",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785695118507,
+      "tag": "0009_identity_foundation_additive",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785695131780,
+      "tag": "0010_identity_foundation_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785695388516,
+      "tag": "0011_identity_foundation_guards",
+      "breakpoints": true
     }
   ]
 }
