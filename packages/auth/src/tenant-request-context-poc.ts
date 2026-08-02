@@ -40,7 +40,9 @@ const NON_GUARDIAN_AFFILIATION = '00000000-0000-4000-8000-000000000873'
 const NON_GUARDIAN_ROLE = '00000000-0000-4000-8000-000000000874'
 const NON_GUARDIAN_RELATIONSHIP = '00000000-0000-4000-8000-000000000875'
 const AMBIGUOUS_ACCOUNT_LINK = '00000000-0000-4000-8000-000000000876'
-const NOW = new Date('2026-08-02T12:00:00Z')
+const NOW = new Date()
+const IDENTITY_ISSUED_AT = new Date(NOW.getTime() - 60 * 60 * 1000).toISOString()
+const IDENTITY_EXPIRES_AT = new Date(NOW.getTime() + 60 * 60 * 1000).toISOString()
 
 interface PostgresErrorLike {
   constraint_name?: string
@@ -89,8 +91,8 @@ function identity(accountId: string, sessionId: string, assuranceLevel: 'aal1' |
     sessionId,
     email: `${accountId}@proof.test`,
     assuranceLevel,
-    issuedAt: '2026-08-02T11:00:00.000Z',
-    expiresAt: '2026-08-02T13:00:00.000Z',
+    issuedAt: IDENTITY_ISSUED_AT,
+    expiresAt: IDENTITY_EXPIRES_AT,
   }) satisfies VerifiedAccountIdentity
 }
 
@@ -330,8 +332,8 @@ async function run(): Promise<void> {
         status: 'revoked',
         assuranceLevel: 'aal1',
         securityVersion: 1,
-        authenticatedAt: new Date('2026-08-02T11:00:00Z'),
-        expiresAt: new Date('2026-08-02T13:00:00Z'),
+        authenticatedAt: new Date(IDENTITY_ISSUED_AT),
+        expiresAt: new Date(IDENTITY_EXPIRES_AT),
         revokedAt: NOW,
         revocationReason: '   ',
       }),
