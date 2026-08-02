@@ -233,24 +233,22 @@ async function run(): Promise<void> {
     )
     assert.deepEqual(nonGuardianContext.roleTemplateKeys, ['staff'])
 
-    await db.insert(accountLinks).values({
-      id: AMBIGUOUS_ACCOUNT_LINK,
-      tenantId: TENANT_A,
-      accountId: STAFF_ACCOUNT,
-      personId: '00000000-0000-4000-8000-000000000907',
-      status: 'active',
-      validFrom: new Date('2026-01-01T00:00:00Z'),
-      issuanceReason: 'Ambiguous same-Tenant Account Link negative proof',
-      activatedAt: NOW,
-    })
-    await expectDenial('POLICY_DENIED', () =>
-      resolveTenantRequestContext(
-        staffIdentity,
-        { tenantId: TENANT_A, schoolId: SCHOOL_A_HIGH },
-        { requestId: 'ambiguous-account-link' },
-        { at: NOW },
-        db
-      )
+    await assert.rejects(
+      db.insert(accountLinks).values({
+        id: AMBIGUOUS_ACCOUNT_LINK,
+        tenantId: TENANT_A,
+        accountId: STAFF_ACCOUNT,
+        personId: '00000000-0000-4000-8000-000000000907',
+        status: 'active',
+        validFrom: new Date('2026-01-01T00:00:00Z'),
+        issuanceReason: 'Ambiguous same-Tenant Account Link negative proof',
+        activatedAt: NOW,
+      }),
+      (error: unknown) =>
+        typeof error === 'object' &&
+        error !== null &&
+        'constraint_name' in error &&
+        error.constraint_name === 'account_links_account_no_active_overlap'
     )
 
     await expectDenial('TENANT_DENIED', () =>
@@ -401,7 +399,7 @@ async function run(): Promise<void> {
     assert.equal(observedExpansion.legacyComparison, 'observed_expansion')
 
     console.log(
-      'Tenant Request Context proof passed: verified Account sessions, explicit multi-context selection, guardian relationship boundaries, ambiguous-link denial, bounded roles, Tenant/School/subtree denials, MFA, immutable revocation, disablement, and scope-aware legacy expansion enforcement.'
+      'Tenant Request Context proof passed: verified Account sessions, explicit multi-context selection, guardian relationship boundaries, ambiguous-link prevention, bounded roles, Tenant/School/subtree denials, MFA, immutable revocation, disablement, and scope-aware legacy expansion enforcement.'
     )
   } finally {
     await db.delete(accountLinks).where(eq(accountLinks.id, AMBIGUOUS_ACCOUNT_LINK))
