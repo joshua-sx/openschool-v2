@@ -4,6 +4,7 @@ import {
   getStudentsBySchool,
   updateStudent,
   validateStudentData,
+  validateStudentUpdateData,
 } from '@/services/students'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
@@ -142,7 +143,7 @@ export const studentsRouter = router({
         updateData.dateOfBirth ||
         updateData.email
       ) {
-        const validationErrors = validateStudentData({
+        const validationErrors = validateStudentUpdateData({
           firstName: updateData.firstName,
           lastName: updateData.lastName,
           dateOfBirth: updateData.dateOfBirth ?? undefined,
@@ -161,9 +162,9 @@ export const studentsRouter = router({
       return await updateStudent(ctx.tenantContext, studentId, {
         firstName: updateData.firstName,
         lastName: updateData.lastName,
-        dateOfBirth: updateData.dateOfBirth ?? undefined,
-        studentNumber: updateData.studentNumber ?? undefined,
-        email: updateData.email ?? undefined,
+        dateOfBirth: updateData.dateOfBirth,
+        studentNumber: updateData.studentNumber,
+        email: updateData.email,
       })
     }),
 })

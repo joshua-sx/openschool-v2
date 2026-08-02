@@ -76,6 +76,8 @@ const testimonials = [
   },
 ]
 
+const testimonialStars = [1, 2, 3, 4, 5] as const
+
 const pricingTiers = [
   {
     id: 'starter',
@@ -551,7 +553,7 @@ export default function LandingPage() {
                 className="bg-surface-primary p-8 rounded-xl border border-border-default shadow-sm"
               >
                 <div className="flex gap-1 mb-4">
-                  {[1, 2, 3, 4, 5].map((star) => (
+                  {testimonialStars.slice(0, item.rating).map((star) => (
                     <Star key={star} className="w-4 h-4 fill-current text-text-primary" />
                   ))}
                 </div>

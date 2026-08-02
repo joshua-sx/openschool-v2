@@ -145,19 +145,44 @@ export async function updateStudent(
  * Validate student data
  * Returns validation errors or null if valid
  */
-export function validateStudentData(data: {
+interface StudentValidationData {
   firstName?: string
   lastName?: string
   dateOfBirth?: string | Date | null
   email?: string | null
-}): { field: string; message: string }[] {
+}
+
+interface StudentValidationOptions {
+  requireNames: boolean
+}
+
+type StudentValidationError = { field: string; message: string }
+
+export function validateStudentData(data: StudentValidationData): StudentValidationError[] {
+  return validateStudentFields(data, { requireNames: true })
+}
+
+export function validateStudentUpdateData(data: StudentValidationData): StudentValidationError[] {
+  return validateStudentFields(data, { requireNames: false })
+}
+
+function validateStudentFields(
+  data: StudentValidationData,
+  options: StudentValidationOptions
+): StudentValidationError[] {
   const errors: { field: string; message: string }[] = []
 
-  if (!data.firstName || data.firstName.trim().length === 0) {
+  if (
+    (options.requireNames && !data.firstName) ||
+    (data.firstName !== undefined && data.firstName.trim().length === 0)
+  ) {
     errors.push({ field: 'firstName', message: 'First name is required' })
   }
 
-  if (!data.lastName || data.lastName.trim().length === 0) {
+  if (
+    (options.requireNames && !data.lastName) ||
+    (data.lastName !== undefined && data.lastName.trim().length === 0)
+  ) {
     errors.push({ field: 'lastName', message: 'Last name is required' })
   }
 
