@@ -35,6 +35,10 @@
     "db:migrate": {
       "cache": false
     },
+    "db:security-poc": {
+      "cache": false,
+      "env": ["ALLOW_SECURITY_POC", "DATABASE_URL"]
+    },
     "db:seed": {
       "cache": false
     },

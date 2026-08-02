@@ -4,7 +4,7 @@ OpenSchool is a pre-production school administration platform under active devel
 
 > **Development status:** This repository is not approved for production use and must not be used with real student, family, staff, health, financial, or safeguarding data.
 
-[Current capability evidence](./docs/CAPABILITY_STATUS.md) · [Dependency security policy](./docs/DEPENDENCY_SECURITY.md) · [M0 delivery milestone](https://github.com/joshua-sx/openschool-v2/milestone/1) · [Issue tracker](https://github.com/joshua-sx/openschool-v2/issues)
+[Current capability evidence](./docs/CAPABILITY_STATUS.md) · [M1 security architecture](./docs/adr/README.md) · [Production go/no-go gate](./docs/PRODUCTION_READINESS.md) · [Dependency security policy](./docs/DEPENDENCY_SECURITY.md) · [Issue tracker](https://github.com/joshua-sx/openschool-v2/issues)
 
 ## What works today
 
@@ -59,6 +59,7 @@ openschool-v2/
 ├── packages/
 │   ├── audit/           # Early audit-event helper
 │   ├── auth/            # Supabase and tenant-context helpers
+│   ├── config/          # Typed public/server environment contract
 │   ├── db/              # Drizzle schema and migrations
 │   └── rbac/            # Role and permission primitives
 ├── scripts/             # Local development utilities
@@ -127,6 +128,8 @@ Security-sensitive code exists, but the platform has not completed a production 
 - no FERPA, GDPR, or jurisdiction-specific compliance claim is made.
 
 Security and privacy decisions are tracked in [#68](https://github.com/joshua-sx/openschool-v2/issues/68) and subsequent M1 work.
+
+The accepted M1 decision set, [threat model](./docs/security/THREAT_MODEL.md), [tenant-isolation test contract](./docs/security/TENANT_ISOLATION_MATRIX.md), and [production gate](./docs/PRODUCTION_READINESS.md) are published under [docs/adr](./docs/adr/README.md) and `docs/security`. These are implementation constraints and readiness criteria, not evidence that the current prototype is secure or approved for production.
 
 Dependency handling, vulnerability thresholds, exception rules, and automated update controls are documented in [docs/DEPENDENCY_SECURITY.md](./docs/DEPENDENCY_SECURITY.md).
 
