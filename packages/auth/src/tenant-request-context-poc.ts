@@ -44,6 +44,7 @@ const NOW = new Date('2026-08-02T12:00:00Z')
 interface PostgresErrorLike {
   constraint_name?: string
   cause?: unknown
+  message?: string
 }
 
 function isPostgresConstraint(error: unknown, constraintName: string): boolean {
@@ -53,6 +54,17 @@ function isPostgresConstraint(error: unknown, constraintName: string): boolean {
     const postgresError = current as PostgresErrorLike
     if (postgresError.constraint_name === constraintName) return true
     current = postgresError.cause
+  }
+  return false
+}
+
+function errorChainIncludes(error: unknown, expectedMessage: string): boolean {
+  let current = error
+  for (let depth = 0; depth < 5; depth += 1) {
+    if (typeof current !== 'object' || current === null) return false
+    const currentError = current as PostgresErrorLike
+    if (currentError.message?.includes(expectedMessage)) return true
+    current = currentError.cause
   }
   return false
 }
@@ -329,8 +341,7 @@ async function run(): Promise<void> {
         .set({ status: 'active', updatedAt: new Date(NOW.getTime() + 1) })
         .where(eq(schema.accountSessions.providerSessionId, teacherIdentity.sessionId)),
       (error: unknown) =>
-        error instanceof Error &&
-        error.message.includes('inactive Account Session records are immutable')
+        errorChainIncludes(error, 'inactive Account Session records are immutable')
     )
     await assert.rejects(
       db.insert(schema.accountSessions).values({
