@@ -39,6 +39,18 @@
       "cache": false,
       "env": ["ALLOW_SECURITY_POC", "DATABASE_URL"]
     },
+    "db:tenant-foundation-poc": {
+      "cache": false,
+      "env": ["ALLOW_TENANT_FOUNDATION_POC", "DATABASE_URL"]
+    },
+    "db:prepare-upgrade-fixture": {
+      "cache": false,
+      "env": ["ALLOW_TENANT_FOUNDATION_POC", "DATABASE_URL"]
+    },
+    "db:verify-upgrade-fixture": {
+      "cache": false,
+      "env": ["ALLOW_TENANT_FOUNDATION_POC", "DATABASE_URL"]
+    },
     "db:seed": {
       "cache": false
     },
