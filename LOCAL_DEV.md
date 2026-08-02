@@ -31,6 +31,7 @@ The supported variables are:
 | `NEXT_PUBLIC_SUPABASE_URL` | browser | Dedicated development Supabase origin |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | browser | Publishable key or legacy anon key; never a secret/service-role key |
 | `DATABASE_URL` | server only | Application PostgreSQL connection |
+| `OPENSCHOOL_POLICY_VERSION` | server only | Optional accepted capability-policy rollback version; an unknown value fails closed |
 | `NEXT_PUBLIC_APP_URL` | browser | Authenticated application origin |
 | `NEXT_PUBLIC_WWW_URL` | browser | Marketing and authentication origin |
 
