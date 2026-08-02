@@ -1,6 +1,7 @@
 import { AppShell } from '@/components/layout'
 import { TRPCProvider } from '@/lib/trpc/provider'
 import { createServerClient, resolveTenantContext } from '@openschool/auth/server'
+import { getPublicEnv } from '@openschool/config/public'
 import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
@@ -23,8 +24,7 @@ export default async function AppLayout({
   } = await supabase.auth.getSession()
 
   if (!session) {
-    const wwwUrl = process.env.NEXT_PUBLIC_WWW_URL || 'http://www.openschool.local:3000'
-    redirect(`${wwwUrl}/auth/login`)
+    redirect(`${getPublicEnv().NEXT_PUBLIC_WWW_URL}/auth/login`)
   }
 
   // Resolve tenant context

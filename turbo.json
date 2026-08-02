@@ -1,6 +1,13 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": [".env.local", ".env"],
+  "globalEnv": [
+    "DATABASE_URL",
+    "NEXT_PUBLIC_APP_URL",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_WWW_URL"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -20,6 +27,9 @@
       "cache": false
     },
     "db:generate": {
+      "cache": false
+    },
+    "db:check": {
       "cache": false
     },
     "db:migrate": {

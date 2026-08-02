@@ -1,9 +1,11 @@
 import { normalizeInternalRedirectPath } from '@/lib/redirects'
 import { createServerClient, resolveTenantContext } from '@openschool/auth/server'
+import { getPublicEnv } from '@openschool/config/public'
 import { cookies } from 'next/headers'
 import { type NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
+  const env = getPublicEnv()
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   const next = normalizeInternalRedirectPath(requestUrl.searchParams.get('next'))
@@ -31,13 +33,11 @@ export async function GET(request: NextRequest) {
         }
 
         // Redirect to dashboard
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://app.openschool.local:3000'
-        return NextResponse.redirect(new URL(next, appUrl))
+        return NextResponse.redirect(new URL(next, env.NEXT_PUBLIC_APP_URL))
       }
     }
   }
 
   // If there's an error or no code, redirect to login
-  const wwwUrl = process.env.NEXT_PUBLIC_WWW_URL || 'http://www.openschool.local:3000'
-  return NextResponse.redirect(`${wwwUrl}/auth/login?error=auth_failed`)
+  return NextResponse.redirect(`${env.NEXT_PUBLIC_WWW_URL}/auth/login?error=auth_failed`)
 }

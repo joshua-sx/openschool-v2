@@ -67,25 +67,38 @@ openschool-v2/
 
 ## Local development
 
-Environment and migration reproducibility is being corrected in [#66](https://github.com/joshua-sx/openschool-v2/issues/66). Until that work is complete, local setup is for contributors who can inspect and supply the required development-only configuration themselves.
+The repository provides a validated environment contract, a PostgreSQL development container, journal-checked migrations, and an idempotent representative seed. Interactive authentication additionally requires a dedicated development Supabase project or a separately operated complete local Supabase stack.
 
 ```bash
 git clone https://github.com/joshua-sx/openschool-v2.git
 cd openschool-v2
 bun install --frozen-lockfile
+bun run env:setup
 ```
 
-The application currently reads these variables:
+Replace the Supabase placeholders in the generated root `.env.local`, then validate it:
+
+```bash
+bun run env:check
+```
+
+The application reads these variables:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `DATABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `DATABASE_URL` (server-only)
 - `NEXT_PUBLIC_APP_URL`
 - `NEXT_PUBLIC_WWW_URL`
 
-Do not commit credentials. See [LOCAL_DEV.md](./LOCAL_DEV.md) for the current development workflow and #66 for known setup limitations.
+Do not commit credentials or use real school data. See [LOCAL_DEV.md](./LOCAL_DEV.md) for hostnames, Supabase redirect configuration, database setup, fixture contents, and troubleshooting.
 
 ```bash
+# Start and prepare the development database
+bun run db:start
+bun run db:check
+bun run db:migrate
+bun run db:seed
+
 # Start development
 bun run dev
 
@@ -100,7 +113,7 @@ bun run audit:security
 bun run build
 ```
 
-Database generation and migration commands exist, but the seed command and migration/RLS history are not yet a verified clean-setup path. Track that work in #66 rather than using the repository with real data.
+CI provisions a clean PostgreSQL service and repeats migration plus seed operations to prove idempotence. The unapproved RLS proposal is quarantined outside the executable migration path pending the security and tenancy decision in #68.
 
 ## Security and privacy status
 

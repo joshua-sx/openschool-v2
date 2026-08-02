@@ -1,7 +1,9 @@
+import { getPublicEnv } from '@openschool/config/public'
 import { type CookieOptions, createServerClient } from '@supabase/ssr'
 import { type NextRequest, NextResponse } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const env = getPublicEnv()
   const hostname = request.headers.get('host') || ''
   const url = request.nextUrl.clone()
 
@@ -36,8 +38,7 @@ export async function middleware(request: NextRequest) {
 
     // Redirect app routes to app subdomain
     if (url.pathname.startsWith('/dashboard') || url.pathname.startsWith('/(app)')) {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://app.openschool.local:3000'
-      const redirectUrl = new URL(url.pathname, appUrl)
+      const redirectUrl = new URL(url.pathname, env.NEXT_PUBLIC_APP_URL)
       redirectUrl.search = url.search
       return NextResponse.redirect(redirectUrl)
     }
@@ -60,26 +61,23 @@ export async function middleware(request: NextRequest) {
     const response = NextResponse.next()
 
     try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-      if (!supabaseUrl || !supabaseAnonKey) {
-        throw new Error('Missing required Supabase environment variables')
-      }
-
-      const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
+      const supabase = createServerClient(
+        env.NEXT_PUBLIC_SUPABASE_URL,
+        env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+        {
+          cookies: {
+            getAll() {
+              return request.cookies.getAll()
+            },
+            setAll(cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }>) {
+              for (const { name, value, options } of cookiesToSet) {
+                request.cookies.set(name, value)
+                response.cookies.set(name, value, options)
+              }
+            },
           },
-          setAll(cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }>) {
-            for (const { name, value, options } of cookiesToSet) {
-              request.cookies.set(name, value)
-              response.cookies.set(name, value, options)
-            }
-          },
-        },
-      })
+        }
+      )
 
       const {
         data: { session },
@@ -87,8 +85,7 @@ export async function middleware(request: NextRequest) {
 
       // If not authenticated and trying to access protected route, redirect to login
       if (!session && !url.pathname.startsWith('/auth')) {
-        const wwwUrl = process.env.NEXT_PUBLIC_WWW_URL || 'http://www.openschool.local:3000'
-        const redirectUrl = new URL('/auth/login', wwwUrl)
+        const redirectUrl = new URL('/auth/login', env.NEXT_PUBLIC_WWW_URL)
         redirectUrl.searchParams.set('redirect', url.pathname)
         return NextResponse.redirect(redirectUrl)
       }
@@ -104,8 +101,7 @@ export async function middleware(request: NextRequest) {
     } catch (error) {
       // On auth error, redirect to login for safety rather than allowing unauthenticated access
       console.error('Middleware auth error:', error)
-      const wwwUrl = process.env.NEXT_PUBLIC_WWW_URL || 'http://www.openschool.local:3000'
-      const redirectUrl = new URL('/auth/login', wwwUrl)
+      const redirectUrl = new URL('/auth/login', env.NEXT_PUBLIC_WWW_URL)
       redirectUrl.searchParams.set('error', 'session_error')
       return NextResponse.redirect(redirectUrl)
     }

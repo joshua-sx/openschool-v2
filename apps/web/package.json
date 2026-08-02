@@ -12,6 +12,7 @@
   "dependencies": {
     "@openschool/audit": "workspace:*",
     "@openschool/auth": "workspace:*",
+    "@openschool/config": "workspace:*",
     "@openschool/db": "workspace:*",
     "@openschool/rbac": "workspace:*",
     "@supabase/auth-ui-react": "^0.4.0",

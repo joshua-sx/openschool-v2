@@ -1,0 +1,15 @@
+{
+  "name": "@openschool/config",
+  "version": "0.0.1",
+  "private": true,
+  "exports": {
+    "./public": "./src/public.ts",
+    "./server": "./src/server.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

@@ -12,7 +12,7 @@ Thank you for your interest in contributing to OpenSchool! This document outline
 
 2. **Install Dependencies**
    ```bash
-   bun install
+   bun install --frozen-lockfile
    ```
 
    CI uses `bun install --frozen-lockfile`; commit `bun.lock` whenever an intentional dependency
@@ -20,13 +20,17 @@ Thank you for your interest in contributing to OpenSchool! This document outline
 
 3. **Set Up Environment**
    ```bash
-   cp .env.example .env.local
-   # Fill in your environment variables
+   bun run env:setup
+   # Replace the Supabase development placeholders, then validate:
+   bun run env:check
    ```
 
-4. **Run Migrations**
+4. **Prepare the Database**
    ```bash
+   bun run db:start
+   bun run db:check
    bun run db:migrate
+   bun run db:seed
    ```
 
 5. **Start Development Server**
@@ -38,7 +42,7 @@ Thank you for your interest in contributing to OpenSchool! This document outline
 
 We use a **main-only** strategy with feature branches:
 
-- **`main`** - Production-ready code. Always deployable.
+- **`main`** - Reviewed integration branch. The product remains pre-production until its published readiness gates are complete.
 - **Feature branches** - Created from `main` for new features or fixes.
 - **No long-lived branches** - Merge to `main` as soon as work is complete and tested.
 
@@ -180,6 +184,9 @@ bun run lint
 # Run unit tests
 bun test
 
+# Validate the executable migration baseline
+bun run db:check
+
 # Build
 bun run build
 
@@ -264,6 +271,7 @@ Before submitting a PR, ensure:
 - [ ] Types pass (`bun run typecheck`)
 - [ ] Linting passes (`bun run lint`)
 - [ ] Tests pass (`bun test`)
+- [ ] Migration metadata passes (`bun run db:check`)
 - [ ] Build succeeds (`bun run build`)
 - [ ] App runs locally (`bun run dev`)
 - [ ] No hardcoded secrets

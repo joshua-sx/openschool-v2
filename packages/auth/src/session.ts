@@ -1,3 +1,4 @@
+import { getPublicEnv } from '@openschool/config/public'
 import {
   type CookieOptions,
   createBrowserClient as createBrowserClientSSR,
@@ -11,20 +12,11 @@ interface ServerCookieStore {
 }
 
 function getSupabaseConfig() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!url || !key) {
-    throw new Error(
-      `Missing Supabase environment variables. NEXT_PUBLIC_SUPABASE_URL: ${
-        url ? 'set' : 'missing'
-      }, NEXT_PUBLIC_SUPABASE_ANON_KEY: ${
-        key ? 'set' : 'missing'
-      }. Please create apps/web/.env.local with these variables.`
-    )
+  const env = getPublicEnv()
+  return {
+    url: env.NEXT_PUBLIC_SUPABASE_URL,
+    key: env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   }
-
-  return { url, key }
 }
 
 // Legacy browser client (for backward compatibility)
