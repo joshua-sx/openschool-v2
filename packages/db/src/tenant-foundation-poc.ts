@@ -31,8 +31,6 @@ interface PostgresErrorLike {
   code?: string
 }
 
-class ExpectedProofRollback extends Error {}
-
 function isPostgresErrorWithCode(error: unknown, code: string): boolean {
   return typeof error === 'object' && error !== null && (error as PostgresErrorLike).code === code
 }
@@ -125,6 +123,16 @@ async function run(): Promise<void> {
             ${TENANT_A}, ${TENANT_A_PRIMARY}, ${TENANT_A_BOARD}, '2026-06-01T00:00:00Z'
           )
         `
+      })
+    )
+    await expectSqlState('sealed tree insert', '55000', () =>
+      db.transaction(async (tx) => {
+        await tx.insert(organizationTreeNodes).values({
+          tenantId: TENANT_A,
+          treeVersionId: TENANT_A_ROOT,
+          organizationId: TENANT_A_ROOT,
+          parentOrganizationId: null,
+        })
       })
     )
 
@@ -227,25 +235,6 @@ async function run(): Promise<void> {
         assert.deepEqual(historicalGovernance, [{ educationOrganizationId: TENANT_A_DISTRICT }])
         assert.deepEqual(currentGovernance, [{ educationOrganizationId: TENANT_A_NETWORK }])
 
-        await expectSqlState('sealed tree update', '55000', () =>
-          tx.transaction(async (savepoint) => {
-            await savepoint
-              .update(organizationTreeVersions)
-              .set({ reason: 'forbidden mutation' })
-              .where(eq(organizationTreeVersions.id, TREE_V2))
-          })
-        )
-        await expectSqlState('sealed tree insert', '55000', () =>
-          tx.transaction(async (savepoint) => {
-            await savepoint.insert(organizationTreeNodes).values({
-              tenantId: TENANT_A,
-              treeVersionId: TREE_V2,
-              organizationId: TENANT_A_ROOT,
-              parentOrganizationId: null,
-            })
-          })
-        )
-
         await tx.execute(drizzleSql`set local enable_seqscan = off`)
         const closurePlan = await tx.execute(drizzleSql`
           explain (format json)
@@ -264,9 +253,12 @@ async function run(): Promise<void> {
         assert.match(JSON.stringify(closurePlan), /organization_tree_closure_descendants_idx/)
         assert.match(JSON.stringify(schoolPlan), /schools_tenant_organization_idx/)
 
-        throw new ExpectedProofRollback('rollback proof-only hierarchy changes')
+        await tx
+          .update(organizationTreeVersions)
+          .set({ reason: 'forbidden mutation rolls back proof-only hierarchy changes' })
+          .where(eq(organizationTreeVersions.id, TREE_V2))
       }),
-      (error: unknown) => error instanceof ExpectedProofRollback
+      (error: unknown) => isPostgresErrorWithCode(error, '55000')
     )
 
     await expectSqlState('Organization Tree cycle', '23514', () =>
