@@ -13,9 +13,13 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'OpenSchool - The modern operating system for schools',
+  title: 'OpenSchool | School administration platform in development',
   description:
-    'Streamline operations, enhance learning, and build stronger communities with a platform designed for the future of education.',
+    'Follow the evidence-backed development of OpenSchool, a pre-production school administration platform.',
+  robots: {
+    index: false,
+    follow: false,
+  },
 }
 
 export default function MarketingLayout({

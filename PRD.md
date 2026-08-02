@@ -1,4 +1,7 @@
-OpenSchool — Product Requirements Document (PRD)
+# OpenSchool — Legacy Product Requirements Document
+
+> **Status:** Historical requirements draft. This file describes intended outcomes, not current capability or an approved production scope. See [docs/CAPABILITY_STATUS.md](./docs/CAPABILITY_STATUS.md) for implemented evidence and [M0](https://github.com/joshua-sx/openschool-v2/milestone/1) for the active foundation plan. Requirements involving legal or compliance obligations remain undecided until a launch jurisdiction is selected and reviewed.
+
 1. Overview
 
 OpenSchool is a School Operating System for K–12 schools that replaces fragmented tools like spreadsheets, paper, and messaging apps with one reliable system for daily school operations.
