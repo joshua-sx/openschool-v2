@@ -1,17 +1,16 @@
 'use client'
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import {
-  LayoutDashboard,
-  Users,
-  GraduationCap,
+  BarChart3,
   BookOpen,
   ClipboardList,
-  BarChart3,
+  GraduationCap,
+  LayoutDashboard,
   Settings,
-  LogOut,
+  Users,
 } from 'lucide-react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -22,9 +21,7 @@ const navigation = [
   { name: 'Reports', href: '/reports', icon: BarChart3 },
 ]
 
-const secondaryNavigation = [
-  { name: 'Settings', href: '/settings', icon: Settings },
-]
+const secondaryNavigation = [{ name: 'Settings', href: '/settings', icon: Settings }]
 
 export function Sidebar() {
   const pathname = usePathname()

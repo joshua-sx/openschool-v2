@@ -1,7 +1,7 @@
-import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
 import { getAccessibleSchools, getSchoolById } from '@/services/schools'
 import { TRPCError } from '@trpc/server'
+import { z } from 'zod'
+import { protectedProcedure, router } from '../trpc'
 
 /**
  * Schools Router
@@ -14,17 +14,16 @@ export const schoolsRouter = router({
   /**
    * Get all schools the user has access to
    */
-  list: protectedProcedure('schools:read')
-    .query(async ({ ctx }) => {
-      if (!ctx.tenantContext) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'Not authenticated',
-        })
-      }
+  list: protectedProcedure('schools:read').query(async ({ ctx }) => {
+    if (!ctx.tenantContext) {
+      throw new TRPCError({
+        code: 'UNAUTHORIZED',
+        message: 'Not authenticated',
+      })
+    }
 
-      return await getAccessibleSchools(ctx.tenantContext)
-    }),
+    return await getAccessibleSchools(ctx.tenantContext)
+  }),
 
   /**
    * Get a single school by ID

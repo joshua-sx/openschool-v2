@@ -1,12 +1,12 @@
-import { eq, and } from 'drizzle-orm'
-import { getDb, students, type Student, type NewStudent } from '@openschool/db'
-import type { TenantContext } from '@openschool/rbac'
 import { logAuditEvent } from '@openschool/audit'
+import { type NewStudent, type Student, getDb, students } from '@openschool/db'
+import type { TenantContext } from '@openschool/rbac'
 import { TRPCError } from '@trpc/server'
+import { and, eq } from 'drizzle-orm'
 
 /**
  * Student Service
- * 
+ *
  * Business logic for student operations with:
  * - Tenant access verification
  * - Permission checks (handled by tRPC middleware)
@@ -84,10 +84,7 @@ export async function createStudent(
   }
 
   const db = getDb()
-  const [student] = await db
-    .insert(students)
-    .values(data)
-    .returning()
+  const [student] = await db.insert(students).values(data).returning()
 
   // Audit log
   await logAuditEvent(ctx, {
@@ -169,7 +166,7 @@ export function validateStudentData(data: {
     const dob = typeof data.dateOfBirth === 'string' ? new Date(data.dateOfBirth) : data.dateOfBirth
     const today = new Date()
     const age = today.getFullYear() - dob.getFullYear()
-    
+
     if (dob > today) {
       errors.push({ field: 'dateOfBirth', message: 'Date of birth cannot be in the future' })
     } else if (age > 25) {
@@ -187,4 +184,3 @@ export function validateStudentData(data: {
 
   return errors.length > 0 ? errors : []
 }
-

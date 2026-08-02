@@ -1,4 +1,4 @@
-import { getDb, auditLogs, type NewAuditLog } from '@openschool/db'
+import { type NewAuditLog, auditLogs, getDb } from '@openschool/db'
 import type { TenantContext } from '@openschool/rbac'
 import type { AuditEvent } from './types'
 

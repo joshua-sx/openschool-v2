@@ -54,14 +54,28 @@ export const PERMISSIONS = {
 
   // Teachers
   'teachers:create': ['org_admin', 'school_admin'],
-  'teachers:read': ['org_admin', 'org_viewer', 'school_admin', 'staff', 'teacher', 'parent', 'student'],
+  'teachers:read': [
+    'org_admin',
+    'org_viewer',
+    'school_admin',
+    'staff',
+    'teacher',
+    'parent',
+    'student',
+  ],
   'teachers:update': ['org_admin', 'school_admin'],
   'teachers:delete': ['org_admin', 'school_admin'],
 
   // Reports
   'reports:school': ['org_admin', 'org_viewer', 'school_admin'],
   'reports:class': ['org_admin', 'org_viewer', 'school_admin', 'teacher:own_class'],
-  'reports:student': ['org_admin', 'org_viewer', 'school_admin', 'teacher:own_class', 'parent:own_child'],
+  'reports:student': [
+    'org_admin',
+    'org_viewer',
+    'school_admin',
+    'teacher:own_class',
+    'parent:own_child',
+  ],
 
   // Settings
   'settings:org': ['org_admin'],

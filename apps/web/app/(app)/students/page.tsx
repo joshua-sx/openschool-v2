@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import Link from 'next/link'
 import { trpc } from '@/lib/trpc/client'
-import { Plus, Search, User, Loader2, AlertCircle } from 'lucide-react'
+import { AlertCircle, Loader2, Plus, Search, User } from 'lucide-react'
+import Link from 'next/link'
+import { useState } from 'react'
 
 export default function StudentsPage() {
   const [selectedSchoolId, setSelectedSchoolId] = useState<string | null>(null)
@@ -21,7 +21,7 @@ export default function StudentsPage() {
     isLoading: studentsLoading,
     error: studentsError,
   } = trpc.students.getBySchool.useQuery(
-    { schoolId: effectiveSchoolId! },
+    { schoolId: effectiveSchoolId ?? '' },
     { enabled: !!effectiveSchoolId }
   )
 
@@ -40,9 +40,7 @@ export default function StudentsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Students</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Manage student records and information
-          </p>
+          <p className="text-gray-500 text-sm mt-1">Manage student records and information</p>
         </div>
         <Link
           href="/students/new"
@@ -153,17 +151,9 @@ export default function StudentsPage() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredStudents.map((student) => (
-                <tr
-                  key={student.id}
-                  className="hover:bg-gray-50 cursor-pointer"
-                  onClick={() => window.location.href = `/students/${student.id}`}
-                >
+                <tr key={student.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <Link
-                      href={`/students/${student.id}`}
-                      className="flex items-center"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <Link href={`/students/${student.id}`} className="flex items-center">
                       <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3">
                         <span className="text-sm font-medium text-gray-600">
                           {student.firstName[0]}
@@ -182,7 +172,7 @@ export default function StudentsPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {student.dateOfBirth
-                      ? new Date(student.dateOfBirth + 'T00:00:00').toLocaleDateString()
+                      ? new Date(`${student.dateOfBirth}T00:00:00`).toLocaleDateString()
                       : '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -194,8 +184,8 @@ export default function StudentsPage() {
                         student.status === 'active'
                           ? 'bg-green-100 text-green-800'
                           : student.status === 'archived'
-                          ? 'bg-gray-100 text-gray-800'
-                          : 'bg-yellow-100 text-yellow-800'
+                            ? 'bg-gray-100 text-gray-800'
+                            : 'bg-yellow-100 text-yellow-800'
                       }`}
                     >
                       {student.status}

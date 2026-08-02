@@ -1,8 +1,8 @@
-import { getDb, usersOnOrg, usersOnSchool, teachersOnClass, parentStudent } from '@openschool/db'
-import { eq } from 'drizzle-orm'
+import { getDb, parentStudent, teachersOnClass, usersOnOrg, usersOnSchool } from '@openschool/db'
 import type { TenantContext } from '@openschool/rbac'
 import type { Role } from '@openschool/rbac'
 import { safeParseRole } from '@openschool/rbac'
+import { eq } from 'drizzle-orm'
 
 export async function resolveTenantContext(
   userId: string,
@@ -11,10 +11,7 @@ export async function resolveTenantContext(
   const db = getDb()
 
   // Get all org memberships
-  const orgMemberships = await db
-    .select()
-    .from(usersOnOrg)
-    .where(eq(usersOnOrg.userId, userId))
+  const orgMemberships = await db.select().from(usersOnOrg).where(eq(usersOnOrg.userId, userId))
 
   // Get all school memberships
   const schoolMemberships = await db

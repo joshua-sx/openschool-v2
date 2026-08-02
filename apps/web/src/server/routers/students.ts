@@ -1,17 +1,17 @@
-import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
 import {
-  getStudentsBySchool,
-  getStudentById,
   createStudent,
+  getStudentById,
+  getStudentsBySchool,
   updateStudent,
   validateStudentData,
 } from '@/services/students'
 import { TRPCError } from '@trpc/server'
+import { z } from 'zod'
+import { protectedProcedure, router } from '../trpc'
 
 /**
  * Student Router
- * 
+ *
  * tRPC endpoints for student operations
  * All endpoints require authentication and appropriate permissions
  */
@@ -136,7 +136,12 @@ export const studentsRouter = router({
       const { studentId, ...updateData } = input
 
       // Validate data if provided
-      if (updateData.firstName || updateData.lastName || updateData.dateOfBirth || updateData.email) {
+      if (
+        updateData.firstName ||
+        updateData.lastName ||
+        updateData.dateOfBirth ||
+        updateData.email
+      ) {
         const validationErrors = validateStudentData({
           firstName: updateData.firstName,
           lastName: updateData.lastName,
@@ -162,4 +167,3 @@ export const studentsRouter = router({
       })
     }),
 })
-

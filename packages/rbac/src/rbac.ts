@@ -1,6 +1,6 @@
 import { TRPCError } from '@trpc/server'
 import { PERMISSIONS, type Permission } from './permissions'
-import type { TenantContext, PermissionCheckOptions } from './types'
+import type { PermissionCheckOptions, TenantContext } from './types'
 
 export function checkPermission(
   ctx: TenantContext,

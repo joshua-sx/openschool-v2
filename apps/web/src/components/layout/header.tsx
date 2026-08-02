@@ -1,7 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { LogOut, ChevronDown } from 'lucide-react'
+import { ChevronDown, LogOut } from 'lucide-react'
 
 interface HeaderProps {
   user: {
@@ -15,16 +14,6 @@ interface HeaderProps {
 }
 
 export function Header({ user, tenantContext }: HeaderProps) {
-  const router = useRouter()
-
-  const handleSignOut = async () => {
-    const res = await fetch('/auth/signout', { method: 'POST' })
-    if (res.ok) {
-      const wwwUrl = process.env.NEXT_PUBLIC_WWW_URL || 'http://www.openschool.local:3000'
-      window.location.href = wwwUrl
-    }
-  }
-
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
       <div className="flex items-center space-x-4">
@@ -32,7 +21,8 @@ export function Header({ user, tenantContext }: HeaderProps) {
         {tenantContext && tenantContext.schoolIds.length > 0 && (
           <div className="flex items-center space-x-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
             <span className="text-sm text-gray-600">
-              {tenantContext.schoolIds.length} school{tenantContext.schoolIds.length !== 1 ? 's' : ''}
+              {tenantContext.schoolIds.length} school
+              {tenantContext.schoolIds.length !== 1 ? 's' : ''}
             </span>
             <ChevronDown className="w-4 h-4 text-gray-400" />
           </div>

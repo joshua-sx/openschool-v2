@@ -1,7 +1,7 @@
 'use client'
 
-import { Sidebar } from './sidebar'
 import { Header } from './header'
+import { Sidebar } from './sidebar'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -22,9 +22,7 @@ export function AppShell({ children, user, tenantContext }: AppShellProps) {
       <Sidebar />
       <div className="flex-1 flex flex-col">
         <Header user={user} tenantContext={tenantContext} />
-        <main className="flex-1 p-6">
-          {children}
-        </main>
+        <main className="flex-1 p-6">{children}</main>
       </div>
     </div>
   )

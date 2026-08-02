@@ -1,67 +1,65 @@
 'use client'
 
-import { useState, use, useEffect } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { trpc } from '@/lib/trpc/client'
 import {
-  ArrowLeft,
-  Edit,
-  Loader2,
   AlertCircle,
-  User,
-  Mail,
+  ArrowLeft,
   Calendar,
+  Edit,
   Hash,
+  Loader2,
+  Mail,
   Save,
+  User,
   X,
 } from 'lucide-react'
+import Link from 'next/link'
+import { use, useState } from 'react'
 
 interface StudentDetailPageProps {
   params: Promise<{ id: string }>
 }
 
+interface StudentFormData {
+  firstName: string
+  lastName: string
+  dateOfBirth: string
+  studentNumber: string
+  email: string
+}
+
+function toStudentFormData(student: {
+  firstName: string
+  lastName: string
+  dateOfBirth: string | null
+  studentNumber: string | null
+  email: string | null
+}): StudentFormData {
+  return {
+    firstName: student.firstName,
+    lastName: student.lastName,
+    dateOfBirth: student.dateOfBirth || '',
+    studentNumber: student.studentNumber || '',
+    email: student.email || '',
+  }
+}
+
 export default function StudentDetailPage({ params }: StudentDetailPageProps) {
   const { id } = use(params)
-  const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    dateOfBirth: '',
-    studentNumber: '',
-    email: '',
-  })
+  const [formData, setFormData] = useState<StudentFormData | null>(null)
   const [formErrors, setFormErrors] = useState<string[]>([])
-  const [formInitialized, setFormInitialized] = useState(false)
 
   const utils = trpc.useUtils()
 
   // Fetch student
-  const {
-    data: student,
-    isLoading,
-    error,
-  } = trpc.students.getById.useQuery({ studentId: id })
-
-  // Initialize form data when student data is loaded
-  useEffect(() => {
-    if (student && !formInitialized) {
-      setFormData({
-        firstName: student.firstName,
-        lastName: student.lastName,
-        dateOfBirth: student.dateOfBirth || '',
-        studentNumber: student.studentNumber || '',
-        email: student.email || '',
-      })
-      setFormInitialized(true)
-    }
-  }, [student, formInitialized])
+  const { data: student, isLoading, error } = trpc.students.getById.useQuery({ studentId: id })
 
   // Update mutation
   const updateMutation = trpc.students.update.useMutation({
     onSuccess: () => {
       utils.students.getById.invalidate({ studentId: id })
+      setFormData(null)
       setIsEditing(false)
       setFormErrors([])
     },
@@ -71,26 +69,22 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
   })
 
   const handleSave = () => {
+    if (!student) return
+
+    const currentFormData = formData ?? toStudentFormData(student)
+
     updateMutation.mutate({
       studentId: id,
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      dateOfBirth: formData.dateOfBirth || null,
-      studentNumber: formData.studentNumber || null,
-      email: formData.email || null,
+      firstName: currentFormData.firstName,
+      lastName: currentFormData.lastName,
+      dateOfBirth: currentFormData.dateOfBirth || null,
+      studentNumber: currentFormData.studentNumber || null,
+      email: currentFormData.email || null,
     })
   }
 
   const handleCancel = () => {
-    if (student) {
-      setFormData({
-        firstName: student.firstName,
-        lastName: student.lastName,
-        dateOfBirth: student.dateOfBirth || '',
-        studentNumber: student.studentNumber || '',
-        email: student.email || '',
-      })
-    }
+    setFormData(null)
     setIsEditing(false)
     setFormErrors([])
   }
@@ -136,6 +130,8 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
     )
   }
 
+  const displayedFormData = formData ?? toStudentFormData(student)
+
   return (
     <div>
       {/* Back Link */}
@@ -167,6 +163,7 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
         </div>
         {!isEditing && (
           <button
+            type="button"
             onClick={() => setIsEditing(true)}
             className="inline-flex items-center px-4 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
           >
@@ -186,8 +183,8 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
             </span>
           </div>
           <ul className="list-disc list-inside text-sm text-red-700">
-            {formErrors.map((error, i) => (
-              <li key={i}>{error}</li>
+            {formErrors.map((error) => (
+              <li key={error}>{error}</li>
             ))}
           </ul>
         </div>
@@ -196,9 +193,7 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
       {/* Student Details Card */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Student Information
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Student Information</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* First Name */}
@@ -210,10 +205,8 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
                 <input
                   id="firstName"
                   type="text"
-                  value={formData.firstName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, firstName: e.target.value })
-                  }
+                  value={displayedFormData.firstName}
+                  onChange={(e) => setFormData({ ...displayedFormData, firstName: e.target.value })}
                   className="block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
                 />
               ) : (
@@ -233,10 +226,8 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
                 <input
                   id="lastName"
                   type="text"
-                  value={formData.lastName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, lastName: e.target.value })
-                  }
+                  value={displayedFormData.lastName}
+                  onChange={(e) => setFormData({ ...displayedFormData, lastName: e.target.value })}
                   className="block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
                 />
               ) : (
@@ -249,16 +240,19 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
 
             {/* Student Number */}
             <div>
-              <label htmlFor="studentNumber" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="studentNumber"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Student Number
               </label>
               {isEditing ? (
                 <input
                   id="studentNumber"
                   type="text"
-                  value={formData.studentNumber}
+                  value={displayedFormData.studentNumber}
                   onChange={(e) =>
-                    setFormData({ ...formData, studentNumber: e.target.value })
+                    setFormData({ ...displayedFormData, studentNumber: e.target.value })
                   }
                   className="block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
                   placeholder="Optional"
@@ -280,9 +274,9 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
                 <input
                   id="dateOfBirth"
                   type="date"
-                  value={formData.dateOfBirth}
+                  value={displayedFormData.dateOfBirth}
                   onChange={(e) =>
-                    setFormData({ ...formData, dateOfBirth: e.target.value })
+                    setFormData({ ...displayedFormData, dateOfBirth: e.target.value })
                   }
                   className="block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
                 />
@@ -290,7 +284,7 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
                 <div className="flex items-center text-gray-900">
                   <Calendar className="w-4 h-4 text-gray-400 mr-2" />
                   {student.dateOfBirth
-                    ? new Date(student.dateOfBirth + 'T00:00:00').toLocaleDateString()
+                    ? new Date(`${student.dateOfBirth}T00:00:00`).toLocaleDateString()
                     : '-'}
                 </div>
               )}
@@ -305,10 +299,8 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
                 <input
                   id="email"
                   type="email"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
+                  value={displayedFormData.email}
+                  onChange={(e) => setFormData({ ...displayedFormData, email: e.target.value })}
                   className="block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
                   placeholder="Optional"
                 />
@@ -322,17 +314,15 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
 
             {/* Status */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
+              <span className="block text-sm font-medium text-gray-700 mb-1">Status</span>
               <div className="flex items-center">
                 <span
                   className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
                     student.status === 'active'
                       ? 'bg-green-100 text-green-800'
                       : student.status === 'archived'
-                      ? 'bg-gray-100 text-gray-800'
-                      : 'bg-yellow-100 text-yellow-800'
+                        ? 'bg-gray-100 text-gray-800'
+                        : 'bg-yellow-100 text-yellow-800'
                   }`}
                 >
                   {student.status}
@@ -346,6 +336,7 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
         {isEditing && (
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
             <button
+              type="button"
               onClick={handleCancel}
               disabled={updateMutation.isPending}
               className="inline-flex items-center px-4 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-white transition-colors disabled:opacity-50"
@@ -354,6 +345,7 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
               Cancel
             </button>
             <button
+              type="button"
               onClick={handleSave}
               disabled={updateMutation.isPending}
               className="inline-flex items-center px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"

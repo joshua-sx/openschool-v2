@@ -1,11 +1,15 @@
-import { pgTable, uuid, text, timestamp } from 'drizzle-orm/pg-core'
-import { students } from './student'
+import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { classes } from './classes'
+import { students } from './student'
 
 export const enrollments = pgTable('enrollments', {
   id: uuid('id').primaryKey().defaultRandom(),
-  studentId: uuid('student_id').references(() => students.id).notNull(),
-  classId: uuid('class_id').references(() => classes.id).notNull(),
+  studentId: uuid('student_id')
+    .references(() => students.id)
+    .notNull(),
+  classId: uuid('class_id')
+    .references(() => classes.id)
+    .notNull(),
   enrolledAt: timestamp('enrolled_at').defaultNow().notNull(),
   status: text('status', { enum: ['active', 'withdrawn', 'graduated'] }).default('active'),
 })
