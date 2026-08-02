@@ -1,8 +1,6 @@
 import { and, eq, sql } from 'drizzle-orm'
-import type { createClient } from './client'
 import { accountLinks, accounts, identityMigrationEvents } from './schema'
-
-type Database = ReturnType<typeof createClient>
+import type { DatabaseTransaction } from './tenant-transaction'
 
 export interface ActivateAccountLinkInput {
   tenantId: string
@@ -62,7 +60,7 @@ function revokedValidUntil(
 }
 
 async function bumpMembershipVersion(
-  tx: Parameters<Parameters<Database['transaction']>[0]>[0],
+  tx: DatabaseTransaction,
   accountId: string,
   at: Date
 ): Promise<number> {
@@ -82,161 +80,150 @@ async function bumpMembershipVersion(
 }
 
 export async function activateAccountLink(
-  db: Database,
+  tx: DatabaseTransaction,
   input: ActivateAccountLinkInput
 ): Promise<AccountLinkLifecycleResult> {
   const reason = requireReason(input.reason)
   const at = input.at ?? new Date()
 
-  return db.transaction(async (tx) => {
-    const [link] = await tx
-      .select({
-        id: accountLinks.id,
-        tenantId: accountLinks.tenantId,
-        accountId: accountLinks.accountId,
-        personId: accountLinks.personId,
-        status: accountLinks.status,
-        validFrom: accountLinks.validFrom,
-        validUntil: accountLinks.validUntil,
-      })
-      .from(accountLinks)
-      .where(
-        and(eq(accountLinks.tenantId, input.tenantId), eq(accountLinks.id, input.accountLinkId))
-      )
-      .for('update')
-
-    if (!link) {
-      throw new AccountLinkLifecycleError('link_not_found', 'Account Link was not found')
-    }
-    if (link.status !== 'pending') {
-      throw new AccountLinkLifecycleError(
-        'invalid_status',
-        `Only a pending Account Link can be activated; found ${link.status}`
-      )
-    }
-    if (link.validUntil && link.validUntil.getTime() <= at.getTime()) {
-      throw new AccountLinkLifecycleError(
-        'invalid_validity',
-        'An expired Account Link cannot be activated'
-      )
-    }
-
-    const [account] = await tx
-      .select({ status: accounts.status })
-      .from(accounts)
-      .where(eq(accounts.id, link.accountId))
-      .for('update')
-    if (!account) {
-      throw new AccountLinkLifecycleError('link_not_found', 'Linked Account no longer exists')
-    }
-    if (account.status !== 'active') {
-      throw new AccountLinkLifecycleError(
-        'account_disabled',
-        `A ${account.status} Account cannot activate a link`
-      )
-    }
-
-    const validFrom = link.validFrom ?? at
-    await tx
-      .update(accountLinks)
-      .set({ status: 'active', validFrom, activatedAt: at, updatedAt: at })
-      .where(and(eq(accountLinks.tenantId, link.tenantId), eq(accountLinks.id, link.id)))
-
-    const membershipVersion = await bumpMembershipVersion(tx, link.accountId, at)
-    await tx.insert(identityMigrationEvents).values({
-      tenantId: link.tenantId,
-      accountId: link.accountId,
-      personId: link.personId,
-      accountLinkId: link.id,
-      eventType: 'account_link_activated',
-      membershipVersion,
-      actorAccountId: input.actorAccountId,
-      evidence: { ...input.evidence, reason },
-      createdAt: at,
+  const [link] = await tx
+    .select({
+      id: accountLinks.id,
+      tenantId: accountLinks.tenantId,
+      accountId: accountLinks.accountId,
+      personId: accountLinks.personId,
+      status: accountLinks.status,
+      validFrom: accountLinks.validFrom,
+      validUntil: accountLinks.validUntil,
     })
+    .from(accountLinks)
+    .where(and(eq(accountLinks.tenantId, input.tenantId), eq(accountLinks.id, input.accountLinkId)))
+    .for('update')
 
-    return {
-      tenantId: link.tenantId,
-      accountId: link.accountId,
-      personId: link.personId,
-      accountLinkId: link.id,
-      membershipVersion,
-    }
+  if (!link) {
+    throw new AccountLinkLifecycleError('link_not_found', 'Account Link was not found')
+  }
+  if (link.status !== 'pending') {
+    throw new AccountLinkLifecycleError(
+      'invalid_status',
+      `Only a pending Account Link can be activated; found ${link.status}`
+    )
+  }
+  if (link.validUntil && link.validUntil.getTime() <= at.getTime()) {
+    throw new AccountLinkLifecycleError(
+      'invalid_validity',
+      'An expired Account Link cannot be activated'
+    )
+  }
+
+  const [account] = await tx
+    .select({ status: accounts.status })
+    .from(accounts)
+    .where(eq(accounts.id, link.accountId))
+    .for('update')
+  if (!account) {
+    throw new AccountLinkLifecycleError('link_not_found', 'Linked Account no longer exists')
+  }
+  if (account.status !== 'active') {
+    throw new AccountLinkLifecycleError(
+      'account_disabled',
+      `A ${account.status} Account cannot activate a link`
+    )
+  }
+
+  const validFrom = link.validFrom ?? at
+  await tx
+    .update(accountLinks)
+    .set({ status: 'active', validFrom, activatedAt: at, updatedAt: at })
+    .where(and(eq(accountLinks.tenantId, link.tenantId), eq(accountLinks.id, link.id)))
+
+  const membershipVersion = await bumpMembershipVersion(tx, link.accountId, at)
+  await tx.insert(identityMigrationEvents).values({
+    tenantId: link.tenantId,
+    accountId: link.accountId,
+    personId: link.personId,
+    accountLinkId: link.id,
+    eventType: 'account_link_activated',
+    membershipVersion,
+    actorAccountId: input.actorAccountId,
+    evidence: { ...input.evidence, reason },
+    createdAt: at,
   })
+
+  return {
+    tenantId: link.tenantId,
+    accountId: link.accountId,
+    personId: link.personId,
+    accountLinkId: link.id,
+    membershipVersion,
+  }
 }
 
 export async function revokeAccountLink(
-  db: Database,
+  tx: DatabaseTransaction,
   input: RevokeAccountLinkInput
 ): Promise<AccountLinkLifecycleResult> {
   const reason = requireReason(input.reason)
   const at = input.at ?? new Date()
 
-  return db.transaction(async (tx) => {
-    const [link] = await tx
-      .select({
-        id: accountLinks.id,
-        tenantId: accountLinks.tenantId,
-        accountId: accountLinks.accountId,
-        personId: accountLinks.personId,
-        status: accountLinks.status,
-        validFrom: accountLinks.validFrom,
-        validUntil: accountLinks.validUntil,
-      })
-      .from(accountLinks)
-      .where(
-        and(eq(accountLinks.tenantId, input.tenantId), eq(accountLinks.id, input.accountLinkId))
-      )
-      .for('update')
-
-    if (!link) {
-      throw new AccountLinkLifecycleError('link_not_found', 'Account Link was not found')
-    }
-    if (link.status === 'revoked' || link.status === 'expired') {
-      throw new AccountLinkLifecycleError(
-        'invalid_status',
-        `Account Link is already ${link.status}`
-      )
-    }
-
-    await tx
-      .select({ id: accounts.id })
-      .from(accounts)
-      .where(eq(accounts.id, link.accountId))
-      .for('update')
-
-    const validUntil = revokedValidUntil(link, at)
-    await tx
-      .update(accountLinks)
-      .set({
-        status: 'revoked',
-        validUntil,
-        revokedAt: at,
-        revokedByAccountId: input.actorAccountId,
-        revocationReason: reason,
-        updatedAt: at,
-      })
-      .where(and(eq(accountLinks.tenantId, link.tenantId), eq(accountLinks.id, link.id)))
-
-    const membershipVersion = await bumpMembershipVersion(tx, link.accountId, at)
-    await tx.insert(identityMigrationEvents).values({
-      tenantId: link.tenantId,
-      accountId: link.accountId,
-      personId: link.personId,
-      accountLinkId: link.id,
-      eventType: 'account_link_revoked',
-      membershipVersion,
-      actorAccountId: input.actorAccountId,
-      evidence: { ...input.evidence, reason },
-      createdAt: at,
+  const [link] = await tx
+    .select({
+      id: accountLinks.id,
+      tenantId: accountLinks.tenantId,
+      accountId: accountLinks.accountId,
+      personId: accountLinks.personId,
+      status: accountLinks.status,
+      validFrom: accountLinks.validFrom,
+      validUntil: accountLinks.validUntil,
     })
+    .from(accountLinks)
+    .where(and(eq(accountLinks.tenantId, input.tenantId), eq(accountLinks.id, input.accountLinkId)))
+    .for('update')
 
-    return {
-      tenantId: link.tenantId,
-      accountId: link.accountId,
-      personId: link.personId,
-      accountLinkId: link.id,
-      membershipVersion,
-    }
+  if (!link) {
+    throw new AccountLinkLifecycleError('link_not_found', 'Account Link was not found')
+  }
+  if (link.status === 'revoked' || link.status === 'expired') {
+    throw new AccountLinkLifecycleError('invalid_status', `Account Link is already ${link.status}`)
+  }
+
+  await tx
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.id, link.accountId))
+    .for('update')
+
+  const validUntil = revokedValidUntil(link, at)
+  await tx
+    .update(accountLinks)
+    .set({
+      status: 'revoked',
+      validUntil,
+      revokedAt: at,
+      revokedByAccountId: input.actorAccountId,
+      revocationReason: reason,
+      updatedAt: at,
+    })
+    .where(and(eq(accountLinks.tenantId, link.tenantId), eq(accountLinks.id, link.id)))
+
+  const membershipVersion = await bumpMembershipVersion(tx, link.accountId, at)
+  await tx.insert(identityMigrationEvents).values({
+    tenantId: link.tenantId,
+    accountId: link.accountId,
+    personId: link.personId,
+    accountLinkId: link.id,
+    eventType: 'account_link_revoked',
+    membershipVersion,
+    actorAccountId: input.actorAccountId,
+    evidence: { ...input.evidence, reason },
+    createdAt: at,
   })
+
+  return {
+    tenantId: link.tenantId,
+    accountId: link.accountId,
+    personId: link.personId,
+    accountLinkId: link.id,
+    membershipVersion,
+  }
 }

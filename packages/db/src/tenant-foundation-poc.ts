@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { getServerEnv } from '@openschool/config/server'
+import { getMigrationEnv } from '@openschool/config/server'
 import { and, desc, sql as drizzleSql, eq, lte } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
@@ -59,7 +59,7 @@ function assertLocalDisposableDatabase(databaseUrl: URL): void {
   }
   if (!loopbackHosts.has(databaseUrl.hostname)) {
     throw new Error(
-      `Tenant foundation proof refused: DATABASE_URL host must be loopback, received ${databaseUrl.hostname}.`
+      `Tenant foundation proof refused: DATABASE_MIGRATION_URL host must be loopback, received ${databaseUrl.hostname}.`
     )
   }
 }
@@ -80,7 +80,7 @@ async function expectSqlState(
 }
 
 async function run(): Promise<void> {
-  const databaseUrl = new URL(getServerEnv().DATABASE_URL)
+  const databaseUrl = new URL(getMigrationEnv().DATABASE_MIGRATION_URL)
   assertLocalDisposableDatabase(databaseUrl)
 
   // Intentional raw-PostgreSQL exception: SQLSTATE, EXPLAIN output, trigger

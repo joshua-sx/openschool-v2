@@ -2,7 +2,10 @@
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": [".env.local", ".env"],
   "globalEnv": [
-    "DATABASE_URL",
+    "DATABASE_RUNTIME_URL",
+    "DATABASE_MIGRATION_ROLE",
+    "DATABASE_RUNTIME_ROLE",
+    "DATABASE_WORKER_ROLE",
     "OPENSCHOOL_POLICY_VERSION",
     "NEXT_PUBLIC_APP_URL",
     "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
@@ -31,45 +34,80 @@
       "cache": false
     },
     "db:check": {
-      "cache": false
+      "cache": false,
+      "env": ["DATABASE_MIGRATION_URL"]
     },
     "db:migrate": {
-      "cache": false
+      "cache": false,
+      "env": ["DATABASE_MIGRATION_URL"]
+    },
+    "db:provision-roles": {
+      "cache": false,
+      "env": [
+        "ALLOW_ROLE_PROVISIONING",
+        "DATABASE_MIGRATION_URL",
+        "DATABASE_MIGRATION_ROLE",
+        "DATABASE_RUNTIME_URL",
+        "DATABASE_WORKER_URL"
+      ]
+    },
+    "db:execution-poc": {
+      "cache": false,
+      "env": [
+        "ALLOW_DATABASE_EXECUTION_POC",
+        "DATABASE_MIGRATION_URL",
+        "DATABASE_MIGRATION_ROLE",
+        "DATABASE_RUNTIME_URL",
+        "DATABASE_WORKER_URL"
+      ]
     },
     "db:security-poc": {
       "cache": false,
-      "env": ["ALLOW_SECURITY_POC", "DATABASE_URL"]
+      "env": ["ALLOW_SECURITY_POC", "DATABASE_MIGRATION_URL", "DATABASE_MIGRATION_ROLE"]
     },
     "db:tenant-foundation-poc": {
       "cache": false,
-      "env": ["ALLOW_TENANT_FOUNDATION_POC", "DATABASE_URL"]
+      "env": ["ALLOW_TENANT_FOUNDATION_POC", "DATABASE_MIGRATION_URL", "DATABASE_MIGRATION_ROLE"]
     },
     "db:identity-foundation-poc": {
       "cache": false,
-      "env": ["ALLOW_IDENTITY_FOUNDATION_POC", "DATABASE_URL"]
+      "env": ["ALLOW_IDENTITY_FOUNDATION_POC", "DATABASE_MIGRATION_URL", "DATABASE_MIGRATION_ROLE"]
     },
     "auth:tenant-context-poc": {
       "cache": false,
-      "env": ["ALLOW_TENANT_CONTEXT_POC", "DATABASE_URL"]
+      "env": [
+        "ALLOW_TENANT_CONTEXT_POC",
+        "DATABASE_MIGRATION_URL",
+        "DATABASE_MIGRATION_ROLE",
+        "DATABASE_RUNTIME_URL"
+      ]
     },
     "policy:query-poc": {
       "cache": false,
-      "env": ["ALLOW_POLICY_QUERY_POC", "DATABASE_URL", "OPENSCHOOL_POLICY_VERSION"]
+      "env": [
+        "ALLOW_POLICY_QUERY_POC",
+        "DATABASE_MIGRATION_URL",
+        "DATABASE_MIGRATION_ROLE",
+        "DATABASE_RUNTIME_URL",
+        "OPENSCHOOL_POLICY_VERSION"
+      ]
     },
     "db:prepare-upgrade-fixture": {
       "cache": false,
-      "env": ["ALLOW_TENANT_FOUNDATION_POC", "DATABASE_URL"]
+      "env": ["ALLOW_TENANT_FOUNDATION_POC", "DATABASE_MIGRATION_URL", "DATABASE_MIGRATION_ROLE"]
     },
     "db:verify-upgrade-fixture": {
       "cache": false,
-      "env": ["ALLOW_TENANT_FOUNDATION_POC", "DATABASE_URL"]
+      "env": ["ALLOW_TENANT_FOUNDATION_POC", "DATABASE_MIGRATION_URL", "DATABASE_MIGRATION_ROLE"]
     },
     "db:seed": {
-      "cache": false
+      "cache": false,
+      "env": ["DATABASE_MIGRATION_URL"]
     },
     "db:studio": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "env": ["DATABASE_MIGRATION_URL"]
     }
   }
 }

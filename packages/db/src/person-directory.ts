@@ -1,9 +1,6 @@
 import { and, eq, ne, or } from 'drizzle-orm'
-import type { createClient } from './client'
 import { people, personMergeEvidence } from './schema'
-
-type Database = ReturnType<typeof createClient>
-type DatabaseTransaction = Parameters<Parameters<Database['transaction']>[0]>[0]
+import type { DatabaseTransaction } from './tenant-transaction'
 
 export interface EffectiveRecord {
   status: string

@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
-import { getServerEnv } from '@openschool/config/server'
+import { getMigrationEnv } from '@openschool/config/server'
 import {
   accountLinks,
   accounts,
   affiliations,
+  closeDatabaseExecutionPoolsForProof,
   personRelationships,
   roleTemplateAssignments,
 } from '@openschool/db'
@@ -39,7 +40,9 @@ const NON_GUARDIAN_AFFILIATION = '00000000-0000-4000-8000-000000000873'
 const NON_GUARDIAN_ROLE = '00000000-0000-4000-8000-000000000874'
 const NON_GUARDIAN_RELATIONSHIP = '00000000-0000-4000-8000-000000000875'
 const AMBIGUOUS_ACCOUNT_LINK = '00000000-0000-4000-8000-000000000876'
-const NOW = new Date('2026-08-02T12:00:00Z')
+const NOW = new Date()
+const IDENTITY_ISSUED_AT = new Date(NOW.getTime() - 60 * 60 * 1000).toISOString()
+const IDENTITY_EXPIRES_AT = new Date(NOW.getTime() + 60 * 60 * 1000).toISOString()
 
 interface PostgresErrorLike {
   constraint_name?: string
@@ -88,8 +91,8 @@ function identity(accountId: string, sessionId: string, assuranceLevel: 'aal1' |
     sessionId,
     email: `${accountId}@proof.test`,
     assuranceLevel,
-    issuedAt: '2026-08-02T11:00:00.000Z',
-    expiresAt: '2026-08-02T13:00:00.000Z',
+    issuedAt: IDENTITY_ISSUED_AT,
+    expiresAt: IDENTITY_EXPIRES_AT,
   }) satisfies VerifiedAccountIdentity
 }
 
@@ -104,7 +107,7 @@ async function expectDenial(
 }
 
 async function run(): Promise<void> {
-  const databaseUrl = new URL(getServerEnv().DATABASE_URL)
+  const databaseUrl = new URL(getMigrationEnv().DATABASE_MIGRATION_URL)
   assertLocalDisposableDatabase(databaseUrl)
   const client = postgres(databaseUrl.toString(), { max: 1, prepare: false })
   const db = drizzle(client, { schema })
@@ -131,21 +134,14 @@ async function run(): Promise<void> {
 
   try {
     await expectDenial('CONTEXT_REQUIRED', () =>
-      resolveTenantRequestContext(
-        teacherIdentity,
-        {},
-        { requestId: 'multi-tenant' },
-        { at: NOW },
-        db
-      )
+      resolveTenantRequestContext(teacherIdentity, {}, { requestId: 'multi-tenant' }, { at: NOW })
     )
     await expectDenial('CONTEXT_REQUIRED', () =>
       resolveTenantRequestContext(
         teacherIdentity,
         { tenantId: TENANT_A },
         { requestId: 'multi-school' },
-        { at: NOW },
-        db
+        { at: NOW }
       )
     )
 
@@ -153,8 +149,7 @@ async function run(): Promise<void> {
       teacherIdentity,
       { tenantId: TENANT_A, schoolId: SCHOOL_A_PRIMARY },
       { requestId: 'primary' },
-      { at: NOW },
-      db
+      { at: NOW }
     )
     assert.deepEqual(
       {
@@ -182,12 +177,11 @@ async function run(): Promise<void> {
       teacherIdentity,
       { tenantId: TENANT_B, schoolId: SCHOOL_B },
       { requestId: 'island' },
-      { at: NOW },
-      db
+      { at: NOW }
     )
     assert.equal(islandContext.personId, TEACHER_PERSON_B)
 
-    const options = await listAvailableTenantContexts(teacherIdentity, { at: NOW }, db)
+    const options = await listAvailableTenantContexts(teacherIdentity, { at: NOW })
     assert.deepEqual(
       options.map(({ tenantId, schoolId }) => `${tenantId}:${schoolId}`).sort(),
       [
@@ -201,8 +195,7 @@ async function run(): Promise<void> {
       parentIdentity,
       {},
       { requestId: 'guardian-school' },
-      { at: NOW },
-      db
+      { at: NOW }
     )
     assert.deepEqual(
       {
@@ -211,7 +204,7 @@ async function run(): Promise<void> {
       },
       { schoolId: SCHOOL_A_HIGH, roles: ['parent'] }
     )
-    const parentOptions = await listAvailableTenantContexts(parentIdentity, { at: NOW }, db)
+    const parentOptions = await listAvailableTenantContexts(parentIdentity, { at: NOW })
     assert.deepEqual(
       parentOptions.map(({ schoolId, roleTemplateKeys }) => ({ schoolId, roleTemplateKeys })),
       [{ schoolId: SCHOOL_A_HIGH, roleTemplateKeys: ['parent'] }]
@@ -221,8 +214,7 @@ async function run(): Promise<void> {
         orgAdminIdentity,
         { tenantId: TENANT_A, educationOrganizationId: ORG_A_DISTRICT },
         { requestId: 'legacy-sibling-organization-expansion' },
-        { at: NOW, comparisonMode: 'enforce' },
-        db
+        { at: NOW, comparisonMode: 'enforce' }
       )
     )
 
@@ -256,8 +248,7 @@ async function run(): Promise<void> {
       staffIdentity,
       { tenantId: TENANT_A, schoolId: SCHOOL_A_HIGH },
       { requestId: 'non-guardian-relationship' },
-      { at: NOW },
-      db
+      { at: NOW }
     )
     assert.deepEqual(nonGuardianContext.roleTemplateKeys, ['staff'])
 
@@ -280,8 +271,7 @@ async function run(): Promise<void> {
         teacherIdentity,
         { tenantId: 'ffffffff-ffff-4fff-8fff-ffffffffffff' },
         { requestId: 'wrong-tenant' },
-        { at: NOW },
-        db
+        { at: NOW }
       )
     )
     await expectDenial('SCHOOL_DENIED', () =>
@@ -289,8 +279,7 @@ async function run(): Promise<void> {
         teacherIdentity,
         { tenantId: TENANT_A, schoolId: SCHOOL_B },
         { requestId: 'cross-tenant-school' },
-        { at: NOW },
-        db
+        { at: NOW }
       )
     )
     await expectDenial('SCHOOL_DENIED', () =>
@@ -298,8 +287,7 @@ async function run(): Promise<void> {
         schoolAdminIdentity,
         { tenantId: TENANT_A, schoolId: SCHOOL_A_HIGH },
         { requestId: 'sibling-school' },
-        { at: NOW },
-        db
+        { at: NOW }
       )
     )
     await expectDenial('SCOPE_MISMATCH', () =>
@@ -311,8 +299,7 @@ async function run(): Promise<void> {
           schoolId: SCHOOL_A_HIGH,
         },
         { requestId: 'mismatched-subtree' },
-        { at: NOW },
-        db
+        { at: NOW }
       )
     )
     await expectDenial('MFA_REQUIRED', () =>
@@ -320,21 +307,16 @@ async function run(): Promise<void> {
         teacherIdentity,
         { tenantId: TENANT_A, schoolId: SCHOOL_A_PRIMARY },
         { requestId: 'mfa' },
-        { at: NOW, requiredAssuranceLevel: 'aal2' },
-        db
+        { at: NOW, requiredAssuranceLevel: 'aal2' }
       )
     )
 
-    await revokeAccountSession(
-      {
-        providerSessionId: teacherIdentity.sessionId,
-        reason: 'Proof immediate session revocation',
-        revokedByAccountId: SCHOOL_ADMIN_ACCOUNT,
-        at: NOW,
-      },
-      undefined,
-      db
-    )
+    await revokeAccountSession(primaryContext, {
+      providerSessionId: teacherIdentity.sessionId,
+      reason: 'Proof immediate session revocation',
+      revokedByAccountId: SCHOOL_ADMIN_ACCOUNT,
+      at: NOW,
+    })
     await assert.rejects(
       db
         .update(schema.accountSessions)
@@ -350,8 +332,8 @@ async function run(): Promise<void> {
         status: 'revoked',
         assuranceLevel: 'aal1',
         securityVersion: 1,
-        authenticatedAt: new Date('2026-08-02T11:00:00Z'),
-        expiresAt: new Date('2026-08-02T13:00:00Z'),
+        authenticatedAt: new Date(IDENTITY_ISSUED_AT),
+        expiresAt: new Date(IDENTITY_EXPIRES_AT),
         revokedAt: NOW,
         revocationReason: '   ',
       }),
@@ -362,8 +344,7 @@ async function run(): Promise<void> {
         teacherIdentity,
         { tenantId: TENANT_A, schoolId: SCHOOL_A_PRIMARY },
         { requestId: 'revoked-session' },
-        { at: NOW },
-        db
+        { at: NOW }
       )
     )
 
@@ -376,8 +357,7 @@ async function run(): Promise<void> {
         disabledIdentity,
         { tenantId: TENANT_B },
         { requestId: 'disabled-account' },
-        { at: NOW },
-        db
+        { at: NOW }
       )
     )
 
@@ -404,16 +384,14 @@ async function run(): Promise<void> {
         expansionIdentity,
         { tenantId: TENANT_A, schoolId: SCHOOL_A_PRIMARY },
         { requestId: 'legacy-expansion' },
-        { at: NOW, comparisonMode: 'enforce' },
-        db
+        { at: NOW, comparisonMode: 'enforce' }
       )
     )
     const observedExpansion = await resolveTenantRequestContext(
       expansionIdentity,
       { tenantId: TENANT_A, schoolId: SCHOOL_A_PRIMARY },
       { requestId: 'legacy-expansion-observe' },
-      { at: NOW, comparisonMode: 'observe' },
-      db
+      { at: NOW, comparisonMode: 'observe' }
     )
     assert.equal(observedExpansion.legacyComparison, 'observed_expansion')
 
@@ -438,6 +416,7 @@ async function run(): Promise<void> {
     await db
       .delete(schema.accountSessions)
       .where(inArray(schema.accountSessions.providerSessionId, sessionIds))
+    await closeDatabaseExecutionPoolsForProof()
     await client.end()
   }
 }

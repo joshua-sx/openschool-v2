@@ -20,7 +20,12 @@ jobs:
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_0123456789abcdef
-      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/openschool
+      DATABASE_MIGRATION_URL: postgresql://migration:ci@127.0.0.1:5432/openschool
+      DATABASE_MIGRATION_ROLE: migration
+      DATABASE_RUNTIME_URL: postgresql://runtime:ci@127.0.0.1:5432/openschool
+      DATABASE_RUNTIME_ROLE: runtime
+      DATABASE_WORKER_URL: postgresql://worker:ci@127.0.0.1:5432/openschool
+      DATABASE_WORKER_ROLE: worker
       NEXT_PUBLIC_APP_URL: http://app.openschool.local:3000
       NEXT_PUBLIC_WWW_URL: http://www.openschool.local:3000
 
@@ -44,6 +49,9 @@ jobs:
 
       - name: Check formatting and static analysis
         run: bun run check
+
+      - name: Enforce database access boundaries
+        run: bun run db:boundary-check
 
       - name: Lint application
         run: bun run lint
@@ -79,9 +87,16 @@ jobs:
       ALLOW_SECURITY_POC: "true"
       ALLOW_TENANT_FOUNDATION_POC: "true"
       ALLOW_IDENTITY_FOUNDATION_POC: "true"
+      ALLOW_DATABASE_EXECUTION_POC: "true"
       ALLOW_TENANT_CONTEXT_POC: "true"
       ALLOW_POLICY_QUERY_POC: "true"
-      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/openschool
+      ALLOW_ROLE_PROVISIONING: "true"
+      DATABASE_MIGRATION_URL: postgresql://postgres:postgres@127.0.0.1:5432/openschool
+      DATABASE_MIGRATION_ROLE: postgres
+      DATABASE_RUNTIME_URL: postgresql://openschool_runtime:runtime-ci-only-1@127.0.0.1:5432/openschool
+      DATABASE_RUNTIME_ROLE: openschool_runtime
+      DATABASE_WORKER_URL: postgresql://openschool_worker:worker-ci-only-1@127.0.0.1:5432/openschool
+      DATABASE_WORKER_ROLE: openschool_worker
 
     steps:
       - name: Check out repository
@@ -108,6 +123,12 @@ jobs:
         run: |
           bun run db:migrate
           bun run db:seed
+
+      - name: Provision non-owner runtime and worker roles
+        run: bun run db:provision-roles
+
+      - name: Prove transaction-scoped database execution
+        run: bun run db:execution-poc
 
       - name: Prove transaction-scoped RLS with real roles
         run: bun run db:security-poc
@@ -144,7 +165,12 @@ jobs:
           --health-retries 10
     env:
       ALLOW_TENANT_FOUNDATION_POC: "true"
-      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/openschool
+      DATABASE_MIGRATION_URL: postgresql://postgres:postgres@127.0.0.1:5432/openschool
+      DATABASE_MIGRATION_ROLE: postgres
+      DATABASE_RUNTIME_URL: postgresql://openschool_runtime:runtime-ci-only-1@127.0.0.1:5432/openschool
+      DATABASE_RUNTIME_ROLE: openschool_runtime
+      DATABASE_WORKER_URL: postgresql://openschool_worker:worker-ci-only-1@127.0.0.1:5432/openschool
+      DATABASE_WORKER_ROLE: openschool_worker
 
     steps:
       - name: Check out repository

@@ -18,10 +18,10 @@ The proof creates a table owned by a non-login owner, separate `NOBYPASSRLS` run
 Run only through the guarded root command:
 
 ```bash
-ALLOW_SECURITY_POC=true DATABASE_URL=postgresql://... bun run db:security-poc
+ALLOW_SECURITY_POC=true bun run db:security-poc
 ```
 
-The command refuses non-loopback database hosts. GitHub Actions runs it against the ephemeral PostgreSQL service after the normal migration and seed idempotence check.
+The command reads the three database URLs from the validated environment contract and refuses a non-loopback migration host. GitHub Actions runs it against the ephemeral PostgreSQL service after the normal migration, seed, and runtime-role provisioning checks.
 
 This proof validates the execution mechanics chosen in ADR-0006. It does not approve RLS for actual OpenSchool tables; those policies require the full Tenant Isolation Matrix and separate reviewed migrations.
 

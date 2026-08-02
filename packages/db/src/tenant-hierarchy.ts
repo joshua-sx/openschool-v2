@@ -1,10 +1,7 @@
 import { and, eq } from 'drizzle-orm'
-import type { createClient } from './client'
 import { type OrganizationTreeNodeInput, buildOrganizationClosure } from './organization-tree'
 import { organizationTreeClosure, organizationTreeNodes, organizationTreeVersions } from './schema'
-
-type Database = ReturnType<typeof createClient>
-type DatabaseTransaction = Parameters<Parameters<Database['transaction']>[0]>[0]
+import type { DatabaseTransaction } from './tenant-transaction'
 
 export interface OrganizationTreeVersionInput {
   id: string

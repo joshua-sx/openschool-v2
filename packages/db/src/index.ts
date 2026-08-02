@@ -1,5 +1,6 @@
 export * from './schema'
 export * from './client'
+export * from './tenant-transaction'
 export * from './organization-tree'
 export * from './tenant-hierarchy'
 export * from './person-directory'

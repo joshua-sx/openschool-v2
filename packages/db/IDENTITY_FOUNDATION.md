@@ -28,7 +28,7 @@ PostgreSQL exclusion constraints reject overlapping active Account Links and dup
 
 ## Atomic Account Link lifecycle
 
-`activateAccountLink` and `revokeAccountLink` each run one database transaction that:
+`activateAccountLink` and `revokeAccountLink` each require the caller's transaction-scoped database handle and atomically:
 
 1. locks the Account Link and Account;
 2. validates the lifecycle transition;
