@@ -174,6 +174,8 @@ export type PolicyDecision =
       obligations: readonly PolicyObligation[]
     }>
 
+export type AllowedPolicyDecision = Extract<PolicyDecision, { effect: 'allow' }>
+
 export interface PolicyEvaluationRequest {
   bundle?: PolicyBundle
   context?: PolicyContext | null
@@ -181,27 +183,4 @@ export interface PolicyEvaluationRequest {
   requestedScope?: string
   resource: unknown
   attributes?: PolicyEvaluationAttributes
-}
-
-/** Transitional legacy context removed from authorization consumers in #85. */
-export interface TenantContext {
-  accountId: string
-  legacyUserId?: string
-  personId: string
-  tenantId: string
-  userId: string
-  userEmail?: string
-  roles: readonly import('../roles').Role[]
-  activeEducationOrganizationId?: string
-  activeSchoolId?: string
-}
-
-/** Transitional modifier evidence removed from authorization consumers in #85. */
-export interface PermissionCheckOptions {
-  resourceOwnerId?: string
-  resourceClassId?: string
-  resourceStudentId?: string
-  resourceClassAssigned?: boolean
-  resourceStudentLinked?: boolean
-  childClassLinked?: boolean
 }

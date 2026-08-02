@@ -42,7 +42,9 @@ function validContext(context: PolicyContext | null | undefined): context is Pol
   return Boolean(
     context?.accountId &&
       context.personId &&
+      Array.isArray(context.roleTemplateKeys) &&
       context.roleTemplateKeys.length > 0 &&
+      context.roleTemplateKeys.every((key) => typeof key === 'string' && key.length > 0) &&
       (context.assuranceLevel === 'aal1' || context.assuranceLevel === 'aal2')
   )
 }

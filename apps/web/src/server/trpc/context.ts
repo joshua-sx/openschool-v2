@@ -3,7 +3,7 @@ import type {
   TenantRequestContext,
   VerifiedAccountIdentity,
 } from '@openschool/auth/server'
-import type { TenantContext } from '@openschool/rbac'
+import type { PolicyContext } from '@openschool/rbac'
 import { initTRPC } from '@trpc/server'
 import { cookies, headers } from 'next/headers'
 import { resolveVerifiedRequestState } from '../request-context'
@@ -16,7 +16,7 @@ export async function createTRPCContext(): Promise<{
   denialReason: TenantContextDenialReason | null
   identity: VerifiedAccountIdentity | null
   requestContext: TenantRequestContext | null
-  tenantContext: TenantContext | null
+  policyContext: PolicyContext | null
   userId: string | null
 }> {
   const cookieStore = await cookies()

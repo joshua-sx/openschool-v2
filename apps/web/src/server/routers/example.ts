@@ -1,3 +1,4 @@
+import { CAPABILITIES } from '@openschool/rbac'
 import { z } from 'zod'
 import { protectedProcedure, publicProcedure, router } from '../trpc'
 
@@ -18,13 +19,13 @@ export const exampleRouter = router({
   /**
    * Protected endpoint - requires authentication
    */
-  protectedHello: protectedProcedure('students:read')
+  protectedHello: protectedProcedure(CAPABILITIES.SCHOOLS_READ)
     .input(z.object({ text: z.string() }))
     .query(({ ctx, input }) => {
       return {
         greeting: `Hello ${input.text}!`,
         userId: ctx.userId,
-        roles: ctx.tenantContext?.roles,
+        roleTemplateKeys: ctx.policyContext.roleTemplateKeys,
       }
     }),
 })

@@ -26,11 +26,9 @@ function grants(
   }))
 }
 
-function tenantRoleTemplates(safeguarded: boolean): RoleTemplateDefinition[] {
-  const protectedAdmin = (event: string): readonly PolicyObligation[] =>
-    safeguarded ? [mfa, audit(event)] : []
-  const recorded = (event: string): readonly PolicyObligation[] =>
-    safeguarded ? [audit(event)] : []
+function tenantRoleTemplates(): RoleTemplateDefinition[] {
+  const protectedAdmin = (event: string): readonly PolicyObligation[] => [mfa, audit(event)]
+  const recorded = (event: string): readonly PolicyObligation[] => [audit(event)]
 
   return [
     {
@@ -161,6 +159,7 @@ function tenantRoleTemplates(safeguarded: boolean): RoleTemplateDefinition[] {
         [CAPABILITIES.GRADES_READ, SCOPES.LINKED_STUDENT],
         [CAPABILITIES.CLASSES_READ, SCOPES.LINKED_STUDENT],
         [CAPABILITIES.TEACHERS_READ, SCOPES.SCHOOL],
+        [CAPABILITIES.REPORTS_STUDENT_READ, SCOPES.LINKED_STUDENT],
       ]),
     },
     {
@@ -179,13 +178,15 @@ function tenantRoleTemplates(safeguarded: boolean): RoleTemplateDefinition[] {
 
 const legacyParityBundle = createPolicyBundle({
   version: POLICY_VERSION_LEGACY_PARITY,
-  roleTemplates: tenantRoleTemplates(false),
+  // The rollback bundle preserves the accepted Tenant grant surface but keeps
+  // the same safeguarding obligations; rollback never weakens MFA or audit.
+  roleTemplates: tenantRoleTemplates(),
 })
 
 const currentBundle = createPolicyBundle({
   version: POLICY_VERSION_CURRENT,
   roleTemplates: [
-    ...tenantRoleTemplates(true),
+    ...tenantRoleTemplates(),
     {
       key: 'super_admin',
       description: 'Operates the OpenSchool platform without implicit Tenant data access.',

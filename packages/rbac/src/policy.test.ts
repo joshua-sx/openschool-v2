@@ -319,6 +319,72 @@ describe('capability Policy Decisions', () => {
 })
 
 describe('versioned Role Template bundles', () => {
+  it('matches the reviewed legacy Tenant role surface before modifier removal', () => {
+    const expectedRolesByCapability = new Map<string, readonly string[]>([
+      [
+        CAPABILITIES.SCHOOLS_READ,
+        ['org_admin', 'org_viewer', 'school_admin', 'staff', 'teacher', 'parent', 'student'],
+      ],
+      [CAPABILITIES.STUDENTS_CREATE, ['org_admin', 'school_admin', 'staff']],
+      [
+        CAPABILITIES.STUDENTS_READ,
+        ['org_admin', 'org_viewer', 'school_admin', 'staff', 'teacher', 'parent', 'student'],
+      ],
+      [CAPABILITIES.STUDENTS_UPDATE, ['org_admin', 'school_admin', 'staff']],
+      [CAPABILITIES.STUDENTS_DELETE, ['org_admin', 'school_admin']],
+      [CAPABILITIES.GRADES_CREATE, ['teacher']],
+      [
+        CAPABILITIES.GRADES_READ,
+        ['org_admin', 'org_viewer', 'school_admin', 'staff', 'teacher', 'parent', 'student'],
+      ],
+      [CAPABILITIES.GRADES_UPDATE, ['school_admin', 'teacher']],
+      [CAPABILITIES.GRADES_DELETE, ['school_admin']],
+      [CAPABILITIES.CLASSES_CREATE, ['org_admin', 'school_admin']],
+      [
+        CAPABILITIES.CLASSES_READ,
+        ['org_admin', 'org_viewer', 'school_admin', 'staff', 'teacher', 'parent', 'student'],
+      ],
+      [CAPABILITIES.CLASSES_UPDATE, ['org_admin', 'school_admin']],
+      [CAPABILITIES.CLASSES_DELETE, ['org_admin', 'school_admin']],
+      [CAPABILITIES.TEACHERS_CREATE, ['org_admin', 'school_admin']],
+      [
+        CAPABILITIES.TEACHERS_READ,
+        ['org_admin', 'org_viewer', 'school_admin', 'staff', 'teacher', 'parent', 'student'],
+      ],
+      [CAPABILITIES.TEACHERS_UPDATE, ['org_admin', 'school_admin']],
+      [CAPABILITIES.TEACHERS_DELETE, ['org_admin', 'school_admin']],
+      [CAPABILITIES.REPORTS_SCHOOL_READ, ['org_admin', 'org_viewer', 'school_admin']],
+      [CAPABILITIES.REPORTS_CLASS_READ, ['org_admin', 'org_viewer', 'school_admin', 'teacher']],
+      [
+        CAPABILITIES.REPORTS_STUDENT_READ,
+        ['org_admin', 'org_viewer', 'school_admin', 'teacher', 'parent'],
+      ],
+      [CAPABILITIES.SETTINGS_ORGANIZATION_MANAGE, ['org_admin']],
+      [CAPABILITIES.SETTINGS_SCHOOL_MANAGE, ['org_admin', 'school_admin']],
+      [CAPABILITIES.ACCOUNTS_INVITE, ['org_admin', 'school_admin']],
+      [CAPABILITIES.ACCOUNTS_MANAGE, ['org_admin', 'school_admin']],
+      [CAPABILITIES.AUDIT_READ, ['org_admin', 'school_admin']],
+    ])
+    const tenantRoles = [
+      'org_admin',
+      'org_viewer',
+      'school_admin',
+      'staff',
+      'teacher',
+      'parent',
+      'student',
+    ]
+
+    for (const [capability, expectedRoles] of expectedRolesByCapability) {
+      const actualRoles = tenantRoles.filter((role) =>
+        CURRENT_POLICY_BUNDLE.roleTemplates[role]?.grants.some(
+          (grant) => grant.capability === capability
+        )
+      )
+      assert.deepEqual(actualRoles.sort(), [...expectedRoles].sort(), capability)
+    }
+  })
+
   it('selects only accepted versions for deployment rollback', () => {
     assert.equal(selectPolicyBundle()?.version, POLICY_VERSION_CURRENT)
     assert.equal(selectPolicyBundle(POLICY_VERSION_CURRENT)?.version, POLICY_VERSION_CURRENT)
@@ -408,6 +474,42 @@ describe('versioned Role Template bundles', () => {
           ],
         }),
       /scope unsupported/
+    )
+    assert.throws(
+      () =>
+        createPolicyBundle({
+          version: 'custom.v1',
+          roleTemplates: [
+            {
+              key: 'base_one',
+              description: 'Base one.',
+              grants: [
+                {
+                  id: 'shared.grant',
+                  capability: CAPABILITIES.SCHOOLS_READ,
+                  scope: 'school',
+                },
+              ],
+            },
+            {
+              key: 'base_two',
+              description: 'Base two.',
+              grants: [
+                {
+                  id: 'shared.grant',
+                  capability: CAPABILITIES.STUDENTS_READ,
+                  scope: 'school',
+                },
+              ],
+            },
+            {
+              key: 'combined',
+              description: 'Invalid combined role.',
+              composes: ['base_one', 'base_two'],
+            },
+          ],
+        }),
+      /Conflicting composed grant id/
     )
   })
 })

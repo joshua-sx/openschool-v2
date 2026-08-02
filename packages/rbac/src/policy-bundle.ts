@@ -102,8 +102,14 @@ export function createPolicyBundle(input: {
     grants.push(...(definition.grants ?? []))
 
     const uniqueGrants = new Map<string, PolicyGrant>()
+    const grantIds = new Map<string, string>()
     for (const grant of grants) {
       const signature = JSON.stringify([grant.capability, grant.scope, grant.obligations ?? []])
+      const existingSignature = grantIds.get(grant.id)
+      if (existingSignature && existingSignature !== signature) {
+        throw new Error(`Conflicting composed grant id: ${definition.key}/${grant.id}`)
+      }
+      grantIds.set(grant.id, signature)
       if (!uniqueGrants.has(signature)) uniqueGrants.set(signature, grant)
     }
 
