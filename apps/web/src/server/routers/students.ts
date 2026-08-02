@@ -45,7 +45,12 @@ export const studentsRouter = router({
   getBySchool: protectedProcedure(CAPABILITIES.STUDENTS_READ, { requestedScope: 'school' })
     .input(z.object({ schoolId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      return await getStudentsBySchool(ctx.policyContext, ctx.policyDecision, input.schoolId)
+      return await getStudentsBySchool(
+        ctx.requestContext,
+        ctx.policyContext,
+        ctx.policyDecision,
+        input.schoolId
+      )
     }),
 
   /**
@@ -55,7 +60,12 @@ export const studentsRouter = router({
   getById: protectedProcedure(CAPABILITIES.STUDENTS_READ)
     .input(z.object({ studentId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const student = await getStudentById(ctx.policyContext, ctx.policyDecision, input.studentId)
+      const student = await getStudentById(
+        ctx.requestContext,
+        ctx.policyContext,
+        ctx.policyDecision,
+        input.studentId
+      )
       if (!student) {
         throw new TRPCError({
           code: 'NOT_FOUND',
@@ -89,7 +99,7 @@ export const studentsRouter = router({
         })
       }
 
-      return await createStudent(ctx.policyContext, ctx.policyDecision, {
+      return await createStudent(ctx.requestContext, ctx.policyContext, ctx.policyDecision, {
         schoolId: input.schoolId,
         firstName: input.firstName,
         lastName: input.lastName,
@@ -132,12 +142,18 @@ export const studentsRouter = router({
         }
       }
 
-      return await updateStudent(ctx.policyContext, ctx.policyDecision, studentId, {
-        firstName: updateData.firstName,
-        lastName: updateData.lastName,
-        dateOfBirth: updateData.dateOfBirth,
-        studentNumber: updateData.studentNumber,
-        email: updateData.email,
-      })
+      return await updateStudent(
+        ctx.requestContext,
+        ctx.policyContext,
+        ctx.policyDecision,
+        studentId,
+        {
+          firstName: updateData.firstName,
+          lastName: updateData.lastName,
+          dateOfBirth: updateData.dateOfBirth,
+          studentNumber: updateData.studentNumber,
+          email: updateData.email,
+        }
+      )
     }),
 })

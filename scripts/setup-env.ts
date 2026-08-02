@@ -3,7 +3,7 @@
 import { copyFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parsePublicEnv } from '@openschool/config/public'
-import { parseServerEnv } from '@openschool/config/server'
+import { parseMigrationEnv, parseServerEnv, parseWorkerEnv } from '@openschool/config/server'
 import { config } from 'dotenv'
 
 const root = process.cwd()
@@ -35,6 +35,22 @@ function check(): void {
 
   const publicEnv = parsePublicEnv(process.env)
   const serverEnv = parseServerEnv(process.env)
+  const workerEnv = parseWorkerEnv(process.env)
+  const migrationEnv = parseMigrationEnv(process.env)
+  const migrationUsername = decodeURIComponent(
+    new URL(migrationEnv.DATABASE_MIGRATION_URL).username
+  )
+  if (migrationUsername !== serverEnv.DATABASE_MIGRATION_ROLE) {
+    throw new Error(
+      'DATABASE_MIGRATION_URL username must match the non-secret DATABASE_MIGRATION_ROLE assertion.'
+    )
+  }
+  if (
+    new URL(serverEnv.DATABASE_RUNTIME_URL).username ===
+    new URL(workerEnv.DATABASE_WORKER_URL).username
+  ) {
+    throw new Error('DATABASE_RUNTIME_URL and DATABASE_WORKER_URL must use different roles.')
+  }
   const keyType = publicEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.startsWith('sb_publishable_')
     ? 'publishable'
     : 'legacy anon'
@@ -44,7 +60,10 @@ function check(): void {
   console.log(`- Public key type: ${keyType}`)
   console.log(`- App origin: ${new URL(publicEnv.NEXT_PUBLIC_APP_URL).origin}`)
   console.log(`- Marketing origin: ${new URL(publicEnv.NEXT_PUBLIC_WWW_URL).origin}`)
-  console.log(`- Database host: ${new URL(serverEnv.DATABASE_URL).host}`)
+  console.log(`- Migration database host: ${new URL(migrationEnv.DATABASE_MIGRATION_URL).host}`)
+  console.log(`- Migration database role: ${serverEnv.DATABASE_MIGRATION_ROLE}`)
+  console.log(`- Runtime database role: ${new URL(serverEnv.DATABASE_RUNTIME_URL).username}`)
+  console.log(`- Worker database role: ${new URL(workerEnv.DATABASE_WORKER_URL).username}`)
 }
 
 const command = process.argv[2]

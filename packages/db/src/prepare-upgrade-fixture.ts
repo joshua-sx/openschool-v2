@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { getServerEnv } from '@openschool/config/server'
+import { getMigrationEnv } from '@openschool/config/server'
 import postgres from 'postgres'
 
 interface Journal {
@@ -21,7 +21,7 @@ function assertLocalDisposableDatabase(databaseUrl: URL): void {
 }
 
 async function run(): Promise<void> {
-  const databaseUrl = new URL(getServerEnv().DATABASE_URL)
+  const databaseUrl = new URL(getMigrationEnv().DATABASE_MIGRATION_URL)
   assertLocalDisposableDatabase(databaseUrl)
 
   const client = postgres(databaseUrl.toString(), { max: 1, prepare: false })

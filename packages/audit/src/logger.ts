@@ -1,14 +1,18 @@
-import { type NewAuditLog, auditLogs, getDb } from '@openschool/db'
+import {
+  type NewAuditLog,
+  type TenantDatabaseContext,
+  auditLogs,
+  withTenantTransaction,
+} from '@openschool/db'
 import type { PolicyContext } from '@openschool/rbac'
 import type { AuditEvent } from './types'
 
 export async function logAuditEvent(
+  databaseContext: TenantDatabaseContext,
   ctx: PolicyContext,
   event: AuditEvent,
   ipAddress?: string
 ): Promise<void> {
-  const db = getDb()
-
   const log: NewAuditLog = {
     // New Accounts do not necessarily have a row in the legacy users table.
     // Story #87 will move this evidence into first-class Account-backed columns.
@@ -31,9 +35,10 @@ export async function logAuditEvent(
     ipAddress: ipAddress,
   }
 
-  // Fire and forget - don't block the request
-  db.insert(auditLogs)
-    .values(log)
-    .execute()
-    .catch((err) => console.error('Audit log failed:', err))
+  // Story #88 will make this insert atomic with its product mutation and add
+  // tamper evidence. Until then it still runs through the same non-owner,
+  // transaction-scoped Tenant boundary and reports failures to the caller.
+  await withTenantTransaction(databaseContext, async (db) => {
+    await db.insert(auditLogs).values(log).execute()
+  })
 }

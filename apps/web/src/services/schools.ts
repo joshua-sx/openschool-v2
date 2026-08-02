@@ -1,10 +1,12 @@
 import {
+  type DatabaseTransaction,
   type School,
-  getDb,
+  type TenantDatabaseContext,
   organizationTreeClosure,
   organizationTreeVersions,
   schoolGovernanceAssignments,
   schools,
+  withTenantTransaction,
 } from '@openschool/db'
 import {
   type AllowedPolicyDecision,
@@ -15,6 +17,7 @@ import {
 } from '@openschool/rbac'
 import { TRPCError } from '@trpc/server'
 import { and, desc, eq, gt, isNull, lte, or } from 'drizzle-orm'
+import { assertDatabasePolicyContext } from './database-context'
 
 const MAX_ACCESSIBLE_SCHOOLS = 100
 const MAX_POLICY_CONSTRAINTS = 16
@@ -39,8 +42,11 @@ function tenantPolicyConstraints(
   return decision.queryConstraints
 }
 
-async function getCurrentTreeVersionId(tenantId: string, at: Date): Promise<string | null> {
-  const db = getDb()
+async function getCurrentTreeVersionId(
+  db: DatabaseTransaction,
+  tenantId: string,
+  at: Date
+): Promise<string | null> {
   const [treeVersion] = await db
     .select({ id: organizationTreeVersions.id })
     .from(organizationTreeVersions)
@@ -57,12 +63,12 @@ async function getCurrentTreeVersionId(tenantId: string, at: Date): Promise<stri
 }
 
 async function schoolsForConstraint(
+  db: DatabaseTransaction,
   constraint: PolicyQueryConstraint,
   at: Date,
   schoolId?: string
 ): Promise<School[]> {
   if (constraint.kind === 'platform') return []
-  const db = getDb()
   const schoolFilters = [eq(schools.tenantId, constraint.tenantId), eq(schools.status, 'active')]
   if (schoolId) schoolFilters.push(eq(schools.id, schoolId))
 
@@ -102,7 +108,7 @@ async function schoolsForConstraint(
       return rows.map(({ school }) => school)
     }
     case 'organization_subtree': {
-      const treeVersionId = await getCurrentTreeVersionId(constraint.tenantId, at)
+      const treeVersionId = await getCurrentTreeVersionId(db, constraint.tenantId, at)
       if (!treeVersionId) return []
       const rows = await db
         .select({ school: schools })
@@ -143,6 +149,7 @@ async function schoolsForConstraint(
 }
 
 async function loadAuthorizedSchools(
+  db: DatabaseTransaction,
   context: PolicyContext,
   decision: AllowedPolicyDecision,
   expectedCapability: Capability,
@@ -152,7 +159,7 @@ async function loadAuthorizedSchools(
   const at = new Date()
   const rows = (
     await Promise.all(
-      constraints.map((constraint) => schoolsForConstraint(constraint, at, schoolId))
+      constraints.map((constraint) => schoolsForConstraint(db, constraint, at, schoolId))
     )
   ).flat()
   const unique = new Map(rows.map((school) => [school.id, school]))
@@ -161,19 +168,39 @@ async function loadAuthorizedSchools(
 
 /** Lists Schools through the exact constraints returned by the Policy Decision. */
 export async function getAccessibleSchools(
+  databaseContext: TenantDatabaseContext,
   context: PolicyContext,
   decision: AllowedPolicyDecision
 ): Promise<School[]> {
-  return loadAuthorizedSchools(context, decision, CAPABILITIES.SCHOOLS_READ)
+  assertDatabasePolicyContext(databaseContext, context)
+  return withTenantTransaction(databaseContext, (db) =>
+    loadAuthorizedSchools(db, context, decision, CAPABILITIES.SCHOOLS_READ)
+  )
 }
 
 /** Looks up one School without materializing a broader accessible-ID list. */
 export async function getSchoolById(
+  databaseContext: TenantDatabaseContext,
   context: PolicyContext,
   decision: AllowedPolicyDecision,
   schoolId: string,
   expectedCapability: Capability
 ): Promise<School | null> {
-  const [school] = await loadAuthorizedSchools(context, decision, expectedCapability, schoolId)
+  assertDatabasePolicyContext(databaseContext, context)
+  const [school] = await withTenantTransaction(databaseContext, (db) =>
+    loadAuthorizedSchools(db, context, decision, expectedCapability, schoolId)
+  )
+  return school ?? null
+}
+
+/** Transaction-local variant for multi-step service operations. */
+export async function getSchoolByIdInTransaction(
+  db: DatabaseTransaction,
+  context: PolicyContext,
+  decision: AllowedPolicyDecision,
+  schoolId: string,
+  expectedCapability: Capability
+): Promise<School | null> {
+  const [school] = await loadAuthorizedSchools(db, context, decision, expectedCapability, schoolId)
   return school ?? null
 }

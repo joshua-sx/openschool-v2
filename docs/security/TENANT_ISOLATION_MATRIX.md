@@ -1,7 +1,7 @@
 # M1 tenant isolation matrix
 
 - Owner: Security Engineering
-- Status: Required test contract; Tenant/hierarchy foundation evidence implemented, end-to-end enforcement pending
+- Status: Required test contract; Tenant/hierarchy and transaction-adapter evidence implemented, end-to-end enforcement pending
 - Governing ADRs: [0001](../adr/0001-tenant-isolation-and-placement.md), [0004](../adr/0004-request-context-and-session-verification.md), [0005](../adr/0005-capability-authorization.md), [0006](../adr/0006-database-execution-and-rls.md)
 
 Each implementation issue converts the relevant rows below into automated tests. Positive tests are necessary but never sufficient: every path requires same-Tenant allow and cross-scope deny evidence.

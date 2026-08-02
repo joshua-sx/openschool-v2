@@ -1,11 +1,11 @@
 import {
+  type DatabaseTransaction,
   accountLinks,
   accountSessions,
   accounts,
   affiliations,
   classes,
   educationOrganizations,
-  getDb,
   organizationTreeClosure,
   organizationTreeVersions,
   parentStudent,
@@ -19,8 +19,9 @@ import {
   tenants,
   usersOnOrg,
   usersOnSchool,
+  withIdentityTransaction,
+  withTenantTransaction,
 } from '@openschool/db'
-import type { createClient } from '@openschool/db'
 import { and, desc, eq, gt, inArray, isNull, lte, or } from 'drizzle-orm'
 import {
   MAX_CONTEXT_CACHE_TTL_MS,
@@ -30,8 +31,7 @@ import {
 } from './context-cache'
 import type { AssuranceLevel, VerifiedAccountIdentity } from './verified-identity'
 
-type Database = ReturnType<typeof createClient>
-type DatabaseTransaction = Parameters<Parameters<Database['transaction']>[0]>[0]
+type Database = DatabaseTransaction
 
 export type TenantContextDenialReason =
   | 'UNAUTHENTICATED'
@@ -256,11 +256,22 @@ async function resolveAccountSession(
 /** Registers or refreshes the revocable Account session for a verified identity. */
 export async function registerVerifiedAccountSession(
   identity: VerifiedAccountIdentity,
-  at = new Date(),
-  db: Database = getDb()
+  requestId = crypto.randomUUID(),
+  at = new Date()
 ): Promise<void> {
-  const account = await resolveActiveAccount(db, identity)
-  await resolveAccountSession(db, account, identity, at)
+  await withIdentityTransaction(
+    {
+      identityProvider: identity.provider,
+      providerSubject: identity.subject,
+      providerSessionId: identity.sessionId,
+      requestId,
+      assuranceLevel: identity.assuranceLevel,
+    },
+    async (database) => {
+      const account = await resolveActiveAccount(database, identity)
+      await resolveAccountSession(database, account, identity, at)
+    }
+  )
 }
 
 async function currentOrganizationTreeVersionId(
@@ -437,12 +448,12 @@ function computeContextExpiry(
   return new Date(Math.min(...boundaries))
 }
 
-export async function resolveTenantRequestContext(
+async function resolveTenantRequestContextInTransaction(
   identity: VerifiedAccountIdentity,
   selectors: TenantContextSelectors,
   metadata: TenantRequestMetadata,
-  options: TenantRequestContextResolverOptions = {},
-  db: Database = getDb()
+  options: TenantRequestContextResolverOptions,
+  db: Database
 ): Promise<TenantRequestContext> {
   validateSelectors(selectors)
   const at = options.at ?? new Date()
@@ -790,22 +801,46 @@ export async function resolveTenantRequestContext(
   return context
 }
 
+export async function resolveTenantRequestContext(
+  identity: VerifiedAccountIdentity,
+  selectors: TenantContextSelectors,
+  metadata: TenantRequestMetadata,
+  options: TenantRequestContextResolverOptions = {}
+): Promise<TenantRequestContext> {
+  validateSelectors(selectors)
+  const requiredAssurance = options.requiredAssuranceLevel ?? 'aal1'
+  if (!assuranceMeets(identity.assuranceLevel, requiredAssurance)) {
+    denial('MFA_REQUIRED', `${requiredAssurance} assurance is required`)
+  }
+  return withIdentityTransaction(
+    {
+      identityProvider: identity.provider,
+      providerSubject: identity.subject,
+      providerSessionId: identity.sessionId,
+      requestId: metadata.requestId,
+      assuranceLevel: identity.assuranceLevel,
+    },
+    (database) =>
+      resolveTenantRequestContextInTransaction(identity, selectors, metadata, options, database)
+  )
+}
+
 export async function revokeAccountSession(
+  databaseContext: TenantRequestContext,
   input: {
     providerSessionId: string
     reason: string
     revokedByAccountId?: string
     at?: Date
   },
-  cache?: TenantRequestContextCache<TenantRequestContext>,
-  db: Database = getDb()
+  cache?: TenantRequestContextCache<TenantRequestContext>
 ): Promise<void> {
   const reason = input.reason.trim()
   if (!reason) denial('POLICY_DENIED', 'Session revocation requires a reason')
   const at = input.at ?? new Date()
 
   cache?.invalidateSession(input.providerSessionId)
-  await db.transaction(async (tx: DatabaseTransaction) => {
+  await withTenantTransaction(databaseContext, async (tx) => {
     const [session] = await tx
       .select({ status: accountSessions.status })
       .from(accountSessions)
@@ -834,8 +869,24 @@ export async function revokeAccountSession(
  */
 export async function listAvailableTenantContexts(
   identity: VerifiedAccountIdentity,
-  options: { at?: Date; limit?: number } = {},
-  db: Database = getDb()
+  options: { at?: Date; limit?: number; requestId?: string } = {}
+): Promise<AvailableTenantContext[]> {
+  return withIdentityTransaction(
+    {
+      identityProvider: identity.provider,
+      providerSubject: identity.subject,
+      providerSessionId: identity.sessionId,
+      requestId: options.requestId ?? crypto.randomUUID(),
+      assuranceLevel: identity.assuranceLevel,
+    },
+    (database) => listAvailableTenantContextsInTransaction(identity, options, database)
+  )
+}
+
+async function listAvailableTenantContextsInTransaction(
+  identity: VerifiedAccountIdentity,
+  options: { at?: Date; limit?: number },
+  db: Database
 ): Promise<AvailableTenantContext[]> {
   const at = options.at ?? new Date()
   const limit = Math.min(Math.max(options.limit ?? 50, 1), 50)

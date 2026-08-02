@@ -16,7 +16,7 @@ export const schoolsRouter = router({
    * Get all schools the user has access to
    */
   list: protectedProcedure(CAPABILITIES.SCHOOLS_READ).query(async ({ ctx }) => {
-    return await getAccessibleSchools(ctx.policyContext, ctx.policyDecision)
+    return await getAccessibleSchools(ctx.requestContext, ctx.policyContext, ctx.policyDecision)
   }),
 
   /**
@@ -26,6 +26,7 @@ export const schoolsRouter = router({
     .input(z.object({ schoolId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const school = await getSchoolById(
+        ctx.requestContext,
         ctx.policyContext,
         ctx.policyDecision,
         input.schoolId,

@@ -1,14 +1,17 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { EnvironmentValidationError, parsePublicEnv } from './public'
-import { parseServerEnv } from './server'
+import { parseMigrationEnv, parseServerEnv, parseWorkerEnv } from './server'
 
 const validPublicEnv = {
   NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321',
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_local_test_key',
   NEXT_PUBLIC_APP_URL: 'http://app.openschool.local:3000',
   NEXT_PUBLIC_WWW_URL: 'http://www.openschool.local:3000',
-  DATABASE_URL: 'postgresql://should-not-be-public',
+  DATABASE_MIGRATION_URL: 'postgresql://should-not-be-public',
+  DATABASE_RUNTIME_URL: 'postgresql://should-not-be-public',
+  DATABASE_WORKER_URL: 'postgresql://should-not-be-public',
+  DATABASE_MIGRATION_ROLE: 'should-not-be-public',
 }
 
 describe('public environment validation', () => {
@@ -21,7 +24,10 @@ describe('public environment validation', () => {
       NEXT_PUBLIC_APP_URL: 'http://app.openschool.local:3000',
       NEXT_PUBLIC_WWW_URL: 'http://www.openschool.local:3000',
     })
-    assert.equal('DATABASE_URL' in parsed, false)
+    assert.equal('DATABASE_MIGRATION_URL' in parsed, false)
+    assert.equal('DATABASE_RUNTIME_URL' in parsed, false)
+    assert.equal('DATABASE_WORKER_URL' in parsed, false)
+    assert.equal('DATABASE_MIGRATION_ROLE' in parsed, false)
   })
 
   it('reports a missing variable by name', () => {
@@ -90,17 +96,45 @@ describe('public environment validation', () => {
 describe('server environment validation', () => {
   it('accepts PostgreSQL connection URLs', () => {
     assert.deepEqual(
-      parseServerEnv({ DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/db' }),
+      parseServerEnv({
+        DATABASE_RUNTIME_URL: 'postgresql://runtime:secret@localhost:5432/db',
+        DATABASE_MIGRATION_ROLE: 'migration',
+      }),
       {
-        DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/db',
+        DATABASE_RUNTIME_URL: 'postgresql://runtime:secret@localhost:5432/db',
+        DATABASE_MIGRATION_ROLE: 'migration',
       }
     )
   })
 
   it('rejects non-PostgreSQL URLs with a variable-specific error', () => {
     assert.throws(
-      () => parseServerEnv({ DATABASE_URL: 'https://example.com/db' }),
-      /DATABASE_URL: must use one of these protocols: postgres:, postgresql:/
+      () => parseMigrationEnv({ DATABASE_MIGRATION_URL: 'https://example.com/db' }),
+      /DATABASE_MIGRATION_URL: must use one of these protocols: postgres:, postgresql:/
+    )
+  })
+
+  it('requires distinct migration and runtime roles', () => {
+    assert.throws(
+      () =>
+        parseServerEnv({
+          DATABASE_RUNTIME_URL: 'postgresql://owner:two@localhost:5432/db',
+          DATABASE_MIGRATION_ROLE: 'owner',
+        }),
+      /DATABASE_RUNTIME_URL: must use a different database role than DATABASE_MIGRATION_ROLE/
+    )
+  })
+
+  it('validates the separately loaded worker role', () => {
+    assert.deepEqual(
+      parseWorkerEnv({
+        DATABASE_WORKER_URL: 'postgresql://worker:secret@localhost:5432/db',
+        DATABASE_MIGRATION_ROLE: 'migration',
+      }),
+      {
+        DATABASE_WORKER_URL: 'postgresql://worker:secret@localhost:5432/db',
+        DATABASE_MIGRATION_ROLE: 'migration',
+      }
     )
   })
 })

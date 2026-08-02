@@ -1,4 +1,4 @@
-import { getServerEnv } from '@openschool/config/server'
+import { getMigrationEnv } from '@openschool/config/server'
 import { inArray } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
@@ -762,7 +762,7 @@ function assertCount(label: string, actual: number, expected: number): void {
   }
 }
 
-const sql = postgres(getServerEnv().DATABASE_URL, { prepare: false, max: 1 })
+const sql = postgres(getMigrationEnv().DATABASE_MIGRATION_URL, { prepare: false, max: 1 })
 const db = drizzle(sql, { schema })
 
 try {

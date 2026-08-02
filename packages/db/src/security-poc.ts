@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { getServerEnv } from '@openschool/config/server'
+import { getMigrationEnv } from '@openschool/config/server'
 import postgres from 'postgres'
 
 // Intentional raw-PostgreSQL exception: roles, grants, session identity, physical
@@ -45,7 +45,7 @@ function assertLocalDisposableDatabase(databaseUrl: URL): void {
 
   if (!loopbackHosts.has(databaseUrl.hostname)) {
     throw new Error(
-      `Security proof refused: DATABASE_URL host must be loopback, received ${databaseUrl.hostname}.`
+      `Security proof refused: DATABASE_MIGRATION_URL host must be loopback, received ${databaseUrl.hostname}.`
     )
   }
 }
@@ -98,7 +98,7 @@ async function assertContextCleared(client: SqlClient, expectedBackendPid: numbe
 }
 
 async function run(): Promise<void> {
-  const adminUrl = new URL(getServerEnv().DATABASE_URL)
+  const adminUrl = new URL(getMigrationEnv().DATABASE_MIGRATION_URL)
   assertLocalDisposableDatabase(adminUrl)
 
   const runtimePassword = randomBytes(32).toString('base64url')

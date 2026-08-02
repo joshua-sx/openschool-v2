@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { getServerEnv } from '@openschool/config/server'
+import { getMigrationEnv } from '@openschool/config/server'
 import { and, sql as drizzleSql, eq, gt, isNull, lte, or } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
@@ -85,7 +85,7 @@ async function expectSqlState(
 }
 
 async function run(): Promise<void> {
-  const databaseUrl = new URL(getServerEnv().DATABASE_URL)
+  const databaseUrl = new URL(getMigrationEnv().DATABASE_MIGRATION_URL)
   assertLocalDisposableDatabase(databaseUrl)
   const client = postgres(databaseUrl.toString(), { max: 1, prepare: false })
   const db = drizzle(client, { schema })
@@ -265,22 +265,26 @@ async function run(): Promise<void> {
       )
     assert.deepEqual(effectiveInvalidGrants, [])
 
-    const activated = await activateAccountLink(db, {
-      tenantId: TENANT_A,
-      accountLinkId: LIFECYCLE_LINK,
-      actorAccountId: ACTOR_ACCOUNT,
-      reason: 'Identity proof accepted',
-      at: NOW,
-    })
+    const activated = await db.transaction((tx) =>
+      activateAccountLink(tx, {
+        tenantId: TENANT_A,
+        accountLinkId: LIFECYCLE_LINK,
+        actorAccountId: ACTOR_ACCOUNT,
+        reason: 'Identity proof accepted',
+        at: NOW,
+      })
+    )
     assert.equal(activated.membershipVersion, 2)
 
-    const revoked = await revokeAccountLink(db, {
-      tenantId: TENANT_A,
-      accountLinkId: LIFECYCLE_LINK,
-      actorAccountId: ACTOR_ACCOUNT,
-      reason: 'Proof access withdrawn',
-      at: new Date('2026-08-02T13:00:00Z'),
-    })
+    const revoked = await db.transaction((tx) =>
+      revokeAccountLink(tx, {
+        tenantId: TENANT_A,
+        accountLinkId: LIFECYCLE_LINK,
+        actorAccountId: ACTOR_ACCOUNT,
+        reason: 'Proof access withdrawn',
+        at: new Date('2026-08-02T13:00:00Z'),
+      })
+    )
     assert.equal(revoked.membershipVersion, 3)
 
     const [lifecycleState] = await db
@@ -303,13 +307,15 @@ async function run(): Promise<void> {
     )
 
     await expectSqlState('atomic lifecycle rollback', '23503', () =>
-      activateAccountLink(db, {
-        tenantId: TENANT_A,
-        accountLinkId: ROLLBACK_LINK,
-        actorAccountId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
-        reason: 'This event must fail its actor foreign key',
-        at: NOW,
-      })
+      db.transaction((tx) =>
+        activateAccountLink(tx, {
+          tenantId: TENANT_A,
+          accountLinkId: ROLLBACK_LINK,
+          actorAccountId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+          reason: 'This event must fail its actor foreign key',
+          at: NOW,
+        })
+      )
     )
     const [rollbackState] = await db
       .select({ status: accountLinks.status, version: accounts.membershipVersion })

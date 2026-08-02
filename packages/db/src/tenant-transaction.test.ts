@@ -1,0 +1,110 @@
+import assert from 'node:assert/strict'
+import { describe, it } from 'node:test'
+import {
+  TenantDatabaseError,
+  validateIdentityDatabaseContext,
+  validateTenantDatabaseContext,
+  validateWorkerDatabaseContext,
+} from './tenant-transaction'
+
+const IDS = {
+  account: '00000000-0000-4000-8000-000000000201',
+  person: '00000000-0000-4000-8000-000000000901',
+  tenant: '00000000-0000-4000-8000-000000000001',
+  request: '00000000-0000-4000-8000-000000000299',
+  school: '00000000-0000-4000-8000-000000000101',
+} as const
+
+function isInvalidContext(error: unknown): boolean {
+  return error instanceof TenantDatabaseError && error.reason === 'DATABASE_CONTEXT_INVALID'
+}
+
+describe('database execution context validation', () => {
+  it('accepts complete verified identity, Tenant, and worker contexts', () => {
+    assert.doesNotThrow(() =>
+      validateIdentityDatabaseContext({
+        identityProvider: 'supabase',
+        providerSubject: IDS.account,
+        providerSessionId: 'verified-session',
+        requestId: IDS.request,
+        assuranceLevel: 'aal2',
+      })
+    )
+    assert.doesNotThrow(() =>
+      validateTenantDatabaseContext({
+        accountId: IDS.account,
+        personId: IDS.person,
+        tenantId: IDS.tenant,
+        sessionId: 'verified-session',
+        requestId: IDS.request,
+        assuranceLevel: 'aal1',
+        membershipVersion: 1,
+        securityVersion: 1,
+        contextPolicyVersion: 1,
+        activeSchoolId: IDS.school,
+      })
+    )
+    assert.doesNotThrow(() =>
+      validateWorkerDatabaseContext({
+        tenantId: IDS.tenant,
+        jobId: IDS.account,
+        jobType: 'daily_attendance_rollup',
+        requestId: IDS.request,
+      })
+    )
+  })
+
+  it('fails before database access for missing, malformed, or unsafe context', () => {
+    assert.throws(
+      () =>
+        validateTenantDatabaseContext({
+          accountId: 'not-an-account',
+          personId: IDS.person,
+          tenantId: IDS.tenant,
+          sessionId: 'verified-session',
+          requestId: IDS.request,
+          assuranceLevel: 'aal1',
+          membershipVersion: 1,
+          securityVersion: 1,
+          contextPolicyVersion: 1,
+        }),
+      isInvalidContext
+    )
+    assert.throws(
+      () =>
+        validateIdentityDatabaseContext({
+          identityProvider: 'supabase',
+          providerSubject: IDS.account,
+          providerSessionId: 'unsafe\nsession',
+          requestId: IDS.request,
+          assuranceLevel: 'aal1',
+        }),
+      isInvalidContext
+    )
+    assert.throws(
+      () =>
+        validateTenantDatabaseContext({
+          accountId: IDS.account,
+          personId: IDS.person,
+          tenantId: IDS.tenant,
+          sessionId: 'verified-session',
+          requestId: IDS.request,
+          assuranceLevel: 'aal1',
+          membershipVersion: 0,
+          securityVersion: 1,
+          contextPolicyVersion: 1,
+        }),
+      isInvalidContext
+    )
+    assert.throws(
+      () =>
+        validateWorkerDatabaseContext({
+          tenantId: IDS.tenant,
+          jobId: IDS.account,
+          jobType: '',
+          requestId: IDS.request,
+        }),
+      isInvalidContext
+    )
+  })
+})

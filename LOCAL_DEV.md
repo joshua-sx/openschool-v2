@@ -30,7 +30,10 @@ The supported variables are:
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | browser | Dedicated development Supabase origin |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | browser | Publishable key or legacy anon key; never a secret/service-role key |
-| `DATABASE_URL` | server only | Application PostgreSQL connection |
+| `DATABASE_MIGRATION_URL` | server only | Schema-owner migration, seed, and recovery connection; never used by the app |
+| `DATABASE_MIGRATION_ROLE` | server only, non-secret | Expected owner role name used by runtime safety assertions |
+| `DATABASE_RUNTIME_URL` | server only | Non-owner request and identity-bootstrap connection |
+| `DATABASE_WORKER_URL` | server only | Separately credentialed non-owner background-work connection |
 | `OPENSCHOOL_POLICY_VERSION` | server only | Optional accepted capability-policy rollback version; an unknown value fails closed |
 | `NEXT_PUBLIC_APP_URL` | browser | Authenticated application origin |
 | `NEXT_PUBLIC_WWW_URL` | browser | Marketing and authentication origin |
@@ -73,7 +76,10 @@ bun run db:start
 bun run db:check
 bun run db:migrate
 bun run db:seed
+ALLOW_ROLE_PROVISIONING=true bun run db:provision-roles
 ```
+
+Role provisioning is idempotent, refuses non-loopback databases, verifies the migration URL username against `DATABASE_MIGRATION_ROLE`, resets execution-role privileges, and creates the local runtime/worker logins from `.env.local`. Run it after migrations whenever the reviewed grant set changes. Production credentials require separately controlled infrastructure and must not reuse these development passwords. The web process needs only the runtime URL and non-secret migration role name; do not inject the migration or worker URL into it.
 
 The seed is idempotent and creates two Tenants with pooled placements; a ministry, board, network, district, and second-Tenant hierarchy; three Schools spanning primary, secondary, and all-through profiles; organization and School roles; classes, students, enrollments, a parent relationship, and a representative grade. Seeded user records are application fixtures; they are not login identities in Supabase Auth.
 
@@ -109,10 +115,11 @@ bun run lint
 bun run typecheck
 bun test
 bun run db:check
+bun run db:boundary-check
 bun run build
 ```
 
-GitHub Actions additionally provisions a clean PostgreSQL service, applies all migrations, seeds it, repeats both operations, and runs the guarded [transaction-scoped RLS proof](./packages/db/security-poc/README.md) through real non-owner roles. The proof is destructive and intentionally refuses non-loopback database hosts.
+GitHub Actions additionally provisions a clean PostgreSQL service, applies all migrations, seeds it, repeats both operations, provisions real runtime/worker roles, and runs the guarded [database execution proof](./packages/db/DATABASE_EXECUTION.md) plus [transaction-scoped RLS proof](./packages/db/security-poc/README.md). The proofs are destructive and intentionally refuse non-loopback database hosts.
 
 CI also runs the guarded [Tenant and Education Organization proof](./packages/db/TENANT_HIERARCHY.md) and a separate upgrade job that starts with representative data at migration `0002`, applies the Tenant foundation twice, and verifies the backfill and constraints.
 

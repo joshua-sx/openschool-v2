@@ -1,16 +1,18 @@
 import { logAuditEvent } from '@openschool/audit'
 import {
+  type DatabaseTransaction,
   type NewStudent,
   type Student,
+  type TenantDatabaseContext,
   affiliations,
   enrollments,
-  getDb,
   organizationTreeClosure,
   organizationTreeVersions,
   personRelationships,
   schoolGovernanceAssignments,
   studentProfiles,
   students,
+  withTenantTransaction,
 } from '@openschool/db'
 import {
   type AllowedPolicyDecision,
@@ -21,7 +23,8 @@ import {
 } from '@openschool/rbac'
 import { TRPCError } from '@trpc/server'
 import { and, desc, eq, gt, isNull, lte, or } from 'drizzle-orm'
-import { getSchoolById } from './schools'
+import { assertDatabasePolicyContext } from './database-context'
+import { getSchoolByIdInTransaction } from './schools'
 
 const MAX_STUDENT_ROWS = 500
 const MAX_POLICY_CONSTRAINTS = 16
@@ -46,8 +49,11 @@ function tenantPolicyConstraints(
   return decision.queryConstraints
 }
 
-async function getCurrentTreeVersionId(tenantId: string, at: Date): Promise<string | null> {
-  const db = getDb()
+async function getCurrentTreeVersionId(
+  db: DatabaseTransaction,
+  tenantId: string,
+  at: Date
+): Promise<string | null> {
   const [treeVersion] = await db
     .select({ id: organizationTreeVersions.id })
     .from(organizationTreeVersions)
@@ -68,12 +74,12 @@ interface StudentLookup {
 }
 
 async function studentsForConstraint(
+  db: DatabaseTransaction,
   constraint: PolicyQueryConstraint,
   lookup: StudentLookup,
   at: Date
 ): Promise<Student[]> {
   if (constraint.kind === 'platform') return []
-  const db = getDb()
   const filters = [eq(students.tenantId, constraint.tenantId), eq(students.status, 'active')]
   if (lookup.schoolId) filters.push(eq(students.schoolId, lookup.schoolId))
   if (lookup.studentId) filters.push(eq(students.id, lookup.studentId))
@@ -115,7 +121,7 @@ async function studentsForConstraint(
       return rows.map(({ student }) => student)
     }
     case 'organization_subtree': {
-      const treeVersionId = await getCurrentTreeVersionId(constraint.tenantId, at)
+      const treeVersionId = await getCurrentTreeVersionId(db, constraint.tenantId, at)
       if (!treeVersionId) return []
       const rows = await db
         .select({ student: students })
@@ -240,6 +246,7 @@ async function studentsForConstraint(
 }
 
 async function loadAuthorizedStudents(
+  db: DatabaseTransaction,
   context: PolicyContext,
   decision: AllowedPolicyDecision,
   expectedCapability: Capability,
@@ -249,7 +256,7 @@ async function loadAuthorizedStudents(
   const at = new Date()
   const rows = (
     await Promise.all(
-      constraints.map((constraint) => studentsForConstraint(constraint, lookup, at))
+      constraints.map((constraint) => studentsForConstraint(db, constraint, lookup, at))
     )
   ).flat()
   const unique = new Map(rows.map((student) => [student.id, student]))
@@ -257,14 +264,19 @@ async function loadAuthorizedStudents(
 }
 
 export async function getStudentsBySchool(
+  databaseContext: TenantDatabaseContext,
   context: PolicyContext,
   decision: AllowedPolicyDecision,
   schoolId: string
 ): Promise<Student[]> {
-  return loadAuthorizedStudents(context, decision, CAPABILITIES.STUDENTS_READ, { schoolId })
+  assertDatabasePolicyContext(databaseContext, context)
+  return withTenantTransaction(databaseContext, (db) =>
+    loadAuthorizedStudents(db, context, decision, CAPABILITIES.STUDENTS_READ, { schoolId })
+  )
 }
 
 export async function getStudentById(
+  databaseContext: TenantDatabaseContext,
   context: PolicyContext,
   decision: AllowedPolicyDecision,
   studentId: string
@@ -273,29 +285,39 @@ export async function getStudentById(
     decision.capability === CAPABILITIES.STUDENTS_UPDATE
       ? CAPABILITIES.STUDENTS_UPDATE
       : CAPABILITIES.STUDENTS_READ
-  const [student] = await loadAuthorizedStudents(context, decision, expectedCapability, {
-    studentId,
-  })
+  assertDatabasePolicyContext(databaseContext, context)
+  const [student] = await withTenantTransaction(databaseContext, (db) =>
+    loadAuthorizedStudents(db, context, decision, expectedCapability, { studentId })
+  )
   return student ?? null
 }
 
 export async function createStudent(
+  databaseContext: TenantDatabaseContext,
   context: PolicyContext,
   decision: AllowedPolicyDecision,
   data: Omit<NewStudent, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>
 ): Promise<Student> {
+  assertDatabasePolicyContext(databaseContext, context)
   if (decision.capability !== CAPABILITIES.STUDENTS_CREATE) policyScopeDenied()
-  const school = await getSchoolById(context, decision, data.schoolId, CAPABILITIES.STUDENTS_CREATE)
-  if (!school) policyScopeDenied()
-
-  const db = getDb()
-  const [student] = await db
-    .insert(students)
-    .values({ ...data, tenantId: school.tenantId })
-    .returning()
+  const student = await withTenantTransaction(databaseContext, async (db) => {
+    const school = await getSchoolByIdInTransaction(
+      db,
+      context,
+      decision,
+      data.schoolId,
+      CAPABILITIES.STUDENTS_CREATE
+    )
+    if (!school) policyScopeDenied()
+    const [created] = await db
+      .insert(students)
+      .values({ ...data, tenantId: school.tenantId })
+      .returning()
+    return created
+  })
   if (!student) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'CREATE_FAILED' })
 
-  await logAuditEvent(context, {
+  await logAuditEvent(databaseContext, context, {
     action: 'create',
     resource: 'student',
     resourceId: student.id,
@@ -309,37 +331,46 @@ export async function createStudent(
 }
 
 export async function updateStudent(
+  databaseContext: TenantDatabaseContext,
   context: PolicyContext,
   decision: AllowedPolicyDecision,
   studentId: string,
   data: Partial<Omit<NewStudent, 'id' | 'tenantId' | 'schoolId' | 'createdAt' | 'updatedAt'>>
 ): Promise<Student> {
+  assertDatabasePolicyContext(databaseContext, context)
   if (decision.capability !== CAPABILITIES.STUDENTS_UPDATE) policyScopeDenied()
-  const existing = await getStudentById(context, decision, studentId)
-  if (!existing) throw new TRPCError({ code: 'NOT_FOUND', message: 'Student not found' })
-
-  const db = getDb()
-  const [updated] = await db
-    .update(students)
-    .set({ ...data, updatedAt: new Date() })
-    .where(
-      and(
-        eq(students.tenantId, existing.tenantId),
-        eq(students.id, existing.id),
-        eq(students.schoolId, existing.schoolId)
-      )
+  const result = await withTenantTransaction(databaseContext, async (db) => {
+    const [existing] = await loadAuthorizedStudents(
+      db,
+      context,
+      decision,
+      CAPABILITIES.STUDENTS_UPDATE,
+      { studentId }
     )
-    .returning()
-  if (!updated) throw new TRPCError({ code: 'CONFLICT', message: 'RESOURCE_CHANGED' })
+    if (!existing) throw new TRPCError({ code: 'NOT_FOUND', message: 'Student not found' })
+    const [updated] = await db
+      .update(students)
+      .set({ ...data, updatedAt: new Date() })
+      .where(
+        and(
+          eq(students.tenantId, existing.tenantId),
+          eq(students.id, existing.id),
+          eq(students.schoolId, existing.schoolId)
+        )
+      )
+      .returning()
+    return { existing, updated }
+  })
+  if (!result.updated) throw new TRPCError({ code: 'CONFLICT', message: 'RESOURCE_CHANGED' })
 
-  await logAuditEvent(context, {
+  await logAuditEvent(databaseContext, context, {
     action: 'update',
     resource: 'student',
     resourceId: studentId,
-    oldValues: existing,
-    newValues: updated,
+    oldValues: result.existing,
+    newValues: result.updated,
   })
-  return updated
+  return result.updated
 }
 
 interface StudentValidationData {
