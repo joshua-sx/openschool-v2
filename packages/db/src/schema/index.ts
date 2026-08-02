@@ -1,5 +1,7 @@
+export * from './tenancy'
 export * from './organizations'
 export * from './schools'
+export * from './education-organizations'
 export * from './classes'
 export * from './users'
 export * from './student'

@@ -1,0 +1,1 @@
+ALTER TABLE "schools" ADD COLUMN "profile" text DEFAULT 'other' NOT NULL;

@@ -1,0 +1,6 @@
+ALTER TABLE "tenant_placements" ADD CONSTRAINT "tenant_placements_adapter_check" CHECK ("tenant_placements"."adapter" = 'pooled');--> statement-breakpoint
+ALTER TABLE "tenant_placements" ADD CONSTRAINT "tenant_placements_status_check" CHECK ("tenant_placements"."status" IN ('active', 'migrating', 'disabled'));--> statement-breakpoint
+ALTER TABLE "tenants" ADD CONSTRAINT "tenants_status_check" CHECK ("tenants"."status" IN ('active', 'suspended', 'archived'));--> statement-breakpoint
+ALTER TABLE "schools" ADD CONSTRAINT "schools_profile_check" CHECK ("schools"."profile" IN ('primary', 'secondary', 'all_through', 'special', 'other'));--> statement-breakpoint
+ALTER TABLE "education_organizations" ADD CONSTRAINT "education_organizations_type_check" CHECK ("education_organizations"."type" IN ('ministry', 'school_board', 'district', 'network', 'region', 'other'));--> statement-breakpoint
+ALTER TABLE "education_organizations" ADD CONSTRAINT "education_organizations_status_check" CHECK ("education_organizations"."status" IN ('active', 'archived'));
