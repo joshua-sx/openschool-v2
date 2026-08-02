@@ -12,6 +12,7 @@
     "db:push": "drizzle-kit push",
     "db:security-poc": "bun run src/security-poc.ts",
     "db:tenant-foundation-poc": "bun run src/tenant-foundation-poc.ts",
+    "db:identity-foundation-poc": "bun run src/identity-foundation-poc.ts",
     "db:prepare-upgrade-fixture": "bun run src/prepare-upgrade-fixture.ts",
     "db:verify-upgrade-fixture": "bun run src/verify-upgrade-fixture.ts",
     "db:studio": "drizzle-kit studio",
