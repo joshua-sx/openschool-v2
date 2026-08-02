@@ -35,7 +35,7 @@ RLS is defense in depth against missing or incorrect predicates, not a sandbox f
 
 ## Evidence required before M1 policy migration
 
-The isolated proof under `packages/db/security-poc` must demonstrate real non-owner roles, `NOBYPASSRLS`, default deny, Tenant A/B select isolation, `WITH CHECK` rejection, transaction-local context reset, and missing write privileges in CI. Actual table policies require a separate reviewed migration and the full isolation matrix.
+The isolated proof under `packages/db/security-poc` must demonstrate separate real runtime and worker roles, non-ownership, `NOBYPASSRLS`, explicit `has_table_privilege` grants/denials, default deny, Tenant A/B SELECT/INSERT/UPDATE/DELETE isolation, `WITH CHECK` rejection, and context reset after commit, rollback, policy error, and same-connection reuse in CI. Missing table privilege failures must be distinguished from RLS policy denials. Actual table policies require a separate reviewed migration and the full isolation matrix.
 
 ## Consequences
 

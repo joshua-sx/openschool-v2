@@ -17,6 +17,8 @@ Education Organizations and Schools exist inside a Tenant. A national customer c
 
 The data-access seam is tenant placement. Pooled placement is the first adapter. Bridge and silo adapters may be added when a second placement exists; the domain interface must not expose connection strings or placement type. Background work, files, caches, search, exports, and analytics use the same Tenant key.
 
+Cross-Tenant reporting never runs a pooled query with an RLS-bypass role. An authorized control-plane workflow fans out into independent tenant-scoped transactions through each Tenant Placement adapter, writes minimized results to a separately governed reporting store, and aggregates only there. The request requires an explicit cross-Tenant reporting capability, purpose, approved Tenant set, and output classification. Each tenant transaction uses its normal non-owner role and emits an Audit Event with a shared correlation identifier; the reporting store has separate credentials, retention, lineage, and download audit. Row-level drill-through returns to the originating Tenant transaction and Policy Decision rather than exposing pooled source tables.
+
 ## Required invariants
 
 - Tenant identifiers come from server-resolved context, never resource input alone.
@@ -24,6 +26,7 @@ The data-access seam is tenant placement. Pooled placement is the first adapter.
 - Unique constraints and indexes begin with `tenant_id` when identity is tenant-local.
 - Foreign-key strategies must prevent a child row from referencing a parent in another Tenant.
 - A pooled runtime credential has no platform-wide bypass role.
+- Cross-Tenant reporting preserves Tenant keys and cannot query pooled source tables with a bypass credential.
 - Placement moves have export/import verification, rollback, and audit evidence.
 
 ## Options rejected

@@ -15,7 +15,7 @@ Create one deep Request Context module. Its interface accepts a cryptographicall
 
 Verify Supabase access tokens with `getClaims()` when asymmetric signing keys are configured; fall back to `getUser()` when server verification is required. Do not authorize from `getSession()` data alone. Client headers/cookies select context only. When more than one context is possible and none is selected, return `CONTEXT_REQUIRED`; never choose the first membership.
 
-Context is resolved for every request. A short cache is allowed only when keyed by Account, Tenant, membership version, and policy version, with immediate revocation invalidation. Database context is derived from this object inside the transaction wrapper.
+Context is resolved for every request. Caching is disabled until cross-node invalidation is proven. When enabled, a cache entry is keyed by Account, Tenant, session identifier, membership version, session/security epoch, policy version, and MFA assurance level; selectors remain part of the lookup. Its expiry is the earliest of the short maximum TTL, token/session expiry, next affiliation or relationship effective boundary, support-grant expiry, or assurance expiry. Account disablement, session revocation, membership/security changes, MFA reset/downgrade, policy publication, and support-grant changes publish durable invalidation before the state-changing operation succeeds. Database context is derived from the validated object inside the transaction wrapper.
 
 ## Stable denial reasons
 

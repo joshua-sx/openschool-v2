@@ -11,7 +11,9 @@ A ministry may oversee boards, regions, or networks that govern many Schools. Cu
 
 ## Decision
 
-Model administrative units as effective-dated Education Organizations in an Organization Tree. Each node has a type, parent, validity period, and Tenant. Maintain a closure table for ancestor/descendant queries and historical snapshots. A School belongs to one governing Education Organization at a point in time and retains its own operational identifier and configuration.
+Model administrative units as effective-dated Education Organizations in an Organization Tree. Each node has a type, Tenant, and immutable identity. Every hierarchy mutation creates an immutable tree version; the closure table is keyed by Tenant and tree version so its ancestor/descendant edges are never silently rewritten. Effective periods select which tree version applied at a point in time. School governing-organization assignments are separate effective-dated records with non-overlap constraints.
+
+Current authorization resolves the active tree version and active School assignment. Historical authorization, audit explanation, record access, and reporting “as of” queries resolve both the tree version and School assignment that applied at the requested timestamp; they never apply the current tree to historical records.
 
 Affiliations specify scope explicitly: exact organization, organization subtree, exact School, or assigned class/relationship. Organization roles do not imply subtree scope unless the grant says so. An active School must belong to the selected organization subtree and Tenant; mismatches fail with a context reason code.
 
@@ -26,7 +28,7 @@ Primary and high schools use the same School interface. School profile, academic
 
 ## Consequences
 
-Tree changes and School transfers are privileged, effective-dated operations. Closure-table writes require a single tested module and cycle prevention. Authorization and reports can resolve descendant scope efficiently, while records retain historical governing context.
+Tree changes and School transfers are privileged, effective-dated operations. Closure-table writes require a single tested module, immutable versions, non-overlapping effective periods, and cycle prevention. Authorization and reports can resolve descendant scope efficiently, while records retain historical governing context.
 
 ## Migration path and rollback
 

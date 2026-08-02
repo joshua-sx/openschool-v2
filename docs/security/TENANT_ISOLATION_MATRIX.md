@@ -22,7 +22,7 @@ Each implementation issue converts the relevant rows below into automated tests.
 | API/tRPC | capability and scope allow request | IDOR with Tenant B/sibling/resource-type IDs is indistinguishable and denied | batch inputs validate every element | first vertical slice |
 | Policy module | role template plus active affiliation grants capability | expired/future/revoked/wrong-scope grant denied with stable reason | policy version included in decision | authorization |
 | Query module | approved Scope constrains query | missing/wrong resource scope returns no foreign row | every query requires transaction adapter | data access |
-| PostgreSQL/RLS | runtime role sees/writes Tenant A rows | no context, Tenant B select, cross-Tenant insert/update/delete denied | context clears on commit, rollback, error, and pooled reuse | RLS migration |
+| PostgreSQL/RLS | runtime role selects/inserts/updates/deletes Tenant A rows; worker performs its granted subset | no context, Tenant B select, cross-Tenant insert/update/delete denied by RLS; ungranted worker writes fail by privilege | role/privilege assertions distinguish grants from policies; context clears on commit, rollback, policy error, and same-connection reuse | RLS migration |
 | Organization Tree | subtree admin reaches descendants | sibling and ancestor outside grant denied | reparenting changes current access, not historical evidence | hierarchy |
 | School/class | assigned teacher reaches assigned classes | another School/class in same Tenant denied | assignment expiry invalidates access | academics |
 | Guardian/student | active verified relationship reaches linked student | unlinked sibling/student denied | relationship expiry/revocation invalidates access | portals |

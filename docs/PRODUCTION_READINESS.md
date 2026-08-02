@@ -22,6 +22,7 @@ OpenSchool remains **NO-GO** for real school data and users until every blocking
 - [ ] Request Context and Policy Decision modules pass the complete positive/negative suite.
 - [ ] Tenant schema, Organization Tree, Person/Account, affiliations, and relationships are migrated with rollback evidence.
 - [ ] Every tenant table has reviewed forced RLS for named non-owner roles, `USING`/`WITH CHECK`, and tenant/scope indexes.
+- [ ] The target Tenant Placement adapter is implemented and covered by the current threat model and complete Isolation Matrix; bridge/silo placement remains disabled until placement-specific evidence is accepted.
 - [ ] Runtime startup/CI proves `NOBYPASSRLS`, non-ownership, least privilege, and no service-role credential.
 - [ ] The [Isolation Matrix](./security/TENANT_ISOLATION_MATRIX.md) passes across API, query, DB, files, jobs, cache, search, import, export, analytics, and support paths.
 - [ ] Privileged mutations and durable work have atomic audit/outbox evidence; app roles cannot edit/delete audit events.

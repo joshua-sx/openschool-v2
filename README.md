@@ -129,7 +129,7 @@ Security-sensitive code exists, but the platform has not completed a production 
 
 Security and privacy decisions are tracked in [#68](https://github.com/joshua-sx/openschool-v2/issues/68) and subsequent M1 work.
 
-The accepted M1 decision set, threat model, tenant-isolation test contract, and production gate are published under [docs/adr](./docs/adr/README.md), [docs/security](./docs/security/THREAT_MODEL.md), and [docs/PRODUCTION_READINESS.md](./docs/PRODUCTION_READINESS.md). These are implementation constraints and readiness criteria, not evidence that the current prototype is secure or approved for production.
+The accepted M1 decision set, [threat model](./docs/security/THREAT_MODEL.md), [tenant-isolation test contract](./docs/security/TENANT_ISOLATION_MATRIX.md), and [production gate](./docs/PRODUCTION_READINESS.md) are published under [docs/adr](./docs/adr/README.md) and `docs/security`. These are implementation constraints and readiness criteria, not evidence that the current prototype is secure or approved for production.
 
 Dependency handling, vulnerability thresholds, exception rules, and automated update controls are documented in [docs/DEPENDENCY_SECURITY.md](./docs/DEPENDENCY_SECURITY.md).
 

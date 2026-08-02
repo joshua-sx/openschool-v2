@@ -7,7 +7,7 @@
 
 ## Scope and security objectives
 
-This model covers authentication through storage for the pooled OpenSchool platform, including API, query modules, PostgreSQL/RLS, files, caches, jobs, imports, exports, analytics, audit, and support access. It does not certify compliance with any jurisdiction.
+This model covers authentication through storage for the pooled OpenSchool placement implemented in M1, including API, query modules, PostgreSQL/RLS, files, caches, jobs, imports, exports, analytics, audit, and support access. Bridge and silo adapters are design seams only and are out of implementation scope; they must remain disabled in production until a placement-specific threat-model revision covers routing/control-plane compromise, credential and key separation, migration, backup/restore, monitoring, failover, residency, and the full Isolation Matrix through the new adapter. This model does not certify compliance with any jurisdiction.
 
 Primary objectives:
 
@@ -66,7 +66,7 @@ Every arrow is a validation seam. Browser selectors, JWT payloads before verific
 | T02 | Stale JWT retains revoked role | Unauthorized privileged action | verified claims plus server-side membership/session version; immediate invalidation | revocation race tests |
 | T03 | First/strongest membership chosen implicitly | Confused deputy | explicit context or `CONTEXT_REQUIRED`; evaluate all current affiliations | multi-role tests |
 | T04 | Organization admin escapes assigned subtree | Cross-school disclosure | explicit subtree grant, closure lookup, School/tree consistency | descendant/sibling tests |
-| T05 | Missing tenant predicate in query | Whole-table disclosure | forced RLS on non-owner role; tenant-leading indexes | real-role RLS tests |
+| T05 | Missing tenant predicate in query | Whole-table disclosure | forced RLS on non-owner role plus approved Policy Decision scope | real-role RLS tests |
 | T06 | Runtime uses owner/service credential | RLS bypass | separate credentials, role assertions at startup/CI, secret scanning | deployment and DB-role checks |
 | T07 | Pooled connection retains previous context | Cross-request disclosure | transaction-local settings only; wrapper owns transaction | commit/rollback reset tests |
 | T08 | Raw SQL changes context or bypasses query construction | Cross-tenant access | no user-controlled SQL, reviewed raw SQL allowlist, least privilege, bridge/silo for high assurance | static review and penetration test |
@@ -84,7 +84,7 @@ Every arrow is a validation seam. Browser selectors, JWT payloads before verific
 | T20 | Backup/restore omits rows due to RLS or restores wrong Tenant | loss/cross-tenant disclosure | isolated backup role, `row_security=off` error behavior, restore drills, tenant verification | scheduled restore evidence |
 | T21 | Analytics combines Tenants without lawful approval | Unauthorized profiling | governed export/data product, minimization, aggregation, contract/purpose approval | dataset lineage review |
 | T22 | Dependency/CI compromise steals secrets | platform compromise | least-privilege CI, pinned actions/images, secret scanning, provenance, rotation | supply-chain controls |
-| T23 | Denial-of-service through expensive hierarchical RLS | availability loss | closure tables, indexed policy columns, query limits, plan regression tests | representative EXPLAIN/load tests |
+| T23 | Denial-of-service through expensive hierarchical RLS | availability loss | closure tables, tenant-leading/indexed policy columns, query limits, plan regression tests | representative EXPLAIN/load tests |
 | T24 | School transfer changes historical record visibility | integrity/disclosure | effective-dated governance and record context, privileged migration | historical access tests |
 
 ## Known residual risks
