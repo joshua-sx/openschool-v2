@@ -2,61 +2,208 @@ import { getServerEnv } from '@openschool/config/server'
 import { inArray } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
+import * as schema from './schema'
 import {
   classes,
+  educationOrganizations,
   enrollments,
   grades,
+  organizationTreeVersions,
   organizations,
   parentStudent,
+  schoolGovernanceAssignments,
   schools,
   students,
   teachersOnClass,
+  tenantPlacements,
+  tenants,
   users,
   usersOnOrg,
   usersOnSchool,
 } from './schema'
+import { insertOrganizationTreeVersion } from './tenant-hierarchy'
+
+const HORIZON_TENANT_ID = '00000000-0000-4000-8000-000000000001'
+const ISLAND_TENANT_ID = '00000000-0000-4000-8000-000000000002'
+const HORIZON_BOARD_ID = '00000000-0000-4000-8000-000000000011'
+const HORIZON_NETWORK_ID = '00000000-0000-4000-8000-000000000012'
+const HORIZON_DISTRICT_ID = '00000000-0000-4000-8000-000000000013'
+const ISLAND_DISTRICT_ID = '00000000-0000-4000-8000-000000000021'
 
 const seed = {
-  organizations: [
+  tenants: [
     {
-      id: '00000000-0000-4000-8000-000000000001',
-      name: 'Horizon Education Board',
-      slug: 'horizon-education-board',
+      id: HORIZON_TENANT_ID,
+      name: 'Horizon Education System',
+      slug: 'horizon-education-system',
       settings: { locale: 'en', timezone: 'America/Lower_Princes' },
     },
     {
-      id: '00000000-0000-4000-8000-000000000002',
+      id: ISLAND_TENANT_ID,
+      name: 'Island Schools Trust',
+      slug: 'island-schools-trust-tenant',
+      settings: { locale: 'en', timezone: 'America/Lower_Princes' },
+    },
+  ] satisfies Array<typeof tenants.$inferInsert>,
+  tenantPlacements: [
+    {
+      id: '00000000-0000-4000-8000-000000000031',
+      tenantId: HORIZON_TENANT_ID,
+      adapter: 'pooled',
+      placementKey: 'primary',
+      region: 'sx',
+    },
+    {
+      id: '00000000-0000-4000-8000-000000000032',
+      tenantId: ISLAND_TENANT_ID,
+      adapter: 'pooled',
+      placementKey: 'primary',
+      region: 'sx',
+    },
+  ] satisfies Array<typeof tenantPlacements.$inferInsert>,
+  organizations: [
+    {
+      id: HORIZON_TENANT_ID,
+      tenantId: HORIZON_TENANT_ID,
+      name: 'Horizon Ministry of Education',
+      slug: 'horizon-ministry-of-education',
+      settings: { locale: 'en', timezone: 'America/Lower_Princes' },
+    },
+    {
+      id: ISLAND_TENANT_ID,
+      tenantId: ISLAND_TENANT_ID,
       name: 'Island Schools Trust',
       slug: 'island-schools-trust',
       settings: { locale: 'en', timezone: 'America/Lower_Princes' },
     },
   ] satisfies Array<typeof organizations.$inferInsert>,
+  educationOrganizations: [
+    {
+      id: HORIZON_TENANT_ID,
+      tenantId: HORIZON_TENANT_ID,
+      legacyOrganizationId: HORIZON_TENANT_ID,
+      name: 'Horizon Ministry of Education',
+      slug: 'horizon-ministry',
+      type: 'ministry',
+    },
+    {
+      id: HORIZON_BOARD_ID,
+      tenantId: HORIZON_TENANT_ID,
+      name: 'Horizon Public School Board',
+      slug: 'horizon-public-board',
+      type: 'school_board',
+    },
+    {
+      id: HORIZON_NETWORK_ID,
+      tenantId: HORIZON_TENANT_ID,
+      name: 'Horizon Secondary Network',
+      slug: 'horizon-secondary-network',
+      type: 'network',
+    },
+    {
+      id: HORIZON_DISTRICT_ID,
+      tenantId: HORIZON_TENANT_ID,
+      name: 'Eastern Primary District',
+      slug: 'eastern-primary-district',
+      type: 'district',
+    },
+    {
+      id: ISLAND_TENANT_ID,
+      tenantId: ISLAND_TENANT_ID,
+      legacyOrganizationId: ISLAND_TENANT_ID,
+      name: 'Island Schools Trust',
+      slug: 'island-schools-trust',
+      type: 'network',
+    },
+    {
+      id: ISLAND_DISTRICT_ID,
+      tenantId: ISLAND_TENANT_ID,
+      name: 'Island Community District',
+      slug: 'island-community-district',
+      type: 'district',
+    },
+  ] satisfies Array<typeof educationOrganizations.$inferInsert>,
+  treeVersions: [
+    {
+      id: HORIZON_TENANT_ID,
+      tenantId: HORIZON_TENANT_ID,
+      version: 1,
+      effectiveFrom: new Date('2026-01-01T00:00:00Z'),
+      reason: 'Representative ministry, board, network, and district hierarchy',
+      nodes: [
+        { organizationId: HORIZON_TENANT_ID, parentOrganizationId: null },
+        { organizationId: HORIZON_BOARD_ID, parentOrganizationId: HORIZON_TENANT_ID },
+        { organizationId: HORIZON_NETWORK_ID, parentOrganizationId: HORIZON_TENANT_ID },
+        { organizationId: HORIZON_DISTRICT_ID, parentOrganizationId: HORIZON_BOARD_ID },
+      ],
+    },
+    {
+      id: ISLAND_TENANT_ID,
+      tenantId: ISLAND_TENANT_ID,
+      version: 1,
+      effectiveFrom: new Date('2026-01-01T00:00:00Z'),
+      reason: 'Representative second-Tenant hierarchy',
+      nodes: [
+        { organizationId: ISLAND_TENANT_ID, parentOrganizationId: null },
+        { organizationId: ISLAND_DISTRICT_ID, parentOrganizationId: ISLAND_TENANT_ID },
+      ],
+    },
+  ],
   schools: [
     {
       id: '00000000-0000-4000-8000-000000000101',
-      orgId: '00000000-0000-4000-8000-000000000001',
+      tenantId: HORIZON_TENANT_ID,
+      orgId: HORIZON_TENANT_ID,
       name: 'Horizon Primary School',
       slug: 'horizon-primary',
+      profile: 'primary',
       academicYear: '2026-2027',
       terms: [{ name: 'Term 1', startsOn: '2026-08-17', endsOn: '2026-12-18' }],
     },
     {
       id: '00000000-0000-4000-8000-000000000102',
-      orgId: '00000000-0000-4000-8000-000000000001',
+      tenantId: HORIZON_TENANT_ID,
+      orgId: HORIZON_TENANT_ID,
       name: 'Horizon High School',
       slug: 'horizon-high',
+      profile: 'secondary',
       academicYear: '2026-2027',
       terms: [{ name: 'Semester 1', startsOn: '2026-08-17', endsOn: '2026-12-18' }],
     },
     {
       id: '00000000-0000-4000-8000-000000000103',
-      orgId: '00000000-0000-4000-8000-000000000002',
+      tenantId: ISLAND_TENANT_ID,
+      orgId: ISLAND_TENANT_ID,
       name: 'Island Community School',
       slug: 'island-community',
+      profile: 'all_through',
       academicYear: '2026-2027',
       terms: [{ name: 'Term 1', startsOn: '2026-08-17', endsOn: '2026-12-18' }],
     },
   ] satisfies Array<typeof schools.$inferInsert>,
+  schoolGovernanceAssignments: [
+    {
+      id: '00000000-0000-4000-8000-000000000041',
+      tenantId: HORIZON_TENANT_ID,
+      schoolId: '00000000-0000-4000-8000-000000000101',
+      educationOrganizationId: HORIZON_DISTRICT_ID,
+      validFrom: new Date('2026-01-01T00:00:00Z'),
+    },
+    {
+      id: '00000000-0000-4000-8000-000000000042',
+      tenantId: HORIZON_TENANT_ID,
+      schoolId: '00000000-0000-4000-8000-000000000102',
+      educationOrganizationId: HORIZON_NETWORK_ID,
+      validFrom: new Date('2026-01-01T00:00:00Z'),
+    },
+    {
+      id: '00000000-0000-4000-8000-000000000043',
+      tenantId: ISLAND_TENANT_ID,
+      schoolId: '00000000-0000-4000-8000-000000000103',
+      educationOrganizationId: ISLAND_DISTRICT_ID,
+      validFrom: new Date('2026-01-01T00:00:00Z'),
+    },
+  ] satisfies Array<typeof schoolGovernanceAssignments.$inferInsert>,
   users: [
     {
       id: '00000000-0000-4000-8000-000000000201',
@@ -104,6 +251,7 @@ const seed = {
   classes: [
     {
       id: '00000000-0000-4000-8000-000000000301',
+      tenantId: HORIZON_TENANT_ID,
       schoolId: '00000000-0000-4000-8000-000000000101',
       name: 'Grade 5',
       gradeLevel: 5,
@@ -111,6 +259,7 @@ const seed = {
     },
     {
       id: '00000000-0000-4000-8000-000000000302',
+      tenantId: HORIZON_TENANT_ID,
       schoolId: '00000000-0000-4000-8000-000000000102',
       name: 'Grade 10 Mathematics',
       gradeLevel: 10,
@@ -118,6 +267,7 @@ const seed = {
     },
     {
       id: '00000000-0000-4000-8000-000000000303',
+      tenantId: ISLAND_TENANT_ID,
       schoolId: '00000000-0000-4000-8000-000000000103',
       name: 'Grade 7',
       gradeLevel: 7,
@@ -127,6 +277,7 @@ const seed = {
   students: [
     {
       id: '00000000-0000-4000-8000-000000000401',
+      tenantId: HORIZON_TENANT_ID,
       schoolId: '00000000-0000-4000-8000-000000000101',
       firstName: 'Mia',
       lastName: 'Morgan',
@@ -135,6 +286,7 @@ const seed = {
     },
     {
       id: '00000000-0000-4000-8000-000000000402',
+      tenantId: HORIZON_TENANT_ID,
       schoolId: '00000000-0000-4000-8000-000000000102',
       firstName: 'Noah',
       lastName: 'Brown',
@@ -143,6 +295,7 @@ const seed = {
     },
     {
       id: '00000000-0000-4000-8000-000000000403',
+      tenantId: ISLAND_TENANT_ID,
       schoolId: '00000000-0000-4000-8000-000000000103',
       firstName: 'Ava',
       lastName: 'Martinez',
@@ -153,18 +306,21 @@ const seed = {
   usersOnOrg: [
     {
       id: '00000000-0000-4000-8000-000000000501',
+      tenantId: HORIZON_TENANT_ID,
       userId: '00000000-0000-4000-8000-000000000201',
       orgId: '00000000-0000-4000-8000-000000000001',
       role: 'org_admin',
     },
     {
       id: '00000000-0000-4000-8000-000000000502',
+      tenantId: HORIZON_TENANT_ID,
       userId: '00000000-0000-4000-8000-000000000206',
       orgId: '00000000-0000-4000-8000-000000000001',
       role: 'org_viewer',
     },
     {
       id: '00000000-0000-4000-8000-000000000503',
+      tenantId: ISLAND_TENANT_ID,
       userId: '00000000-0000-4000-8000-000000000207',
       orgId: '00000000-0000-4000-8000-000000000002',
       role: 'org_admin',
@@ -173,18 +329,21 @@ const seed = {
   usersOnSchool: [
     {
       id: '00000000-0000-4000-8000-000000000511',
+      tenantId: HORIZON_TENANT_ID,
       userId: '00000000-0000-4000-8000-000000000202',
       schoolId: '00000000-0000-4000-8000-000000000101',
       role: 'school_admin',
     },
     {
       id: '00000000-0000-4000-8000-000000000512',
+      tenantId: HORIZON_TENANT_ID,
       userId: '00000000-0000-4000-8000-000000000203',
       schoolId: '00000000-0000-4000-8000-000000000102',
       role: 'teacher',
     },
     {
       id: '00000000-0000-4000-8000-000000000513',
+      tenantId: HORIZON_TENANT_ID,
       userId: '00000000-0000-4000-8000-000000000204',
       schoolId: '00000000-0000-4000-8000-000000000102',
       role: 'staff',
@@ -193,6 +352,7 @@ const seed = {
   teachersOnClass: [
     {
       id: '00000000-0000-4000-8000-000000000521',
+      tenantId: HORIZON_TENANT_ID,
       userId: '00000000-0000-4000-8000-000000000203',
       classId: '00000000-0000-4000-8000-000000000302',
       isPrimary: true,
@@ -201,6 +361,7 @@ const seed = {
   parentStudent: [
     {
       id: '00000000-0000-4000-8000-000000000531',
+      tenantId: HORIZON_TENANT_ID,
       parentId: '00000000-0000-4000-8000-000000000205',
       studentId: '00000000-0000-4000-8000-000000000402',
       relationship: 'father',
@@ -209,16 +370,19 @@ const seed = {
   enrollments: [
     {
       id: '00000000-0000-4000-8000-000000000601',
+      tenantId: HORIZON_TENANT_ID,
       studentId: '00000000-0000-4000-8000-000000000401',
       classId: '00000000-0000-4000-8000-000000000301',
     },
     {
       id: '00000000-0000-4000-8000-000000000602',
+      tenantId: HORIZON_TENANT_ID,
       studentId: '00000000-0000-4000-8000-000000000402',
       classId: '00000000-0000-4000-8000-000000000302',
     },
     {
       id: '00000000-0000-4000-8000-000000000603',
+      tenantId: ISLAND_TENANT_ID,
       studentId: '00000000-0000-4000-8000-000000000403',
       classId: '00000000-0000-4000-8000-000000000303',
     },
@@ -226,6 +390,7 @@ const seed = {
   grades: [
     {
       id: '00000000-0000-4000-8000-000000000701',
+      tenantId: HORIZON_TENANT_ID,
       enrollmentId: '00000000-0000-4000-8000-000000000602',
       assignmentName: 'Algebra readiness check',
       score: '86.00',
@@ -248,21 +413,57 @@ function assertCount(label: string, actual: number, expected: number): void {
 }
 
 const sql = postgres(getServerEnv().DATABASE_URL, { prepare: false, max: 1 })
-const db = drizzle(sql)
+const db = drizzle(sql, { schema })
 
 try {
   await db.transaction(async (tx) => {
+    for (const row of seed.tenants) {
+      await tx
+        .insert(tenants)
+        .values(row)
+        .onConflictDoUpdate({ target: tenants.id, set: valuesWithoutId(row) })
+    }
+    for (const row of seed.tenantPlacements) {
+      await tx
+        .insert(tenantPlacements)
+        .values(row)
+        .onConflictDoUpdate({
+          target: tenantPlacements.tenantId,
+          set: valuesWithoutId(row),
+        })
+    }
     for (const row of seed.organizations) {
       await tx
         .insert(organizations)
         .values(row)
         .onConflictDoUpdate({ target: organizations.id, set: valuesWithoutId(row) })
     }
+    for (const row of seed.educationOrganizations) {
+      await tx
+        .insert(educationOrganizations)
+        .values(row)
+        .onConflictDoUpdate({
+          target: educationOrganizations.id,
+          set: valuesWithoutId(row),
+        })
+    }
+    for (const treeVersion of seed.treeVersions) {
+      await insertOrganizationTreeVersion(tx, treeVersion)
+    }
     for (const row of seed.schools) {
       await tx
         .insert(schools)
         .values(row)
         .onConflictDoUpdate({ target: schools.id, set: valuesWithoutId(row) })
+    }
+    for (const row of seed.schoolGovernanceAssignments) {
+      await tx
+        .insert(schoolGovernanceAssignments)
+        .values(row)
+        .onConflictDoUpdate({
+          target: schoolGovernanceAssignments.id,
+          set: valuesWithoutId(row),
+        })
     }
     for (const row of seed.users) {
       await tx
@@ -320,6 +521,15 @@ try {
     }
   })
 
+  const seededTenants = await db
+    .select({ id: tenants.id })
+    .from(tenants)
+    .where(
+      inArray(
+        tenants.id,
+        seed.tenants.map(({ id }) => id)
+      )
+    )
   const seededOrganizations = await db
     .select({ id: organizations.id })
     .from(organizations)
@@ -375,15 +585,57 @@ try {
       )
     )
 
+  const seededEducationOrganizations = await db
+    .select({ id: educationOrganizations.id })
+    .from(educationOrganizations)
+    .where(
+      inArray(
+        educationOrganizations.id,
+        seed.educationOrganizations.map(({ id }) => id)
+      )
+    )
+  const seededTreeVersions = await db
+    .select({ id: organizationTreeVersions.id })
+    .from(organizationTreeVersions)
+    .where(
+      inArray(
+        organizationTreeVersions.id,
+        seed.treeVersions.map(({ id }) => id)
+      )
+    )
+  const seededGovernanceAssignments = await db
+    .select({ id: schoolGovernanceAssignments.id })
+    .from(schoolGovernanceAssignments)
+    .where(
+      inArray(
+        schoolGovernanceAssignments.id,
+        seed.schoolGovernanceAssignments.map(({ id }) => id)
+      )
+    )
+
+  assertCount('tenants', seededTenants.length, seed.tenants.length)
   assertCount('organizations', seededOrganizations.length, seed.organizations.length)
+  assertCount(
+    'education organizations',
+    seededEducationOrganizations.length,
+    seed.educationOrganizations.length
+  )
+  assertCount('tree versions', seededTreeVersions.length, seed.treeVersions.length)
   assertCount('schools', seededSchools.length, seed.schools.length)
+  assertCount(
+    'School governance assignments',
+    seededGovernanceAssignments.length,
+    seed.schoolGovernanceAssignments.length
+  )
   assertCount('users', seededUsers.length, seed.users.length)
   assertCount('students', seededStudents.length, seed.students.length)
   assertCount('organization roles', seededOrgRoles.length, seed.usersOnOrg.length)
   assertCount('school roles', seededSchoolRoles.length, seed.usersOnSchool.length)
 
   console.log(
-    `Seed verified: ${seededOrganizations.length} organizations, ${seededSchools.length} schools, ` +
+    `Seed verified: ${seededTenants.length} tenants, ` +
+      `${seededEducationOrganizations.length} education organizations, ` +
+      `${seededSchools.length} schools, ` +
       `${seededUsers.length} users, ${seededStudents.length} students, ` +
       `${seededOrgRoles.length + seededSchoolRoles.length} role assignments.`
   )

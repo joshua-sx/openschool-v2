@@ -20,6 +20,9 @@
     "db:check": "turbo run db:check --filter=@openschool/db",
     "db:migrate": "turbo run db:migrate --filter=@openschool/db",
     "db:security-poc": "turbo run db:security-poc --filter=@openschool/db",
+    "db:tenant-foundation-poc": "turbo run db:tenant-foundation-poc --filter=@openschool/db",
+    "db:prepare-upgrade-fixture": "turbo run db:prepare-upgrade-fixture --filter=@openschool/db",
+    "db:verify-upgrade-fixture": "turbo run db:verify-upgrade-fixture --filter=@openschool/db",
     "db:seed": "turbo run db:seed --filter=@openschool/db",
     "db:studio": "turbo run db:studio --filter=@openschool/db"
   },

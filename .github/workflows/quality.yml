@@ -77,6 +77,7 @@ jobs:
           --health-retries 10
     env:
       ALLOW_SECURITY_POC: "true"
+      ALLOW_TENANT_FOUNDATION_POC: "true"
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/openschool
 
     steps:
@@ -107,3 +108,51 @@ jobs:
 
       - name: Prove transaction-scoped RLS with real roles
         run: bun run db:security-poc
+
+      - name: Prove Tenant and Organization Tree constraints
+        run: bun run db:tenant-foundation-poc
+
+  database-upgrade:
+    name: Upgrade representative existing data
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
+        env:
+          POSTGRES_DB: openschool
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d openschool"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ALLOW_TENANT_FOUNDATION_POC: "true"
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/openschool
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Prepare representative migration 0002 data
+        run: bun run db:prepare-upgrade-fixture
+
+      - name: Apply Tenant foundation migrations twice
+        run: |
+          bun run db:migrate
+          bun run db:migrate
+
+      - name: Verify upgraded rows and constraints
+        run: bun run db:verify-upgrade-fixture

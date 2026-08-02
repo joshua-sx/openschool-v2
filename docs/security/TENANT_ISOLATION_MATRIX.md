@@ -1,7 +1,7 @@
 # M1 tenant isolation matrix
 
 - Owner: Security Engineering
-- Status: Required test contract; implementation evidence pending
+- Status: Required test contract; Tenant/hierarchy foundation evidence implemented, end-to-end enforcement pending
 - Governing ADRs: [0001](../adr/0001-tenant-isolation-and-placement.md), [0004](../adr/0004-request-context-and-session-verification.md), [0005](../adr/0005-capability-authorization.md), [0006](../adr/0006-database-execution-and-rls.md)
 
 Each implementation issue converts the relevant rows below into automated tests. Positive tests are necessary but never sufficient: every path requires same-Tenant allow and cross-scope deny evidence.
@@ -23,7 +23,7 @@ Each implementation issue converts the relevant rows below into automated tests.
 | Policy module | role template plus active affiliation grants capability | expired/future/revoked/wrong-scope grant denied with stable reason | policy version included in decision | authorization |
 | Query module | approved Scope constrains query | missing/wrong resource scope returns no foreign row | every query requires transaction adapter | data access |
 | PostgreSQL/RLS | runtime role selects/inserts/updates/deletes Tenant A rows; worker performs its granted subset | no context, Tenant B select, cross-Tenant insert/update/delete denied by RLS; ungranted worker writes fail by privilege | role/privilege assertions distinguish grants from policies; context clears on commit, rollback, policy error, and same-connection reuse | RLS migration |
-| Organization Tree | subtree admin reaches descendants | sibling and ancestor outside grant denied | reparenting changes current access, not historical evidence | hierarchy |
+| Organization Tree | versioned insert, descendants, siblings, and reparenting pass in the domain and real PostgreSQL proof | cycles, incomplete closure, sealed-version mutation, overlap, and cross-Tenant references fail by constraint/trigger | reparenting changes current resolution while prior tree and School governance remain available as-of time | hierarchy authorization remains pending |
 | School/class | assigned teacher reaches assigned classes | another School/class in same Tenant denied | assignment expiry invalidates access | academics |
 | Guardian/student | active verified relationship reaches linked student | unlinked sibling/student denied | relationship expiry/revocation invalidates access | portals |
 | Platform control plane | operator manages placement metadata | operator cannot read school records without support grant | grant creation/use/expiry audited | operations |

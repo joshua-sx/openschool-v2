@@ -74,7 +74,7 @@ bun run db:migrate
 bun run db:seed
 ```
 
-The seed is idempotent and creates two organizations, three schools spanning primary and high-school profiles, organization and school roles, classes, students, enrollments, a parent relationship, and a representative grade. Seeded user records are application fixtures; they are not login identities in Supabase Auth.
+The seed is idempotent and creates two Tenants with pooled placements; a ministry, board, network, district, and second-Tenant hierarchy; three Schools spanning primary, secondary, and all-through profiles; organization and School roles; classes, students, enrollments, a parent relationship, and a representative grade. Seeded user records are application fixtures; they are not login identities in Supabase Auth.
 
 Stop PostgreSQL without deleting its named volume:
 
@@ -112,6 +112,8 @@ bun run build
 ```
 
 GitHub Actions additionally provisions a clean PostgreSQL service, applies all migrations, seeds it, repeats both operations, and runs the guarded [transaction-scoped RLS proof](./packages/db/security-poc/README.md) through real non-owner roles. The proof is destructive and intentionally refuses non-loopback database hosts.
+
+CI also runs the guarded [Tenant and Education Organization proof](./packages/db/TENANT_HIERARCHY.md) and a separate upgrade job that starts with representative data at migration `0002`, applies the Tenant foundation twice, and verifies the backfill and constraints.
 
 ## Database policy safety
 

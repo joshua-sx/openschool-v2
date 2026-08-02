@@ -22,6 +22,48 @@
       "when": 1766919148348,
       "tag": "0002_clammy_gravity",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785688871336,
+      "tag": "0003_tenant_hierarchy_additive",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785688903344,
+      "tag": "0004_tenant_hierarchy_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785689061829,
+      "tag": "0005_tenant_hierarchy_constraints",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785689175734,
+      "tag": "0006_school_profile",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785689179731,
+      "tag": "0007_tenant_hierarchy_guards",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785694222661,
+      "tag": "0008_tenant_hierarchy_value_constraints",
+      "breakpoints": true
     }
   ]
 }

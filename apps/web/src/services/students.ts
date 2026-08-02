@@ -1,5 +1,5 @@
 import { logAuditEvent } from '@openschool/audit'
-import { type NewStudent, type Student, getDb, students } from '@openschool/db'
+import { type NewStudent, type Student, getDb, schools, students } from '@openschool/db'
 import type { TenantContext } from '@openschool/rbac'
 import { TRPCError } from '@trpc/server'
 import { and, eq } from 'drizzle-orm'
@@ -73,7 +73,7 @@ export async function getStudentById(
  */
 export async function createStudent(
   ctx: TenantContext,
-  data: Omit<NewStudent, 'id' | 'createdAt' | 'updatedAt'>
+  data: Omit<NewStudent, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>
 ): Promise<Student> {
   // Verify tenant access
   if (!ctx.schoolIds.includes(data.schoolId)) {
@@ -84,7 +84,20 @@ export async function createStudent(
   }
 
   const db = getDb()
-  const [student] = await db.insert(students).values(data).returning()
+  const [school] = await db
+    .select({ tenantId: schools.tenantId })
+    .from(schools)
+    .where(eq(schools.id, data.schoolId))
+    .limit(1)
+
+  if (!school) {
+    throw new TRPCError({ code: 'NOT_FOUND', message: 'School not found' })
+  }
+
+  const [student] = await db
+    .insert(students)
+    .values({ ...data, tenantId: school.tenantId })
+    .returning()
 
   // Audit log
   await logAuditEvent(ctx, {
@@ -108,7 +121,7 @@ export async function createStudent(
 export async function updateStudent(
   ctx: TenantContext,
   studentId: string,
-  data: Partial<Omit<NewStudent, 'id' | 'schoolId' | 'createdAt' | 'updatedAt'>>
+  data: Partial<Omit<NewStudent, 'id' | 'tenantId' | 'schoolId' | 'createdAt' | 'updatedAt'>>
 ): Promise<Student> {
   // Get existing student to verify access
   const existing = await getStudentById(ctx, studentId)
