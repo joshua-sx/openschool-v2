@@ -2,4 +2,7 @@
 // These functions use Node.js-only modules like postgres
 
 export { createServerClient } from './session'
-export { resolveTenantContext } from './context'
+export * from './verified-identity'
+export * from './tenant-request-context'
+export * from './context-cache'
+export * from './rbac-context'

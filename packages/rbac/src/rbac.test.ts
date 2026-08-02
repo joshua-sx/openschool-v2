@@ -6,12 +6,11 @@ import type { TenantContext } from './types'
 
 function tenantContext(role: Role, overrides: Partial<TenantContext> = {}): TenantContext {
   return {
+    accountId: 'account-1',
+    personId: 'person-1',
+    tenantId: 'tenant-1',
     userId: 'user-1',
-    orgIds: ['org-1'],
-    schoolIds: ['school-1'],
-    classIds: [],
-    studentIds: [],
-    effectiveRole: role,
+    roles: [role],
     ...overrides,
   }
 }
@@ -32,23 +31,54 @@ describe('hasPermission', () => {
   })
 
   it('limits teachers to their assigned classes', () => {
-    const context = tenantContext('teacher', { classIds: ['class-1'] })
+    const context = tenantContext('teacher')
 
-    assert.equal(hasPermission(context, 'grades:create', { resourceClassId: 'class-1' }), true)
-    assert.equal(hasPermission(context, 'grades:create', { resourceClassId: 'class-2' }), false)
+    assert.equal(
+      hasPermission(context, 'grades:create', {
+        resourceClassId: 'class-1',
+        resourceClassAssigned: true,
+      }),
+      true
+    )
+    assert.equal(
+      hasPermission(context, 'grades:create', {
+        resourceClassId: 'class-2',
+        resourceClassAssigned: false,
+      }),
+      false
+    )
   })
 
   it('limits parents to their linked students', () => {
-    const context = tenantContext('parent', { studentIds: ['student-1'] })
+    const context = tenantContext('parent')
 
-    assert.equal(hasPermission(context, 'grades:read', { resourceStudentId: 'student-1' }), true)
-    assert.equal(hasPermission(context, 'grades:read', { resourceStudentId: 'student-2' }), false)
+    assert.equal(
+      hasPermission(context, 'grades:read', {
+        resourceStudentId: 'student-1',
+        resourceStudentLinked: true,
+      }),
+      true
+    )
+    assert.equal(
+      hasPermission(context, 'grades:read', {
+        resourceStudentId: 'student-2',
+        resourceStudentLinked: false,
+      }),
+      false
+    )
   })
 
   it('requires an ownership match for self-service access', () => {
     const context = tenantContext('student')
 
-    assert.equal(hasPermission(context, 'students:read', { resourceOwnerId: 'user-1' }), true)
-    assert.equal(hasPermission(context, 'students:read', { resourceOwnerId: 'user-2' }), false)
+    assert.equal(hasPermission(context, 'students:read', { resourceOwnerId: 'person-1' }), true)
+    assert.equal(hasPermission(context, 'students:read', { resourceOwnerId: 'person-2' }), false)
+  })
+
+  it('evaluates every current role without choosing one effective role', () => {
+    const context = tenantContext('teacher', { roles: ['teacher', 'school_admin'] })
+
+    assert.equal(hasPermission(context, 'grades:create', { resourceClassId: 'class-1' }), false)
+    assert.equal(hasPermission(context, 'students:create'), true)
   })
 })

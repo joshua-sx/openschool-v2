@@ -9,30 +9,30 @@ export function checkPermission(
 ): void {
   const allowedRoles = PERMISSIONS[permission]
 
-  for (const allowedRole of allowedRoles) {
-    if (allowedRole.includes(':')) {
-      const [baseRole, modifier] = allowedRole.split(':')
+  for (const role of ctx.roles) {
+    for (const allowedRole of allowedRoles) {
+      if (allowedRole.includes(':')) {
+        const [baseRole, modifier] = allowedRole.split(':')
 
-      if (ctx.effectiveRole !== baseRole) continue
+        if (role !== baseRole) continue
 
-      switch (modifier) {
-        case 'own':
-          if (options.resourceOwnerId === ctx.userId) return
-          break
-        case 'own_class':
-          if (options.resourceClassId && ctx.classIds.includes(options.resourceClassId)) return
-          break
-        case 'own_child':
-          if (options.resourceStudentId && ctx.studentIds.includes(options.resourceStudentId))
-            return
-          break
-        case 'child_class':
-          // Parent can see classes their children are in
-          // Requires additional lookup - implement as needed
-          break
+        switch (modifier) {
+          case 'own':
+            if (options.resourceOwnerId === ctx.personId) return
+            break
+          case 'own_class':
+            if (options.resourceClassId && options.resourceClassAssigned === true) return
+            break
+          case 'own_child':
+            if (options.resourceStudentId && options.resourceStudentLinked === true) return
+            break
+          case 'child_class':
+            if (options.resourceClassId && options.childClassLinked === true) return
+            break
+        }
+      } else if (role === allowedRole) {
+        return
       }
-    } else {
-      if (ctx.effectiveRole === allowedRole) return
     }
   }
 
