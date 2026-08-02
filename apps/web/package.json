@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit --incremental false"
+    "typecheck": "tsc --noEmit --incremental false",
+    "policy:query-poc": "bun run src/server/policy-query-poc.ts"
   },
   "dependencies": {
     "@openschool/audit": "workspace:*",

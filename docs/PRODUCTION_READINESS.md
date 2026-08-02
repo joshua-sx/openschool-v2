@@ -71,4 +71,4 @@ OpenSchool remains **NO-GO** for real school data and users until every blocking
 
 ## Current status
 
-NO-GO. The M0 repository foundation plus additive Tenant, Organization Tree, Account, Person, effective-affiliation, verified-session, and bounded Tenant Request Context structures are not sufficient production evidence. Capability decisions, non-owner forced RLS, atomic audit/outbox with durable cross-node invalidation, privileged identity controls, complete isolation testing, operational recovery, and jurisdiction-specific approvals remain blocking.
+NO-GO. The M0 repository foundation plus additive Tenant, Organization Tree, Account, Person, effective-affiliation, verified-session, bounded Tenant Request Context, and versioned capability Policy Decision structures are not sufficient production evidence. Non-owner forced RLS, atomic audit/outbox with durable cross-node invalidation, privileged identity controls, complete isolation testing, operational recovery, and jurisdiction-specific approvals remain blocking.

@@ -7,10 +7,10 @@ import {
   type VerifiedAccountIdentity,
   createServerClient,
   resolveTenantRequestContext,
-  toRbacTenantContext,
+  toPolicyContext,
   verifySupabaseIdentity,
 } from '@openschool/auth/server'
-import type { TenantContext } from '@openschool/rbac'
+import type { PolicyContext } from '@openschool/rbac'
 import type { CookieOptions } from '@supabase/ssr'
 
 export const CONTEXT_COOKIE_NAMES = {
@@ -32,7 +32,7 @@ interface CookieStore {
 export interface VerifiedRequestState {
   identity: VerifiedAccountIdentity | null
   requestContext: TenantRequestContext | null
-  tenantContext: TenantContext | null
+  policyContext: PolicyContext | null
   denialReason: TenantContextDenialReason | null
 }
 
@@ -80,7 +80,7 @@ export async function resolveVerifiedRequestState(
       return {
         identity: null,
         requestContext: null,
-        tenantContext: null,
+        policyContext: null,
         denialReason: error.reason,
       }
     }
@@ -101,7 +101,7 @@ export async function resolveVerifiedRequestState(
     return {
       identity,
       requestContext,
-      tenantContext: toRbacTenantContext(requestContext, identity.email),
+      policyContext: toPolicyContext(requestContext, identity),
       denialReason: null,
     }
   } catch (error) {
@@ -109,7 +109,7 @@ export async function resolveVerifiedRequestState(
       return {
         identity,
         requestContext: null,
-        tenantContext: null,
+        policyContext: null,
         denialReason: error.reason,
       }
     }

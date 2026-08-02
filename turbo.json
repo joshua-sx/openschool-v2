@@ -3,6 +3,7 @@
   "globalDependencies": [".env.local", ".env"],
   "globalEnv": [
     "DATABASE_URL",
+    "OPENSCHOOL_POLICY_VERSION",
     "NEXT_PUBLIC_APP_URL",
     "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
     "NEXT_PUBLIC_SUPABASE_URL",
@@ -50,6 +51,10 @@
     "auth:tenant-context-poc": {
       "cache": false,
       "env": ["ALLOW_TENANT_CONTEXT_POC", "DATABASE_URL"]
+    },
+    "policy:query-poc": {
+      "cache": false,
+      "env": ["ALLOW_POLICY_QUERY_POC", "DATABASE_URL", "OPENSCHOOL_POLICY_VERSION"]
     },
     "db:prepare-upgrade-fixture": {
       "cache": false,

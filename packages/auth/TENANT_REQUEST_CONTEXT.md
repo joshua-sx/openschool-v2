@@ -28,7 +28,7 @@ When an Account has multiple Tenants or a Person has multiple valid organization
 
 The returned object contains one Account, Person, Tenant, optional selected Education Organization and School, a bounded deduplicated set of current Role Template keys, Account membership/security versions, assurance, session, policy version, request identifier, and expiry. It never contains arrays of every accessible School, class, student, or Organization.
 
-The temporary RBAC adapter preserves the same boundary: one selected scope and every recognized current role. Resource modifiers such as assigned class or linked student fail closed unless a resource lookup supplies positive evidence. Story #85 replaces this adapter with capability Policy Decisions.
+The Policy Context adapter preserves the same boundary: one selected scope and every current Role Template key. It deliberately preserves unknown keys so the versioned capability evaluator fails closed instead of silently dropping a database assignment. The policy engine returns query constraints for Organization subtree, School, assigned class, self, and linked-student access.
 
 ## Session and invalidation behavior
 
@@ -50,4 +50,4 @@ After cutover, production uses the new resolver alone and fails closed. Rollback
 
 `auth:tenant-context-poc` is guarded to a disposable loopback PostgreSQL database and cleans up its mutations so it can be repeated against the same seeded fixture. It proves multi-Tenant and multi-School explicit selection, guardian and non-guardian relationship boundaries, database prevention of ambiguous active Account Links, separate Tenant People, bounded roles, wrong-Tenant and sibling-School denial, subtree mismatch, MFA, immediate session revocation, Account disablement, immutable revocation evidence, and scope-aware legacy allow-expansion enforcement. The resolver also rejects multiple matching links defensively if an imported or corrupted dataset ever bypasses the database invariant.
 
-This work does not make OpenSchool production-ready. Capability Policy Decisions, non-owner transaction-scoped database roles, forced RLS, atomic audit/outbox and durable invalidation, production invitation/MFA/support lifecycle, and the complete Isolation Matrix remain #85–#90.
+This work does not make OpenSchool production-ready. Capability Policy Decisions now govern the application seam, but non-owner transaction-scoped database roles, forced RLS, atomic audit/outbox and durable invalidation, production invitation/MFA/support lifecycle, and the complete Isolation Matrix remain #86–#90.

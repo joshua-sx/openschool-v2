@@ -14,7 +14,7 @@ The current development preview contains a narrow administrator-facing slice:
 - Supabase email authentication helpers and callback/sign-out routes;
 - staged schemas for Tenants, pooled placement, versioned Education Organization trees, effective School governance, Schools, users, memberships, classes, enrollments, students, grades, and audit events;
 - basic student list, create, detail, and edit flows;
-- early tenant-context, permission, and audit primitives;
+- verified Tenant Request Context, versioned capability Policy Decisions, and an early audit primitive;
 - CI-enforced formatting, linting, workspace type checks, unit tests, and production build.
 
 These components are not equivalent to a production-ready student information system. Multi-tenant isolation, scoped authorization, RLS, invitations, audit integrity, operational recovery, and complete school workflows remain active work.
@@ -61,7 +61,7 @@ openschool-v2/
 │   ├── auth/            # Supabase and tenant-context helpers
 │   ├── config/          # Typed public/server environment contract
 │   ├── db/              # Drizzle schema and migrations
-│   └── rbac/            # Role and permission primitives
+│   └── rbac/            # Versioned capability Policy Decisions
 ├── scripts/             # Local development utilities
 └── docs/                # Product, engineering, and workflow documentation
 ```
@@ -88,6 +88,7 @@ The application reads these variables:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `DATABASE_URL` (server-only)
+- `OPENSCHOOL_POLICY_VERSION` (optional server-only rollback selector)
 - `NEXT_PUBLIC_APP_URL`
 - `NEXT_PUBLIC_WWW_URL`
 
@@ -114,14 +115,14 @@ bun run audit:security
 bun run build
 ```
 
-CI provisions clean PostgreSQL services, repeats migration plus seed operations, proves the Tenant/hierarchy constraints, and upgrades representative migration-`0002` data twice. The unapproved legacy RLS proposal remains quarantined outside the executable migration path; production RLS for the first vertical slice is tracked in #87.
+CI provisions clean PostgreSQL services, repeats migration plus seed operations, proves the Tenant/hierarchy, identity, verified-context, and capability query constraints, and upgrades representative migration-`0002` data twice. The unapproved legacy RLS proposal remains quarantined outside the executable migration path; production RLS for the first vertical slice is tracked in #87.
 
 ## Security and privacy status
 
 Security-sensitive code exists, but the platform has not completed a production security or privacy review. In particular:
 
 - tenant isolation is not yet proven across all access paths;
-- hierarchy storage and Tenant-safe foreign keys have targeted negative tests, but authorization over organization subtrees is not yet implemented;
+- hierarchy storage, Tenant-safe foreign keys, and application-level Organization subtree query constraints have targeted negative tests, but non-owner forced RLS and full-path isolation are not yet implemented;
 - existing RLS policies are not an approved production boundary;
 - audit writes are not yet guaranteed to be atomic with mutations;
 - backup, restore, incident response, retention, and offboarding are not demonstrated;

@@ -6,6 +6,7 @@ import {
   validateStudentData,
   validateStudentUpdateData,
 } from '@/services/students'
+import { CAPABILITIES } from '@openschool/rbac'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 import { protectedProcedure, router } from '../trpc'
@@ -41,34 +42,20 @@ export const studentsRouter = router({
    * Get all students for a school
    * Requires: students:read permission
    */
-  getBySchool: protectedProcedure('students:read')
+  getBySchool: protectedProcedure(CAPABILITIES.STUDENTS_READ, { requestedScope: 'school' })
     .input(z.object({ schoolId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      if (!ctx.tenantContext) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'Not authenticated',
-        })
-      }
-
-      return await getStudentsBySchool(ctx.tenantContext, input.schoolId)
+      return await getStudentsBySchool(ctx.policyContext, ctx.policyDecision, input.schoolId)
     }),
 
   /**
    * Get a single student by ID
    * Requires: students:read permission
    */
-  getById: protectedProcedure('students:read')
+  getById: protectedProcedure(CAPABILITIES.STUDENTS_READ)
     .input(z.object({ studentId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      if (!ctx.tenantContext) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'Not authenticated',
-        })
-      }
-
-      const student = await getStudentById(ctx.tenantContext, input.studentId)
+      const student = await getStudentById(ctx.policyContext, ctx.policyDecision, input.studentId)
       if (!student) {
         throw new TRPCError({
           code: 'NOT_FOUND',
@@ -83,16 +70,9 @@ export const studentsRouter = router({
    * Create a new student
    * Requires: students:create permission
    */
-  create: protectedProcedure('students:create')
+  create: protectedProcedure(CAPABILITIES.STUDENTS_CREATE, { requestedScope: 'school' })
     .input(createStudentSchema)
     .mutation(async ({ ctx, input }) => {
-      if (!ctx.tenantContext) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'Not authenticated',
-        })
-      }
-
       // Validate data
       const validationErrors = validateStudentData({
         firstName: input.firstName,
@@ -109,7 +89,7 @@ export const studentsRouter = router({
         })
       }
 
-      return await createStudent(ctx.tenantContext, {
+      return await createStudent(ctx.policyContext, ctx.policyDecision, {
         schoolId: input.schoolId,
         firstName: input.firstName,
         lastName: input.lastName,
@@ -124,16 +104,9 @@ export const studentsRouter = router({
    * Update a student
    * Requires: students:update permission
    */
-  update: protectedProcedure('students:update')
+  update: protectedProcedure(CAPABILITIES.STUDENTS_UPDATE)
     .input(updateStudentSchema)
     .mutation(async ({ ctx, input }) => {
-      if (!ctx.tenantContext) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'Not authenticated',
-        })
-      }
-
       const { studentId, ...updateData } = input
 
       // Validate data if provided
@@ -159,7 +132,7 @@ export const studentsRouter = router({
         }
       }
 
-      return await updateStudent(ctx.tenantContext, studentId, {
+      return await updateStudent(ctx.policyContext, ctx.policyDecision, studentId, {
         firstName: updateData.firstName,
         lastName: updateData.lastName,
         dateOfBirth: updateData.dateOfBirth,

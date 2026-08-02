@@ -1,9 +1,9 @@
 import { type NewAuditLog, auditLogs, getDb } from '@openschool/db'
-import type { TenantContext } from '@openschool/rbac'
+import type { PolicyContext } from '@openschool/rbac'
 import type { AuditEvent } from './types'
 
 export async function logAuditEvent(
-  ctx: TenantContext,
+  ctx: PolicyContext,
   event: AuditEvent,
   ipAddress?: string
 ): Promise<void> {
@@ -14,7 +14,7 @@ export async function logAuditEvent(
     // Story #87 will move this evidence into first-class Account-backed columns.
     userId: ctx.legacyUserId,
     userEmail: ctx.userEmail,
-    userRole: ctx.roles.join(','),
+    userRole: ctx.roleTemplateKeys.join(','),
     action: event.action,
     resource: event.resource,
     resourceId: event.resourceId,
