@@ -29,10 +29,24 @@ const TREE_INVALID = '00000000-0000-4000-8000-000000000802'
 
 interface PostgresErrorLike {
   code?: string
+  cause?: unknown
 }
 
 function isPostgresErrorWithCode(error: unknown, code: string): boolean {
-  return typeof error === 'object' && error !== null && (error as PostgresErrorLike).code === code
+  let current = error
+
+  for (let depth = 0; depth < 5; depth += 1) {
+    if (typeof current !== 'object' || current === null) {
+      return false
+    }
+    const postgresError = current as PostgresErrorLike
+    if (postgresError.code === code) {
+      return true
+    }
+    current = postgresError.cause
+  }
+
+  return false
 }
 
 function assertLocalDisposableDatabase(databaseUrl: URL): void {
