@@ -1,3 +1,9 @@
+-- UNAPPROVED SECURITY DESIGN - DO NOT APPLY
+--
+-- This file is intentionally disabled and excluded from the Drizzle migration journal.
+-- It is preserved only as design input for #68 and the M1 database execution-model ADR.
+-- The policies have not passed tenant-isolation, recursion, role-targeting, or mutation checks.
+
 -- Enable Row Level Security (RLS) for all tables
 -- This provides database-level security as a safety net alongside application-level checks
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { createBrowserClient } from '@openschool/auth'
+import { getPublicEnv } from '@openschool/config/public'
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
 import { BookOpen } from 'lucide-react'
@@ -24,6 +25,7 @@ function useIsMounted() {
 }
 
 export default function SignupPage() {
+  const { NEXT_PUBLIC_APP_URL: appUrl } = getPublicEnv()
   const [supabase] = useState(() => createBrowserClient())
   const isMounted = useIsMounted()
 
@@ -32,7 +34,6 @@ export default function SignupPage() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://app.openschool.local:3000'
         window.location.href = `${appUrl}/dashboard`
       }
     })
@@ -40,13 +41,11 @@ export default function SignupPage() {
     return () => {
       subscription.unsubscribe()
     }
-  }, [supabase])
+  }, [appUrl, supabase])
 
   if (!isMounted) {
     return null
   }
-
-  const redirectTo = process.env.NEXT_PUBLIC_APP_URL || 'http://app.openschool.local:3000'
 
   return (
     <div className="min-h-screen bg-surface-primary flex items-center justify-center px-4">
@@ -77,7 +76,7 @@ export default function SignupPage() {
               },
             }}
             providers={[]}
-            redirectTo={`${redirectTo}/auth/callback`}
+            redirectTo={`${appUrl}/auth/callback`}
             view="sign_up"
             onlyThirdPartyProviders={false}
           />

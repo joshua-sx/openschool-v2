@@ -1,14 +1,11 @@
+import { getServerEnv } from '@openschool/config/server'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 import * as schema from './schema'
 
 // For use in server components and API routes
 export function createClient(connectionString?: string) {
-  const url = connectionString || process.env.DATABASE_URL
-
-  if (!url) {
-    throw new Error('DATABASE_URL is required to create a database client')
-  }
+  const url = connectionString ?? getServerEnv().DATABASE_URL
 
   const client = postgres(url, { prepare: false })
   return drizzle(client, { schema })

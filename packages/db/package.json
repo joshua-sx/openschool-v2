@@ -6,6 +6,7 @@
   "types": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
+    "db:check": "drizzle-kit check",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -13,6 +14,7 @@
     "db:seed": "bun run src/seed.ts"
   },
   "dependencies": {
+    "@openschool/config": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "postgres": "^3.4.0"
   },

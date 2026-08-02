@@ -6,7 +6,9 @@
       "name": "openschool",
       "devDependencies": {
         "@biomejs/biome": "^1.9.4",
+        "@openschool/config": "workspace:*",
         "@types/node": "^20.19.33",
+        "dotenv": "^17.2.3",
         "turbo": "^2.10.8",
         "typescript": "^5.9.3",
       },
@@ -17,6 +19,7 @@
       "dependencies": {
         "@openschool/audit": "workspace:*",
         "@openschool/auth": "workspace:*",
+        "@openschool/config": "workspace:*",
         "@openschool/db": "workspace:*",
         "@openschool/rbac": "workspace:*",
         "@supabase/auth-ui-react": "^0.4.0",
@@ -59,6 +62,7 @@
       "name": "@openschool/auth",
       "version": "0.0.1",
       "dependencies": {
+        "@openschool/config": "workspace:*",
         "@openschool/db": "workspace:*",
         "@openschool/rbac": "workspace:*",
         "@supabase/ssr": "^0.5.0",
@@ -69,10 +73,18 @@
         "typescript": "^5.7.0",
       },
     },
+    "packages/config": {
+      "name": "@openschool/config",
+      "version": "0.0.1",
+      "devDependencies": {
+        "typescript": "^5.9.3",
+      },
+    },
     "packages/db": {
       "name": "@openschool/db",
       "version": "0.0.1",
       "dependencies": {
+        "@openschool/config": "workspace:*",
         "drizzle-orm": "^0.45.2",
         "postgres": "^3.4.0",
       },
@@ -343,6 +355,8 @@
     "@openschool/audit": ["@openschool/audit@workspace:packages/audit"],
 
     "@openschool/auth": ["@openschool/auth@workspace:packages/auth"],
+
+    "@openschool/config": ["@openschool/config@workspace:packages/config"],
 
     "@openschool/db": ["@openschool/db@workspace:packages/db"],
 
