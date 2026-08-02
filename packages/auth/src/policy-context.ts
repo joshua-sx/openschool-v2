@@ -9,7 +9,7 @@ import type { VerifiedAccountIdentity } from './verified-identity'
  */
 export function toPolicyContext(
   context: TenantRequestContext,
-  identity?: Pick<VerifiedAccountIdentity, 'email' | 'issuedAt'>
+  identity?: Pick<VerifiedAccountIdentity, 'email'>
 ): PolicyContext {
   return Object.freeze({
     accountId: context.accountId,
@@ -19,7 +19,6 @@ export function toPolicyContext(
     ...(identity?.email ? { userEmail: identity.email } : {}),
     roleTemplateKeys: Object.freeze([...context.roleTemplateKeys]),
     assuranceLevel: context.assuranceLevel,
-    ...(identity?.issuedAt ? { authenticatedAt: identity.issuedAt } : {}),
     ...(context.activeEducationOrganizationId
       ? { activeEducationOrganizationId: context.activeEducationOrganizationId }
       : {}),

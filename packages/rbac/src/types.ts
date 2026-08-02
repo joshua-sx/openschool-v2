@@ -38,6 +38,7 @@ export interface PolicyContext {
   userEmail?: string
   roleTemplateKeys: readonly string[]
   assuranceLevel: AssuranceLevel
+  /** Verified interactive reauthentication evidence; never a token refresh timestamp. */
   authenticatedAt?: string
   activeEducationOrganizationId?: string
   activeSchoolId?: string

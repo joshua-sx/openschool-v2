@@ -45,11 +45,15 @@ describe('Policy Context adapter', () => {
       userEmail: 'person@example.test',
       roleTemplateKeys: ['custom_registrar', 'school_admin'],
       assuranceLevel: 'aal2',
-      authenticatedAt: '2026-08-02T11:50:00.000Z',
       activeEducationOrganizationId: 'organization-1',
       activeSchoolId: 'school-1',
     })
     assert.equal(Object.isFrozen(policyContext), true)
     assert.equal(Object.isFrozen(policyContext.roleTemplateKeys), true)
+  })
+
+  it('does not treat token issuance as interactive reauthentication evidence', () => {
+    const policyContext = toPolicyContext(requestContext, identity)
+    assert.equal(policyContext.authenticatedAt, undefined)
   })
 })
