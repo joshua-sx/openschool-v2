@@ -1,12 +1,12 @@
-import { eq, and } from 'drizzle-orm'
-import { getDb, students, type Student, type NewStudent } from '@openschool/db'
-import type { TenantContext } from '@openschool/rbac'
 import { logAuditEvent } from '@openschool/audit'
+import { type NewStudent, type Student, getDb, students } from '@openschool/db'
+import type { TenantContext } from '@openschool/rbac'
 import { TRPCError } from '@trpc/server'
+import { and, eq } from 'drizzle-orm'
 
 /**
  * Student Service
- * 
+ *
  * Business logic for student operations with:
  * - Tenant access verification
  * - Permission checks (handled by tRPC middleware)
@@ -84,10 +84,7 @@ export async function createStudent(
   }
 
   const db = getDb()
-  const [student] = await db
-    .insert(students)
-    .values(data)
-    .returning()
+  const [student] = await db.insert(students).values(data).returning()
 
   // Audit log
   await logAuditEvent(ctx, {
@@ -148,19 +145,44 @@ export async function updateStudent(
  * Validate student data
  * Returns validation errors or null if valid
  */
-export function validateStudentData(data: {
+interface StudentValidationData {
   firstName?: string
   lastName?: string
   dateOfBirth?: string | Date | null
   email?: string | null
-}): { field: string; message: string }[] {
+}
+
+interface StudentValidationOptions {
+  requireNames: boolean
+}
+
+type StudentValidationError = { field: string; message: string }
+
+export function validateStudentData(data: StudentValidationData): StudentValidationError[] {
+  return validateStudentFields(data, { requireNames: true })
+}
+
+export function validateStudentUpdateData(data: StudentValidationData): StudentValidationError[] {
+  return validateStudentFields(data, { requireNames: false })
+}
+
+function validateStudentFields(
+  data: StudentValidationData,
+  options: StudentValidationOptions
+): StudentValidationError[] {
   const errors: { field: string; message: string }[] = []
 
-  if (!data.firstName || data.firstName.trim().length === 0) {
+  if (
+    (options.requireNames && !data.firstName) ||
+    (data.firstName !== undefined && data.firstName.trim().length === 0)
+  ) {
     errors.push({ field: 'firstName', message: 'First name is required' })
   }
 
-  if (!data.lastName || data.lastName.trim().length === 0) {
+  if (
+    (options.requireNames && !data.lastName) ||
+    (data.lastName !== undefined && data.lastName.trim().length === 0)
+  ) {
     errors.push({ field: 'lastName', message: 'Last name is required' })
   }
 
@@ -169,7 +191,7 @@ export function validateStudentData(data: {
     const dob = typeof data.dateOfBirth === 'string' ? new Date(data.dateOfBirth) : data.dateOfBirth
     const today = new Date()
     const age = today.getFullYear() - dob.getFullYear()
-    
+
     if (dob > today) {
       errors.push({ field: 'dateOfBirth', message: 'Date of birth cannot be in the future' })
     } else if (age > 25) {
@@ -187,4 +209,3 @@ export function validateStudentData(data: {
 
   return errors.length > 0 ? errors : []
 }
-

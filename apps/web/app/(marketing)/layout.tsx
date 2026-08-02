@@ -1,26 +1,27 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "../globals.css";
+import type { Metadata } from 'next'
+import { Geist, Geist_Mono } from 'next/font/google'
+import '../globals.css'
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
+})
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
+})
 
 export const metadata: Metadata = {
-  title: "OpenSchool - The modern operating system for schools",
-  description: "Streamline operations, enhance learning, and build stronger communities with a platform designed for the future of education.",
-};
+  title: 'OpenSchool - The modern operating system for schools',
+  description:
+    'Streamline operations, enhance learning, and build stronger communities with a platform designed for the future of education.',
+}
 
 export default function MarketingLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -31,6 +32,5 @@ export default function MarketingLayout({
         {children}
       </body>
     </html>
-  );
+  )
 }
-

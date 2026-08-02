@@ -1,7 +1,7 @@
-import { initTRPC, TRPCError } from '@trpc/server'
-import { cookies, headers } from 'next/headers'
 import { createServerClient, resolveTenantContext } from '@openschool/auth/server'
 import type { TenantContext } from '@openschool/rbac'
+import { initTRPC } from '@trpc/server'
+import { cookies, headers } from 'next/headers'
 
 /**
  * Create tRPC context from Next.js request
@@ -48,4 +48,3 @@ const t = initTRPC.context<Awaited<ReturnType<typeof createTRPCContext>>>().crea
 
 export const router = t.router
 export const publicProcedure = t.procedure
-

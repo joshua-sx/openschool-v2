@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -6,29 +6,29 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/:path*",
+        source: '/:path*',
         headers: [
           {
-            key: "X-Frame-Options",
-            value: "DENY",
+            key: 'X-Frame-Options',
+            value: 'DENY',
           },
           {
-            key: "X-Content-Type-Options",
-            value: "nosniff",
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
           },
         ],
       },
-    ];
+    ]
   },
   // Allow images from Supabase and other domains
   images: {
     remotePatterns: [
       {
-        protocol: "https",
-        hostname: "**.supabase.co",
+        protocol: 'https',
+        hostname: '**.supabase.co',
       },
     ],
   },
-};
+}
 
-export default nextConfig;
+export default nextConfig

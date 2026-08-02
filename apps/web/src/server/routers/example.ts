@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { router, publicProcedure, protectedProcedure } from '../trpc'
+import { protectedProcedure, publicProcedure, router } from '../trpc'
 
 /**
  * Example router demonstrating tRPC setup with RBAC
@@ -9,13 +9,11 @@ export const exampleRouter = router({
   /**
    * Public endpoint - no auth required
    */
-  hello: publicProcedure
-    .input(z.object({ text: z.string() }))
-    .query(({ input }) => {
-      return {
-        greeting: `Hello ${input.text}!`,
-      }
-    }),
+  hello: publicProcedure.input(z.object({ text: z.string() })).query(({ input }) => {
+    return {
+      greeting: `Hello ${input.text}!`,
+    }
+  }),
 
   /**
    * Protected endpoint - requires authentication
@@ -30,4 +28,3 @@ export const exampleRouter = router({
       }
     }),
 })
-

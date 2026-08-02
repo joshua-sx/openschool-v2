@@ -1,10 +1,12 @@
-import { pgTable, uuid, text, timestamp, integer, numeric } from 'drizzle-orm/pg-core'
+import { numeric, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { enrollments } from './enrollments'
 import { users } from './users'
 
 export const grades = pgTable('grades', {
   id: uuid('id').primaryKey().defaultRandom(),
-  enrollmentId: uuid('enrollment_id').references(() => enrollments.id).notNull(),
+  enrollmentId: uuid('enrollment_id')
+    .references(() => enrollments.id)
+    .notNull(),
   assignmentName: text('assignment_name').notNull(),
   score: numeric('score', { precision: 5, scale: 2 }),
   maxScore: numeric('max_score', { precision: 5, scale: 2 }).default('100'),

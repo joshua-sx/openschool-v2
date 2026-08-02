@@ -20,9 +20,7 @@ export function isValidRole(role: unknown): role is Role {
  */
 export function validateRole(role: unknown): Role {
   if (!isValidRole(role)) {
-    throw new Error(
-      `Invalid role: "${role}". Valid roles are: ${Object.values(ROLES).join(', ')}`
-    )
+    throw new Error(`Invalid role: "${role}". Valid roles are: ${Object.values(ROLES).join(', ')}`)
   }
   return role
 }

@@ -1,6 +1,6 @@
-import { TRPCError } from '@trpc/server'
 import { checkPermission } from '@openschool/rbac'
 import type { Permission, PermissionCheckOptions, TenantContext } from '@openschool/rbac'
+import { TRPCError } from '@trpc/server'
 import { publicProcedure } from './context'
 
 /**
@@ -30,10 +30,7 @@ export const requireAuth = publicProcedure.use(async ({ ctx, next }) => {
  * For permissions with :own, :own_class, :own_child modifiers, use requireAuth
  * and call assertPermission() in the handler after fetching the resource.
  */
-export function protectedProcedure(
-  permission: Permission,
-  options?: PermissionCheckOptions
-) {
+export function protectedProcedure(permission: Permission, options?: PermissionCheckOptions) {
   return requireAuth.use(async ({ ctx, next }) => {
     if (!ctx.tenantContext) {
       throw new TRPCError({
@@ -98,4 +95,3 @@ export function assertPermission(
     })
   }
 }
-

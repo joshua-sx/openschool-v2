@@ -1,10 +1,12 @@
-import { pgTable, uuid, text, timestamp, date } from 'drizzle-orm/pg-core'
+import { date, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { schools } from './schools'
 import { ENTITY_STATUS } from './status'
 
 export const students = pgTable('students', {
   id: uuid('id').primaryKey().defaultRandom(),
-  schoolId: uuid('school_id').references(() => schools.id).notNull(),
+  schoolId: uuid('school_id')
+    .references(() => schools.id)
+    .notNull(),
   firstName: text('first_name').notNull(),
   lastName: text('last_name').notNull(),
   dateOfBirth: date('date_of_birth'),

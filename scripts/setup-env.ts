@@ -5,8 +5,8 @@
  * Run with: bun run scripts/setup-env.ts
  */
 
-import { readFileSync, writeFileSync } from 'fs'
-import { join } from 'path'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 const envPath = join(process.cwd(), '.env.local')
 const examplePath = join(process.cwd(), '.env.example')
@@ -16,8 +16,8 @@ console.log('This script will help you fill in your .env.local file.\n')
 console.log('You can find these values in your Supabase dashboard:')
 console.log('  📍 https://app.supabase.com/project/_/settings/api\n')
 
-// Read the example file
-let envContent = readFileSync(examplePath, 'utf-8')
+// Confirm the example file is readable before showing setup instructions.
+readFileSync(examplePath, 'utf-8')
 
 // Prompt for values
 const prompts = [
@@ -38,15 +38,13 @@ const prompts = [
   },
 ]
 
-const values: Record<string, string> = {}
-
 for (const prompt of prompts) {
   // For now, we'll use a simple approach - in a real interactive script,
   // you'd use readline or a library like inquirer
   // This is a template that shows what needs to be filled
   console.log(`\n${prompt.question}`)
   console.log(`  Example: ${prompt.example}`)
-  
+
   // In a real interactive version, you'd read from stdin here
   // For now, we'll show instructions
 }
@@ -61,9 +59,10 @@ console.log('\nOr edit .env.local directly with your values.\n')
 
 // Check if file already has real values
 const currentContent = readFileSync(envPath, 'utf-8')
-const hasPlaceholders = currentContent.includes('your-project-ref') || 
-                        currentContent.includes('your-anon-key-here') ||
-                        currentContent.includes('[YOUR-PASSWORD]')
+const hasPlaceholders =
+  currentContent.includes('your-project-ref') ||
+  currentContent.includes('your-anon-key-here') ||
+  currentContent.includes('[YOUR-PASSWORD]')
 
 if (hasPlaceholders) {
   console.log('⚠️  Your .env.local still contains placeholder values.')
@@ -72,4 +71,3 @@ if (hasPlaceholders) {
   console.log('✅ Your .env.local appears to be configured!')
   console.log('   Make sure all values are correct before running the app.\n')
 }
-

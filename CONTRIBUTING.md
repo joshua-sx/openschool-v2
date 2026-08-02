@@ -15,6 +15,9 @@ Thank you for your interest in contributing to OpenSchool! This document outline
    bun install
    ```
 
+   CI uses `bun install --frozen-lockfile`; commit `bun.lock` whenever an intentional dependency
+   change updates it.
+
 3. **Set Up Environment**
    ```bash
    cp .env.example .env.local
@@ -165,11 +168,17 @@ git checkout -b feature/18-add-student-list-view
 ### 4. Test Your Changes
 
 ```bash
+# Check formatting and repository-wide static analysis
+bun run check
+
 # Type check
 bun run typecheck
 
 # Lint
 bun run lint
+
+# Run unit tests
+bun test
 
 # Build
 bun run build
@@ -251,8 +260,10 @@ Then create a Pull Request on GitHub:
 Before submitting a PR, ensure:
 
 - [ ] Code follows existing patterns
+- [ ] Formatting and static analysis pass (`bun run check`)
 - [ ] Types pass (`bun run typecheck`)
 - [ ] Linting passes (`bun run lint`)
+- [ ] Tests pass (`bun test`)
 - [ ] Build succeeds (`bun run build`)
 - [ ] App runs locally (`bun run dev`)
 - [ ] No hardcoded secrets
@@ -297,4 +308,3 @@ By contributing, you agree that your contributions will be licensed under the sa
 ---
 
 **Thank you for contributing to OpenSchool!** 🎓
-

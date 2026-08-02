@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { trpc } from '@/lib/trpc/client'
+import { AlertCircle, ArrowLeft, Loader2, Save } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { trpc } from '@/lib/trpc/client'
-import { ArrowLeft, Loader2, AlertCircle, Save } from 'lucide-react'
+import { useState } from 'react'
 
 export default function NewStudentPage() {
   const router = useRouter()
@@ -79,9 +79,7 @@ export default function NewStudentPage() {
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Add New Student</h1>
-        <p className="text-gray-500 text-sm mt-1">
-          Create a new student record
-        </p>
+        <p className="text-gray-500 text-sm mt-1">Create a new student record</p>
       </div>
 
       {/* Form Errors */}
@@ -94,8 +92,8 @@ export default function NewStudentPage() {
             </span>
           </div>
           <ul className="list-disc list-inside text-sm text-red-700">
-            {formErrors.map((error, i) => (
-              <li key={i}>{error}</li>
+            {formErrors.map((error) => (
+              <li key={error}>{error}</li>
             ))}
           </ul>
         </div>
@@ -108,18 +106,13 @@ export default function NewStudentPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* School Selector */}
               <div className="md:col-span-2">
-                <label
-                  htmlFor="school"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
+                <label htmlFor="school" className="block text-sm font-medium text-gray-700 mb-1">
                   School <span className="text-red-500">*</span>
                 </label>
                 <select
                   id="school"
                   value={effectiveSchoolId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, schoolId: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, schoolId: e.target.value })}
                   disabled={schoolsLoading || !schools?.length}
                   className="block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
                 >
@@ -139,19 +132,14 @@ export default function NewStudentPage() {
 
               {/* First Name */}
               <div>
-                <label
-                  htmlFor="firstName"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
+                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
                   First Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   id="firstName"
                   value={formData.firstName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, firstName: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                   className="block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
                   placeholder="Enter first name"
                 />
@@ -159,19 +147,14 @@ export default function NewStudentPage() {
 
               {/* Last Name */}
               <div>
-                <label
-                  htmlFor="lastName"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
+                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
                   Last Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   id="lastName"
                   value={formData.lastName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, lastName: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                   className="block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
                   placeholder="Enter last name"
                 />
@@ -189,9 +172,7 @@ export default function NewStudentPage() {
                   type="text"
                   id="studentNumber"
                   value={formData.studentNumber}
-                  onChange={(e) =>
-                    setFormData({ ...formData, studentNumber: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, studentNumber: e.target.value })}
                   className="block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
                   placeholder="Optional"
                 />
@@ -209,28 +190,21 @@ export default function NewStudentPage() {
                   type="date"
                   id="dateOfBirth"
                   value={formData.dateOfBirth}
-                  onChange={(e) =>
-                    setFormData({ ...formData, dateOfBirth: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
                   className="block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
                 />
               </div>
 
               {/* Email */}
               <div className="md:col-span-2">
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                   Email
                 </label>
                 <input
                   type="email"
                   id="email"
                   value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
                   placeholder="Optional"
                 />

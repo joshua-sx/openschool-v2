@@ -10,19 +10,19 @@
   --brand-hover: #1f1f1f;
 
   /* Gray scale - semantic naming */
-  --border-light: #f3f4f6;   /* gray-100 */
+  --border-light: #f3f4f6; /* gray-100 */
   --border-default: #e5e7eb; /* gray-200 */
-  --border-dark: #d1d5db;    /* gray-300 */
+  --border-dark: #d1d5db; /* gray-300 */
 
   /* Text colors */
-  --text-primary: #111827;   /* gray-900 */
+  --text-primary: #111827; /* gray-900 */
   --text-secondary: #6b7280; /* gray-500 */
-  --text-muted: #9ca3af;     /* gray-400 */
+  --text-muted: #9ca3af; /* gray-400 */
 
   /* Surface colors */
   --surface-primary: #ffffff;
   --surface-secondary: #f9fafb; /* gray-50 */
-  --surface-tertiary: #f3f4f6;  /* gray-100 */
+  --surface-tertiary: #f3f4f6; /* gray-100 */
 }
 
 @theme inline {

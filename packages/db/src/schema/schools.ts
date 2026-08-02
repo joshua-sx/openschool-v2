@@ -1,10 +1,12 @@
-import { pgTable, uuid, text, timestamp, jsonb } from 'drizzle-orm/pg-core'
+import { jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { organizations } from './organizations'
 import { ENTITY_STATUS } from './status'
 
 export const schools = pgTable('schools', {
   id: uuid('id').primaryKey().defaultRandom(),
-  orgId: uuid('org_id').references(() => organizations.id).notNull(),
+  orgId: uuid('org_id')
+    .references(() => organizations.id)
+    .notNull(),
   name: text('name').notNull(),
   slug: text('slug').notNull(),
   address: text('address'),

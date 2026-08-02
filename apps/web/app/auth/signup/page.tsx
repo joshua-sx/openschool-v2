@@ -1,47 +1,52 @@
-"use client";
+'use client'
 
-import { Auth } from "@supabase/auth-ui-react";
-import { ThemeSupa } from "@supabase/auth-ui-shared";
-import { createBrowserClient } from "@openschool/auth";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { BookOpen } from "lucide-react";
+import { createBrowserClient } from '@openschool/auth'
+import { Auth } from '@supabase/auth-ui-react'
+import { ThemeSupa } from '@supabase/auth-ui-shared'
+import { BookOpen } from 'lucide-react'
+import Link from 'next/link'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 
 // Auth theme colors - matches CSS variables in globals.css
 const AUTH_THEME_COLORS = {
-  brand: "#000000",
-  brandAccent: "#1f1f1f",
-} as const;
+  brand: '#000000',
+  brandAccent: '#1f1f1f',
+} as const
+
+const subscribeToClient = () => () => undefined
+
+function useIsMounted() {
+  return useSyncExternalStore(
+    subscribeToClient,
+    () => true,
+    () => false
+  )
+}
 
 export default function SignupPage() {
-  const [supabase] = useState(() => createBrowserClient());
-  const router = useRouter();
-  const [mounted, setMounted] = useState(false);
+  const [supabase] = useState(() => createBrowserClient())
+  const isMounted = useIsMounted()
 
   useEffect(() => {
-    setMounted(true);
-
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://app.openschool.local:3000";
-        window.location.href = `${appUrl}/dashboard`;
+      if (event === 'SIGNED_IN' && session) {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://app.openschool.local:3000'
+        window.location.href = `${appUrl}/dashboard`
       }
-    });
+    })
 
     return () => {
-      subscription.unsubscribe();
-    };
-  }, [supabase, router]);
+      subscription.unsubscribe()
+    }
+  }, [supabase])
 
-  if (!mounted) {
-    return null;
+  if (!isMounted) {
+    return null
   }
 
-  const redirectTo =
-    process.env.NEXT_PUBLIC_APP_URL || "http://app.openschool.local:3000";
+  const redirectTo = process.env.NEXT_PUBLIC_APP_URL || 'http://app.openschool.local:3000'
 
   return (
     <div className="min-h-screen bg-surface-primary flex items-center justify-center px-4">
@@ -54,16 +59,10 @@ export default function SignupPage() {
             <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center">
               <BookOpen className="w-4 h-4 text-white" />
             </div>
-            <span className="text-lg font-bold tracking-tight">
-              OpenSchool
-            </span>
+            <span className="text-lg font-bold tracking-tight">OpenSchool</span>
           </Link>
-          <h1 className="text-2xl font-bold text-text-primary mb-2">
-            Create your account
-          </h1>
-          <p className="text-text-secondary">
-            Get started with OpenSchool today
-          </p>
+          <h1 className="text-2xl font-bold text-text-primary mb-2">Create your account</h1>
+          <p className="text-text-secondary">Get started with OpenSchool today</p>
         </div>
 
         <div className="bg-surface-primary border border-border-default rounded-xl p-6 shadow-sm">
@@ -85,16 +84,12 @@ export default function SignupPage() {
         </div>
 
         <p className="text-center text-sm text-text-secondary mt-6">
-          Already have an account?{" "}
-          <Link
-            href="/auth/login"
-            className="text-brand font-medium hover:underline"
-          >
+          Already have an account?{' '}
+          <Link href="/auth/login" className="text-brand font-medium hover:underline">
             Sign in
           </Link>
         </p>
       </div>
     </div>
-  );
+  )
 }
-
