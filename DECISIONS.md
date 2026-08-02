@@ -2,6 +2,8 @@
 
 This file records important architectural, product, and process decisions.
 
+> **Historical record:** D1-D4 below capture prototype-era intent. The accepted ADRs in [docs/adr](./docs/adr/README.md) govern M1 implementation and supersede conflicting assumptions about tenancy, roles, RLS execution, identity, and audit. D5 remains a repository-origin decision.
+
 ---
 
 ## Decision Log

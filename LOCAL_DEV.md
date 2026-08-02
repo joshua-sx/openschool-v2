@@ -111,7 +111,7 @@ bun run db:check
 bun run build
 ```
 
-GitHub Actions additionally provisions a clean PostgreSQL service, applies all migrations, seeds it, and repeats both operations to prove the baseline and seed are idempotent.
+GitHub Actions additionally provisions a clean PostgreSQL service, applies all migrations, seeds it, repeats both operations, and runs the guarded [transaction-scoped RLS proof](./packages/db/security-poc/README.md) through real non-owner roles. The proof is destructive and intentionally refuses non-loopback database hosts.
 
 ## Database policy safety
 
