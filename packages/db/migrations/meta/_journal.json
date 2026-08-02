@@ -85,6 +85,20 @@
       "when": 1785695388516,
       "tag": "0011_identity_foundation_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1785698168106,
+      "tag": "0012_account_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1785698172430,
+      "tag": "0013_account_session_guards",
+      "breakpoints": true
     }
   ]
 }

@@ -79,12 +79,14 @@ export async function middleware(request: NextRequest) {
         }
       )
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+      const { data: verifiedClaims, error: verificationError } = await supabase.auth.getClaims()
+      const isAuthenticated =
+        !verificationError &&
+        verifiedClaims?.claims.role === 'authenticated' &&
+        verifiedClaims.claims.is_anonymous !== true
 
       // If not authenticated and trying to access protected route, redirect to login
-      if (!session && !url.pathname.startsWith('/auth')) {
+      if (!isAuthenticated && !url.pathname.startsWith('/auth')) {
         const redirectUrl = new URL('/auth/login', env.NEXT_PUBLIC_WWW_URL)
         redirectUrl.searchParams.set('redirect', url.pathname)
         return NextResponse.redirect(redirectUrl)
@@ -92,7 +94,7 @@ export async function middleware(request: NextRequest) {
 
       // If authenticated and on auth pages, redirect to dashboard
       if (
-        session &&
+        isAuthenticated &&
         (url.pathname.startsWith('/auth/login') || url.pathname.startsWith('/auth/signup'))
       ) {
         const redirectUrl = new URL('/dashboard', url)

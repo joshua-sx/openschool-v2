@@ -57,6 +57,56 @@ export const accounts = pgTable(
   ]
 )
 
+export const accountSessions = pgTable(
+  'account_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    accountId: uuid('account_id')
+      .references(() => accounts.id, { onDelete: 'restrict', onUpdate: 'restrict' })
+      .notNull(),
+    providerSessionId: text('provider_session_id').notNull(),
+    status: text('status', { enum: ['active', 'revoked', 'expired'] })
+      .default('active')
+      .notNull(),
+    assuranceLevel: text('assurance_level', { enum: ['aal1', 'aal2'] }).notNull(),
+    securityVersion: bigint('security_version', { mode: 'number' }).notNull(),
+    authenticatedAt: timestamp('authenticated_at', { withTimezone: true }).notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).defaultNow().notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    revokedByAccountId: uuid('revoked_by_account_id').references(() => accounts.id, {
+      onDelete: 'restrict',
+      onUpdate: 'restrict',
+    }),
+    revocationReason: text('revocation_reason'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique('account_sessions_provider_session_id_unique').on(table.providerSessionId),
+    index('account_sessions_account_status_idx').on(
+      table.accountId,
+      table.status,
+      table.expiresAt,
+      table.id
+    ),
+    check(
+      'account_sessions_status_check',
+      sql`${table.status} IN ('active', 'revoked', 'expired')`
+    ),
+    check(
+      'account_sessions_assurance_level_check',
+      sql`${table.assuranceLevel} IN ('aal1', 'aal2')`
+    ),
+    check('account_sessions_security_version_positive', sql`${table.securityVersion} > 0`),
+    check('account_sessions_time_order_check', sql`${table.expiresAt} > ${table.authenticatedAt}`),
+    check(
+      'account_sessions_revocation_evidence_check',
+      sql`${table.status} <> 'revoked' OR (${table.revokedAt} IS NOT NULL AND ${table.revocationReason} IS NOT NULL AND btrim(${table.revocationReason}) <> '')`
+    ),
+  ]
+)
+
 export const people = pgTable(
   'people',
   {
@@ -687,6 +737,8 @@ export const identityMigrationEvents = pgTable(
 
 export type Account = typeof accounts.$inferSelect
 export type NewAccount = typeof accounts.$inferInsert
+export type AccountSession = typeof accountSessions.$inferSelect
+export type NewAccountSession = typeof accountSessions.$inferInsert
 export type Person = typeof people.$inferSelect
 export type NewPerson = typeof people.$inferInsert
 export type AccountLink = typeof accountLinks.$inferSelect

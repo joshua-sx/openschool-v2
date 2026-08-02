@@ -22,6 +22,7 @@
     "db:security-poc": "turbo run db:security-poc --filter=@openschool/db",
     "db:tenant-foundation-poc": "turbo run db:tenant-foundation-poc --filter=@openschool/db",
     "db:identity-foundation-poc": "turbo run db:identity-foundation-poc --filter=@openschool/db",
+    "auth:tenant-context-poc": "turbo run auth:tenant-context-poc --filter=@openschool/auth",
     "db:prepare-upgrade-fixture": "turbo run db:prepare-upgrade-fixture --filter=@openschool/db",
     "db:verify-upgrade-fixture": "turbo run db:verify-upgrade-fixture --filter=@openschool/db",
     "db:seed": "turbo run db:seed --filter=@openschool/db",

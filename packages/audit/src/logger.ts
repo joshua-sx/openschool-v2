@@ -10,17 +10,24 @@ export async function logAuditEvent(
   const db = getDb()
 
   const log: NewAuditLog = {
-    userId: ctx.userId,
+    // New Accounts do not necessarily have a row in the legacy users table.
+    // Story #87 will move this evidence into first-class Account-backed columns.
+    userId: ctx.legacyUserId,
     userEmail: ctx.userEmail,
-    userRole: ctx.effectiveRole,
+    userRole: ctx.roles.join(','),
     action: event.action,
     resource: event.resource,
     resourceId: event.resourceId,
-    orgId: ctx.activeOrgId,
+    orgId: ctx.activeEducationOrganizationId,
     schoolId: ctx.activeSchoolId,
     oldValues: event.oldValues,
     newValues: event.newValues,
-    metadata: event.metadata,
+    metadata: {
+      ...event.metadata,
+      actorAccountId: ctx.accountId,
+      actorPersonId: ctx.personId,
+      tenantId: ctx.tenantId,
+    },
     ipAddress: ipAddress,
   }
 

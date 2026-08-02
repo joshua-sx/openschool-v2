@@ -7,16 +7,26 @@ import { publicProcedure } from './context'
  * Middleware to require authentication
  */
 export const requireAuth = publicProcedure.use(async ({ ctx, next }) => {
-  if (!ctx.tenantContext || !ctx.userId) {
+  if (!ctx.tenantContext || !ctx.requestContext || !ctx.userId) {
+    const contextRequired = ctx.denialReason === 'CONTEXT_REQUIRED'
+    const unauthenticated =
+      !ctx.denialReason ||
+      ctx.denialReason === 'UNAUTHENTICATED' ||
+      ctx.denialReason === 'TOKEN_INVALID'
     throw new TRPCError({
-      code: 'UNAUTHORIZED',
-      message: 'You must be logged in to access this resource',
+      code: contextRequired
+        ? 'PRECONDITION_FAILED'
+        : unauthenticated
+          ? 'UNAUTHORIZED'
+          : 'FORBIDDEN',
+      message: ctx.denialReason ?? 'UNAUTHENTICATED',
     })
   }
 
   return next({
     ctx: {
       ...ctx,
+      requestContext: ctx.requestContext,
       tenantContext: ctx.tenantContext,
       userId: ctx.userId,
     },

@@ -47,6 +47,10 @@
       "cache": false,
       "env": ["ALLOW_IDENTITY_FOUNDATION_POC", "DATABASE_URL"]
     },
+    "auth:tenant-context-poc": {
+      "cache": false,
+      "env": ["ALLOW_TENANT_CONTEXT_POC", "DATABASE_URL"]
+    },
     "db:prepare-upgrade-fixture": {
       "cache": false,
       "env": ["ALLOW_TENANT_FOUNDATION_POC", "DATABASE_URL"]

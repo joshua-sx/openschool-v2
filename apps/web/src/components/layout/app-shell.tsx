@@ -8,20 +8,20 @@ interface AppShellProps {
   user: {
     email: string
   }
-  tenantContext?: {
-    effectiveRole: string
-    orgIds: string[]
-    schoolIds: string[]
-    classIds: string[]
+  requestContext?: {
+    tenantName: string
+    activeEducationOrganizationName?: string
+    activeSchoolName?: string
+    roleTemplateKeys: readonly string[]
   } | null
 }
 
-export function AppShell({ children, user, tenantContext }: AppShellProps) {
+export function AppShell({ children, user, requestContext }: AppShellProps) {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <Header user={user} tenantContext={tenantContext} />
+        <Header user={user} requestContext={requestContext} />
         <main className="flex-1 p-6">{children}</main>
       </div>
     </div>
