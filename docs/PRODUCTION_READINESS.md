@@ -71,4 +71,4 @@ OpenSchool remains **NO-GO** for real school data and users until every blocking
 
 ## Current status
 
-NO-GO. The M0 repository foundation and architecture decisions are not implementation evidence for M1 isolation, operational recovery, or jurisdiction-specific approval.
+NO-GO. The M0 repository foundation plus additive Tenant, Organization Tree, Account, Person, profile, and effective-affiliation structures are not sufficient production evidence. Verified request context, capability decisions, non-owner forced RLS, atomic audit/outbox, privileged identity controls, complete isolation testing, operational recovery, and jurisdiction-specific approvals remain blocking.
