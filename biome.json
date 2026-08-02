@@ -33,6 +33,6 @@
     }
   },
   "files": {
-    "ignore": ["node_modules", ".next", "dist", ".turbo", "*.generated.*"]
+    "ignore": ["node_modules", ".next", "dist", ".turbo", "*.generated.*", "apps/web/next-env.d.ts"]
   }
 }

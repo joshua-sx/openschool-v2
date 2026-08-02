@@ -4,7 +4,7 @@ OpenSchool is a pre-production school administration platform under active devel
 
 > **Development status:** This repository is not approved for production use and must not be used with real student, family, staff, health, financial, or safeguarding data.
 
-[Current capability evidence](./docs/CAPABILITY_STATUS.md) · [M0 delivery milestone](https://github.com/joshua-sx/openschool-v2/milestone/1) · [Issue tracker](https://github.com/joshua-sx/openschool-v2/issues)
+[Current capability evidence](./docs/CAPABILITY_STATUS.md) · [Dependency security policy](./docs/DEPENDENCY_SECURITY.md) · [M0 delivery milestone](https://github.com/joshua-sx/openschool-v2/milestone/1) · [Issue tracker](https://github.com/joshua-sx/openschool-v2/issues)
 
 ## What works today
 
@@ -94,6 +94,7 @@ bun run check
 bun run lint
 bun run typecheck
 bun test
+bun run audit:security
 
 # Build with valid development configuration
 bun run build
@@ -113,6 +114,8 @@ Security-sensitive code exists, but the platform has not completed a production 
 - no FERPA, GDPR, or jurisdiction-specific compliance claim is made.
 
 Security and privacy decisions are tracked in [#68](https://github.com/joshua-sx/openschool-v2/issues/68) and subsequent M1 work.
+
+Dependency handling, vulnerability thresholds, exception rules, and automated update controls are documented in [docs/DEPENDENCY_SECURITY.md](./docs/DEPENDENCY_SECURITY.md).
 
 ## Contributing
 

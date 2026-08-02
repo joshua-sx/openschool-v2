@@ -14,8 +14,9 @@
   "dependencies": {
     "@openschool/db": "workspace:*",
     "@openschool/rbac": "workspace:*",
-    "@supabase/supabase-js": "^2.47.0",
-    "@supabase/ssr": "^0.5.0"
+    "@supabase/supabase-js": "^2.111.0",
+    "@supabase/ssr": "^0.5.0",
+    "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
     "typescript": "^5.7.0"
