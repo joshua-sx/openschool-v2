@@ -16,7 +16,6 @@ import {
   schools,
   studentProfiles,
   students,
-  teachersOnClass,
   tenants,
   usersOnOrg,
   usersOnSchool,
@@ -136,6 +135,7 @@ interface EffectiveAssignment {
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const MAX_ASSIGNMENT_ROWS = 64
 const MAX_CONTEXT_ROLE_KEYS = 32
+const MAX_GUARDIAN_SCHOOLS = 50
 
 function denial(reason: TenantContextDenialReason, message: string): never {
   throw new TenantRequestContextError(reason, message)
@@ -161,34 +161,69 @@ function validateSelectors(selectors: TenantContextSelectors): void {
   }
 }
 
+async function resolveActiveAccount(
+  db: Database,
+  identity: VerifiedAccountIdentity
+): Promise<AccountRecord> {
+  const [account] = await db
+    .select({
+      id: accounts.id,
+      legacyUserId: accounts.legacyUserId,
+      status: accounts.status,
+      membershipVersion: accounts.membershipVersion,
+      securityVersion: accounts.securityVersion,
+    })
+    .from(accounts)
+    .where(
+      and(
+        eq(accounts.identityProvider, identity.provider),
+        eq(accounts.providerSubject, identity.subject)
+      )
+    )
+    .limit(1)
+
+  if (!account) denial('TENANT_DENIED', 'Verified identity has no provisioned OpenSchool Account')
+  if (account.status !== 'active') denial('ACCOUNT_DISABLED', 'OpenSchool Account is disabled')
+  return account
+}
+
 async function resolveAccountSession(
   db: Database,
   account: AccountRecord,
   identity: VerifiedAccountIdentity,
   at: Date
 ): Promise<void> {
-  await db
-    .insert(accountSessions)
-    .values({
-      accountId: account.id,
-      providerSessionId: identity.sessionId,
-      assuranceLevel: identity.assuranceLevel,
-      securityVersion: account.securityVersion,
-      authenticatedAt: new Date(identity.issuedAt),
-      expiresAt: new Date(identity.expiresAt),
-      lastSeenAt: at,
-    })
-    .onConflictDoNothing()
+  const loadSession = () =>
+    db
+      .select({
+        accountId: accountSessions.accountId,
+        assuranceLevel: accountSessions.assuranceLevel,
+        expiresAt: accountSessions.expiresAt,
+        lastSeenAt: accountSessions.lastSeenAt,
+        status: accountSessions.status,
+        securityVersion: accountSessions.securityVersion,
+      })
+      .from(accountSessions)
+      .where(eq(accountSessions.providerSessionId, identity.sessionId))
+      .limit(1)
 
-  const [session] = await db
-    .select({
-      accountId: accountSessions.accountId,
-      status: accountSessions.status,
-      securityVersion: accountSessions.securityVersion,
-    })
-    .from(accountSessions)
-    .where(eq(accountSessions.providerSessionId, identity.sessionId))
-    .limit(1)
+  let [session] = await loadSession()
+  if (!session) {
+    await db
+      .insert(accountSessions)
+      .values({
+        accountId: account.id,
+        providerSessionId: identity.sessionId,
+        assuranceLevel: identity.assuranceLevel,
+        securityVersion: account.securityVersion,
+        authenticatedAt: new Date(identity.issuedAt),
+        expiresAt: new Date(identity.expiresAt),
+        lastSeenAt: at,
+      })
+      .onConflictDoNothing()
+    const reloadedSessions = await loadSession()
+    session = reloadedSessions[0]
+  }
 
   if (
     !session ||
@@ -199,24 +234,40 @@ async function resolveAccountSession(
     denial('SESSION_REVOKED', 'Account session is revoked, expired, or version-stale')
   }
 
-  await db
-    .update(accountSessions)
-    .set({
-      assuranceLevel: identity.assuranceLevel,
-      expiresAt: new Date(identity.expiresAt),
-      lastSeenAt: at,
-      updatedAt: at,
-    })
-    .where(eq(accountSessions.providerSessionId, identity.sessionId))
+  const tokenExpiresAt = new Date(identity.expiresAt)
+  const lastSeenRefreshBoundary = at.getTime() - 60_000
+  if (
+    session.assuranceLevel !== identity.assuranceLevel ||
+    session.expiresAt.getTime() !== tokenExpiresAt.getTime() ||
+    session.lastSeenAt.getTime() <= lastSeenRefreshBoundary
+  ) {
+    await db
+      .update(accountSessions)
+      .set({
+        assuranceLevel: identity.assuranceLevel,
+        expiresAt: tokenExpiresAt,
+        lastSeenAt: at,
+        updatedAt: at,
+      })
+      .where(eq(accountSessions.providerSessionId, identity.sessionId))
+  }
 }
 
-async function isOrganizationAncestor(
+/** Registers or refreshes the revocable Account session for a verified identity. */
+export async function registerVerifiedAccountSession(
+  identity: VerifiedAccountIdentity,
+  at = new Date(),
+  db: Database = getDb()
+): Promise<void> {
+  const account = await resolveActiveAccount(db, identity)
+  await resolveAccountSession(db, account, identity, at)
+}
+
+async function currentOrganizationTreeVersionId(
   db: Database,
   tenantId: string,
-  ancestorId: string,
-  descendantId: string,
   at: Date
-): Promise<boolean> {
+): Promise<string | null> {
   const [treeVersion] = await db
     .select({ id: organizationTreeVersions.id })
     .from(organizationTreeVersions)
@@ -229,7 +280,17 @@ async function isOrganizationAncestor(
     .orderBy(desc(organizationTreeVersions.effectiveFrom))
     .limit(1)
 
-  if (!treeVersion) return false
+  return treeVersion?.id ?? null
+}
+
+async function isOrganizationAncestor(
+  db: Database,
+  tenantId: string,
+  treeVersionId: string | null,
+  ancestorId: string,
+  descendantId: string
+): Promise<boolean> {
+  if (!treeVersionId) return false
 
   const [edge] = await db
     .select({ depth: organizationTreeClosure.depth })
@@ -237,7 +298,7 @@ async function isOrganizationAncestor(
     .where(
       and(
         eq(organizationTreeClosure.tenantId, tenantId),
-        eq(organizationTreeClosure.treeVersionId, treeVersion.id),
+        eq(organizationTreeClosure.treeVersionId, treeVersionId),
         eq(organizationTreeClosure.ancestorOrganizationId, ancestorId),
         eq(organizationTreeClosure.descendantOrganizationId, descendantId)
       )
@@ -271,15 +332,15 @@ async function currentSchoolGovernanceOrganization(
   return assignment?.organizationId ?? null
 }
 
-async function guardianHasStudentInSchool(
+async function loadGuardianSchoolIds(
   db: Database,
   tenantId: string,
   guardianPersonId: string,
-  schoolId: string,
-  at: Date
-): Promise<boolean> {
-  const [relationship] = await db
-    .select({ id: personRelationships.id })
+  at: Date,
+  limit = MAX_GUARDIAN_SCHOOLS + 1
+): Promise<string[]> {
+  const relationships = await db
+    .selectDistinct({ schoolId: students.schoolId })
     .from(personRelationships)
     .innerJoin(
       studentProfiles,
@@ -294,7 +355,6 @@ async function guardianHasStudentInSchool(
       and(
         eq(students.tenantId, studentProfiles.tenantId),
         eq(students.id, studentProfiles.legacyStudentId),
-        eq(students.schoolId, schoolId),
         eq(students.status, 'active')
       )
     )
@@ -302,24 +362,27 @@ async function guardianHasStudentInSchool(
       and(
         eq(personRelationships.tenantId, tenantId),
         eq(personRelationships.subjectPersonId, guardianPersonId),
+        inArray(personRelationships.type, ['guardian_of', 'parent_of']),
         eq(personRelationships.status, 'active'),
         lte(personRelationships.validFrom, at),
         or(isNull(personRelationships.validUntil), gt(personRelationships.validUntil, at))
       )
     )
-    .limit(1)
-  return Boolean(relationship)
+    .limit(limit)
+
+  return relationships.map(({ schoolId }) => schoolId)
 }
 
 async function loadLegacyRoleKeys(
   db: Database,
   legacyUserId: string,
   tenantId: string,
+  selectedOrganizationId?: string,
   selectedSchoolId?: string
 ): Promise<Set<string>> {
-  const [orgMemberships, schoolMemberships, classAssignments, guardianLinks] = await Promise.all([
+  const [orgMemberships, schoolMemberships, guardianLinks] = await Promise.all([
     db
-      .select({ role: usersOnOrg.role })
+      .select({ organizationId: usersOnOrg.orgId, role: usersOnOrg.role })
       .from(usersOnOrg)
       .where(and(eq(usersOnOrg.tenantId, tenantId), eq(usersOnOrg.userId, legacyUserId))),
     db
@@ -327,33 +390,30 @@ async function loadLegacyRoleKeys(
       .from(usersOnSchool)
       .where(and(eq(usersOnSchool.tenantId, tenantId), eq(usersOnSchool.userId, legacyUserId))),
     db
-      .select({ schoolId: classes.schoolId })
-      .from(teachersOnClass)
-      .innerJoin(
-        classes,
-        and(eq(classes.tenantId, teachersOnClass.tenantId), eq(classes.id, teachersOnClass.classId))
-      )
-      .where(and(eq(teachersOnClass.tenantId, tenantId), eq(teachersOnClass.userId, legacyUserId))),
-    db
       .select({ id: parentStudent.id })
       .from(parentStudent)
       .where(and(eq(parentStudent.tenantId, tenantId), eq(parentStudent.parentId, legacyUserId)))
       .limit(1),
   ])
 
-  const roles = new Set<string>(orgMemberships.map(({ role }) => role))
-  for (const membership of schoolMemberships) {
-    if (!selectedSchoolId || membership.schoolId === selectedSchoolId) roles.add(membership.role)
+  if (selectedOrganizationId) {
+    const organizationRoles = orgMemberships
+      .filter(({ organizationId }) => organizationId === selectedOrganizationId)
+      .map(({ role }) => role)
+    if (organizationRoles.length > 0) return new Set(organizationRoles)
   }
-  if (
-    classAssignments.some(
-      ({ schoolId }) => selectedSchoolId === undefined || schoolId === selectedSchoolId
-    )
-  ) {
-    roles.add('teacher')
+  if (selectedSchoolId) {
+    const schoolRoles = schoolMemberships
+      .filter(({ schoolId }) => schoolId === selectedSchoolId)
+      .map(({ role }) => role)
+    if (schoolRoles.length > 0) return new Set(schoolRoles)
   }
-  if (guardianLinks.length > 0) roles.add('parent')
-  return roles
+  if (guardianLinks.length > 0) return new Set(['parent'])
+
+  // The legacy resolver selected the first remaining membership without a
+  // deterministic ordering. An ambiguous fallback is not safe comparison
+  // evidence, so it deliberately contributes no allow role.
+  return new Set()
 }
 
 function computeContextExpiry(
@@ -393,25 +453,7 @@ export async function resolveTenantRequestContext(
     denial('MFA_REQUIRED', `${requiredAssurance} assurance is required`)
   }
 
-  const [account] = await db
-    .select({
-      id: accounts.id,
-      legacyUserId: accounts.legacyUserId,
-      status: accounts.status,
-      membershipVersion: accounts.membershipVersion,
-      securityVersion: accounts.securityVersion,
-    })
-    .from(accounts)
-    .where(
-      and(
-        eq(accounts.identityProvider, identity.provider),
-        eq(accounts.providerSubject, identity.subject)
-      )
-    )
-    .limit(1)
-
-  if (!account) denial('TENANT_DENIED', 'Verified identity has no provisioned OpenSchool Account')
-  if (account.status !== 'active') denial('ACCOUNT_DISABLED', 'OpenSchool Account is disabled')
+  const account = await resolveActiveAccount(db, identity)
   await resolveAccountSession(db, account, identity, at)
 
   const linkWhere = [
@@ -438,8 +480,13 @@ export async function resolveTenantRequestContext(
     .limit(2)
 
   if (links.length === 0) denial('TENANT_DENIED', 'No active Account Link matches the Tenant')
-  if (!selectors.tenantId && links.length > 1) {
-    denial('CONTEXT_REQUIRED', 'Account has more than one active Tenant context')
+  if (links.length > 1) {
+    denial(
+      selectors.tenantId ? 'POLICY_DENIED' : 'CONTEXT_REQUIRED',
+      selectors.tenantId
+        ? 'Account has more than one active Account Link for the selected Tenant'
+        : 'Account has more than one active Tenant context'
+    )
   }
   const link = links[0]
   if (!link) denial('TENANT_DENIED', 'No active Account Link')
@@ -489,6 +536,7 @@ export async function resolveTenantRequestContext(
         eq(roleTemplateAssignments.tenantId, affiliations.tenantId),
         eq(roleTemplateAssignments.affiliationId, affiliations.id),
         eq(roleTemplateAssignments.status, 'active'),
+        lte(roleTemplateAssignments.validFrom, at),
         or(isNull(roleTemplateAssignments.validUntil), gt(roleTemplateAssignments.validUntil, at))
       )
     )
@@ -497,6 +545,7 @@ export async function resolveTenantRequestContext(
         eq(affiliations.tenantId, link.tenantId),
         eq(affiliations.personId, link.personId),
         eq(affiliations.status, 'active'),
+        lte(affiliations.validFrom, at),
         or(isNull(affiliations.validUntil), gt(affiliations.validUntil, at))
       )
     )
@@ -528,6 +577,15 @@ export async function resolveTenantRequestContext(
       .where(and(eq(classes.tenantId, link.tenantId), inArray(classes.id, classIds)))
     for (const row of rows) classSchools.set(row.id, row.schoolId)
   }
+  const hasTenantParentRole = currentAssignments.some(
+    (assignment) => assignment.scopeType === 'tenant' && assignment.roleTemplateKey === 'parent'
+  )
+  const guardianSchoolIds = hasTenantParentRole
+    ? await loadGuardianSchoolIds(db, link.tenantId, link.personId, at)
+    : []
+  if (guardianSchoolIds.length > MAX_GUARDIAN_SCHOOLS) {
+    denial('POLICY_DENIED', 'Guardian School context safety limit exceeded')
+  }
 
   let selectedOrganizationId = selectors.educationOrganizationId
   let selectedSchoolId = selectors.schoolId
@@ -537,7 +595,11 @@ export async function resolveTenantRequestContext(
   if (!selectedOrganizationId && !selectedSchoolId) {
     const candidateKeys = new Set<string>()
     for (const assignment of currentAssignments) {
-      if (assignment.scopeType === 'tenant') candidateKeys.add('tenant')
+      if (assignment.scopeType === 'tenant') {
+        if (assignment.roleTemplateKey !== 'parent' || guardianSchoolIds.length === 0) {
+          candidateKeys.add('tenant')
+        }
+      }
       if (assignment.educationOrganizationId) {
         candidateKeys.add(`organization:${assignment.educationOrganizationId}`)
       }
@@ -547,6 +609,7 @@ export async function resolveTenantRequestContext(
         if (schoolId) candidateKeys.add(`school:${schoolId}`)
       }
     }
+    for (const schoolId of guardianSchoolIds) candidateKeys.add(`school:${schoolId}`)
     if (candidateKeys.size > 1) {
       denial('CONTEXT_REQUIRED', 'Account has more than one valid organization or School context')
     }
@@ -554,6 +617,25 @@ export async function resolveTenantRequestContext(
     if (!candidate) denial('AFFILIATION_EXPIRED', 'No selectable current context')
     if (candidate.startsWith('organization:')) selectedOrganizationId = candidate.slice(13)
     if (candidate.startsWith('school:')) selectedSchoolId = candidate.slice(7)
+  }
+
+  const resolvedCacheKey = buildTenantContextCacheKey({
+    accountId: account.id,
+    tenantId: link.tenantId,
+    sessionId: identity.sessionId,
+    membershipVersion: account.membershipVersion,
+    securityVersion: account.securityVersion,
+    assuranceLevel: identity.assuranceLevel,
+    policyVersion: TENANT_CONTEXT_POLICY_VERSION,
+    comparisonMode,
+    educationOrganizationId: selectedOrganizationId,
+    schoolId: selectedSchoolId,
+  })
+  if (resolvedCacheKey !== explicitCacheKey) {
+    const resolvedCached = options.cache?.get(resolvedCacheKey, at)
+    if (resolvedCached) {
+      return Object.freeze({ ...resolvedCached, requestId: metadata.requestId })
+    }
   }
 
   let schoolGovernanceOrganizationId: string | null = null
@@ -594,13 +676,14 @@ export async function resolveTenantRequestContext(
     selectedOrganizationName = organization.name
   }
 
+  const treeVersionId = await currentOrganizationTreeVersionId(db, link.tenantId, at)
   if (selectedOrganizationId && schoolGovernanceOrganizationId) {
     const scopeMatches = await isOrganizationAncestor(
       db,
       link.tenantId,
+      treeVersionId,
       selectedOrganizationId,
-      schoolGovernanceOrganizationId,
-      at
+      schoolGovernanceOrganizationId
     )
     if (!scopeMatches) {
       denial('SCOPE_MISMATCH', 'Selected Education Organization does not govern the School')
@@ -610,11 +693,14 @@ export async function resolveTenantRequestContext(
   const organizationTargetId = selectedOrganizationId ?? schoolGovernanceOrganizationId
   const relevantAssignments: EffectiveAssignment[] = []
   const guardianSchoolAccess = selectedSchoolId
-    ? await guardianHasStudentInSchool(db, link.tenantId, link.personId, selectedSchoolId, at)
+    ? guardianSchoolIds.includes(selectedSchoolId)
     : false
   for (const assignment of currentAssignments) {
     if (assignment.scopeType === 'tenant') {
       if (selectedSchoolId && assignment.roleTemplateKey === 'parent' && !guardianSchoolAccess) {
+        continue
+      }
+      if (selectedOrganizationId && !selectedSchoolId && assignment.roleTemplateKey === 'parent') {
         continue
       }
       relevantAssignments.push(assignment)
@@ -636,9 +722,9 @@ export async function resolveTenantRequestContext(
       const coversTarget = await isOrganizationAncestor(
         db,
         link.tenantId,
+        treeVersionId,
         assignment.educationOrganizationId,
-        organizationTargetId,
-        at
+        organizationTargetId
       )
       if (coversTarget) relevantAssignments.push(assignment)
     }
@@ -660,6 +746,7 @@ export async function resolveTenantRequestContext(
       db,
       account.legacyUserId,
       link.tenantId,
+      selectedOrganizationId,
       selectedSchoolId
     )
     const expansions = roleTemplateKeys.filter((key) => !legacyRoleKeys.has(key))
@@ -695,18 +782,6 @@ export async function resolveTenantRequestContext(
     legacyComparison,
   })
 
-  const resolvedCacheKey = buildTenantContextCacheKey({
-    accountId: account.id,
-    tenantId: link.tenantId,
-    sessionId: identity.sessionId,
-    membershipVersion: account.membershipVersion,
-    securityVersion: account.securityVersion,
-    assuranceLevel: identity.assuranceLevel,
-    policyVersion: TENANT_CONTEXT_POLICY_VERSION,
-    comparisonMode,
-    educationOrganizationId: selectedOrganizationId,
-    schoolId: selectedSchoolId,
-  })
   options.cache?.set(resolvedCacheKey, context, {
     accountId: account.id,
     sessionId: identity.sessionId,
@@ -764,24 +839,7 @@ export async function listAvailableTenantContexts(
 ): Promise<AvailableTenantContext[]> {
   const at = options.at ?? new Date()
   const limit = Math.min(Math.max(options.limit ?? 50, 1), 50)
-  const [account] = await db
-    .select({
-      id: accounts.id,
-      legacyUserId: accounts.legacyUserId,
-      status: accounts.status,
-      membershipVersion: accounts.membershipVersion,
-      securityVersion: accounts.securityVersion,
-    })
-    .from(accounts)
-    .where(
-      and(
-        eq(accounts.identityProvider, identity.provider),
-        eq(accounts.providerSubject, identity.subject)
-      )
-    )
-    .limit(1)
-  if (!account) denial('TENANT_DENIED', 'Verified identity has no provisioned OpenSchool Account')
-  if (account.status !== 'active') denial('ACCOUNT_DISABLED', 'OpenSchool Account is disabled')
+  const account = await resolveActiveAccount(db, identity)
   await resolveAccountSession(db, account, identity, at)
 
   const activeLinks = await db
@@ -800,11 +858,16 @@ export async function listAvailableTenantContexts(
         eq(people.status, 'active')
       )
     )
-    .limit(51)
-  if (activeLinks.length > 50) denial('POLICY_DENIED', 'Selectable Tenant safety limit exceeded')
+    .orderBy(accountLinks.tenantId, accountLinks.id)
+    .limit(50)
 
+  const linkCounts = new Map<string, number>()
+  for (const link of activeLinks) {
+    linkCounts.set(link.tenantId, (linkCounts.get(link.tenantId) ?? 0) + 1)
+  }
   const results = new Map<string, AvailableTenantContext>()
   for (const link of activeLinks) {
+    if ((linkCounts.get(link.tenantId) ?? 0) > 1) continue
     const [tenant] = await db
       .select({ name: tenants.name, status: tenants.status })
       .from(tenants)
@@ -830,19 +893,23 @@ export async function listAvailableTenantContexts(
         and(
           eq(roleTemplateAssignments.tenantId, affiliations.tenantId),
           eq(roleTemplateAssignments.affiliationId, affiliations.id),
-          eq(roleTemplateAssignments.status, 'active')
+          eq(roleTemplateAssignments.status, 'active'),
+          lte(roleTemplateAssignments.validFrom, at),
+          or(isNull(roleTemplateAssignments.validUntil), gt(roleTemplateAssignments.validUntil, at))
         )
       )
       .where(
         and(
           eq(affiliations.tenantId, link.tenantId),
           eq(affiliations.personId, link.personId),
-          eq(affiliations.status, 'active')
+          eq(affiliations.status, 'active'),
+          lte(affiliations.validFrom, at),
+          or(isNull(affiliations.validUntil), gt(affiliations.validUntil, at))
         )
       )
       .limit(MAX_ASSIGNMENT_ROWS + 1)
     if (rows.length > MAX_ASSIGNMENT_ROWS) {
-      denial('POLICY_DENIED', 'Selectable context assignment safety limit exceeded')
+      continue
     }
 
     const currentRows = rows.filter(
@@ -863,9 +930,29 @@ export async function listAvailableTenantContexts(
         .where(and(eq(classes.tenantId, link.tenantId), inArray(classes.id, classIds)))
       for (const classRow of classRows) classSchools.set(classRow.id, classRow.schoolId)
     }
+    const hasTenantParentRole = currentRows.some(
+      (row) => row.scopeType === 'tenant' && row.roleTemplateKey === 'parent'
+    )
+    const guardianSchoolIds = hasTenantParentRole
+      ? await loadGuardianSchoolIds(db, link.tenantId, link.personId, at)
+      : []
+    if (guardianSchoolIds.length > MAX_GUARDIAN_SCHOOLS) continue
 
     const optionRoles = new Map<string, Set<string>>()
     for (const row of currentRows) {
+      if (
+        row.scopeType === 'tenant' &&
+        row.roleTemplateKey === 'parent' &&
+        guardianSchoolIds.length > 0
+      ) {
+        for (const schoolId of guardianSchoolIds) {
+          const key = `school:${schoolId}`
+          const roles = optionRoles.get(key) ?? new Set<string>()
+          roles.add(row.roleTemplateKey)
+          optionRoles.set(key, roles)
+        }
+        continue
+      }
       let key = 'tenant'
       if (row.educationOrganizationId) key = `organization:${row.educationOrganizationId}`
       if (row.schoolId) key = `school:${row.schoolId}`
@@ -917,7 +1004,7 @@ export async function listAvailableTenantContexts(
       const key = `${link.tenantId}:${scopeKey}`
       const roleTemplateKeys = Object.freeze([...roles].sort())
       if (roleTemplateKeys.length > MAX_CONTEXT_ROLE_KEYS) {
-        denial('POLICY_DENIED', 'Selectable context role safety limit exceeded')
+        continue
       }
       if (scopeKey === 'tenant') {
         results.set(key, {

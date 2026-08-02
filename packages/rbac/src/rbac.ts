@@ -18,7 +18,7 @@ export function checkPermission(
 
         switch (modifier) {
           case 'own':
-            if (options.resourceOwnerId === ctx.personId) return
+            if (options.resourceOwnerId && options.resourceOwnerId === ctx.personId) return
             break
           case 'own_class':
             if (options.resourceClassId && options.resourceClassAssigned === true) return

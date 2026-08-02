@@ -1,8 +1,14 @@
 import assert from 'node:assert/strict'
 import { getServerEnv } from '@openschool/config/server'
-import { accounts, affiliations, roleTemplateAssignments } from '@openschool/db'
+import {
+  accountLinks,
+  accounts,
+  affiliations,
+  personRelationships,
+  roleTemplateAssignments,
+} from '@openschool/db'
 import * as schema from '@openschool/db'
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 import {
@@ -23,9 +29,16 @@ const TEACHER_ACCOUNT = '00000000-0000-4000-8000-000000000203'
 const TEACHER_PERSON_A = '00000000-0000-4000-8000-000000000903'
 const TEACHER_PERSON_B = '00000000-0000-4000-8000-000000000904'
 const SCHOOL_ADMIN_ACCOUNT = '00000000-0000-4000-8000-000000000202'
+const ORG_ADMIN_ACCOUNT = '00000000-0000-4000-8000-000000000201'
+const STAFF_ACCOUNT = '00000000-0000-4000-8000-000000000204'
+const PARENT_ACCOUNT = '00000000-0000-4000-8000-000000000205'
 const ISLAND_ADMIN_ACCOUNT = '00000000-0000-4000-8000-000000000207'
 const EXPANSION_AFFILIATION = '00000000-0000-4000-8000-000000000871'
 const EXPANSION_ROLE = '00000000-0000-4000-8000-000000000872'
+const NON_GUARDIAN_AFFILIATION = '00000000-0000-4000-8000-000000000873'
+const NON_GUARDIAN_ROLE = '00000000-0000-4000-8000-000000000874'
+const NON_GUARDIAN_RELATIONSHIP = '00000000-0000-4000-8000-000000000875'
+const AMBIGUOUS_ACCOUNT_LINK = '00000000-0000-4000-8000-000000000876'
 const NOW = new Date('2026-08-02T12:00:00Z')
 
 function assertLocalDisposableDatabase(databaseUrl: URL): void {
@@ -67,7 +80,26 @@ async function run(): Promise<void> {
   assertLocalDisposableDatabase(databaseUrl)
   const client = postgres(databaseUrl.toString(), { max: 1, prepare: false })
   const db = drizzle(client, { schema })
-  const teacherIdentity = identity(TEACHER_ACCOUNT, 'context-proof-teacher')
+  const runId = crypto.randomUUID()
+  const proofSessionId = (label: string) => `context-proof-${label}-${runId}`
+  const teacherIdentity = identity(TEACHER_ACCOUNT, proofSessionId('teacher'))
+  const orgAdminIdentity = identity(ORG_ADMIN_ACCOUNT, proofSessionId('org-admin'))
+  const schoolAdminIdentity = identity(SCHOOL_ADMIN_ACCOUNT, proofSessionId('school-admin'))
+  const parentIdentity = identity(PARENT_ACCOUNT, proofSessionId('parent'))
+  const staffIdentity = identity(STAFF_ACCOUNT, proofSessionId('staff'))
+  const disabledIdentity = identity(ISLAND_ADMIN_ACCOUNT, proofSessionId('disabled'))
+  const expansionIdentity = identity(TEACHER_ACCOUNT, proofSessionId('expansion'))
+  const blankRevocationSessionId = proofSessionId('blank-revocation')
+  const sessionIds = [
+    teacherIdentity.sessionId,
+    orgAdminIdentity.sessionId,
+    schoolAdminIdentity.sessionId,
+    parentIdentity.sessionId,
+    staffIdentity.sessionId,
+    disabledIdentity.sessionId,
+    expansionIdentity.sessionId,
+    blankRevocationSessionId,
+  ]
 
   try {
     await expectDenial('CONTEXT_REQUIRED', () =>
@@ -137,6 +169,90 @@ async function run(): Promise<void> {
       ].sort()
     )
 
+    const parentContext = await resolveTenantRequestContext(
+      parentIdentity,
+      {},
+      { requestId: 'guardian-school' },
+      { at: NOW },
+      db
+    )
+    assert.deepEqual(
+      {
+        schoolId: parentContext.activeSchoolId,
+        roles: parentContext.roleTemplateKeys,
+      },
+      { schoolId: SCHOOL_A_HIGH, roles: ['parent'] }
+    )
+    const parentOptions = await listAvailableTenantContexts(parentIdentity, { at: NOW }, db)
+    assert.deepEqual(
+      parentOptions.map(({ schoolId, roleTemplateKeys }) => ({ schoolId, roleTemplateKeys })),
+      [{ schoolId: SCHOOL_A_HIGH, roleTemplateKeys: ['parent'] }]
+    )
+    await expectDenial('POLICY_DENIED', () =>
+      resolveTenantRequestContext(
+        orgAdminIdentity,
+        { tenantId: TENANT_A, educationOrganizationId: ORG_A_DISTRICT },
+        { requestId: 'legacy-sibling-organization-expansion' },
+        { at: NOW, comparisonMode: 'enforce' },
+        db
+      )
+    )
+
+    await db.insert(affiliations).values({
+      id: NON_GUARDIAN_AFFILIATION,
+      tenantId: TENANT_A,
+      personId: '00000000-0000-4000-8000-000000000905',
+      kind: 'guardian',
+      scopeType: 'tenant',
+      validFrom: new Date('2026-01-01T00:00:00Z'),
+      issuanceReason: 'Non-guardian relationship negative proof',
+    })
+    await db.insert(roleTemplateAssignments).values({
+      id: NON_GUARDIAN_ROLE,
+      tenantId: TENANT_A,
+      affiliationId: NON_GUARDIAN_AFFILIATION,
+      roleTemplateKey: 'parent',
+      validFrom: new Date('2026-01-01T00:00:00Z'),
+      issuanceReason: 'Non-guardian relationship negative proof',
+    })
+    await db.insert(personRelationships).values({
+      id: NON_GUARDIAN_RELATIONSHIP,
+      tenantId: TENANT_A,
+      subjectPersonId: '00000000-0000-4000-8000-000000000905',
+      relatedPersonId: '00000000-0000-4000-8000-000000000912',
+      type: 'emergency_contact_of',
+      validFrom: new Date('2026-01-01T00:00:00Z'),
+      issuanceReason: 'Non-guardian relationship negative proof',
+    })
+    const nonGuardianContext = await resolveTenantRequestContext(
+      staffIdentity,
+      { tenantId: TENANT_A, schoolId: SCHOOL_A_HIGH },
+      { requestId: 'non-guardian-relationship' },
+      { at: NOW },
+      db
+    )
+    assert.deepEqual(nonGuardianContext.roleTemplateKeys, ['staff'])
+
+    await db.insert(accountLinks).values({
+      id: AMBIGUOUS_ACCOUNT_LINK,
+      tenantId: TENANT_A,
+      accountId: STAFF_ACCOUNT,
+      personId: '00000000-0000-4000-8000-000000000907',
+      status: 'active',
+      validFrom: new Date('2026-01-01T00:00:00Z'),
+      issuanceReason: 'Ambiguous same-Tenant Account Link negative proof',
+      activatedAt: NOW,
+    })
+    await expectDenial('POLICY_DENIED', () =>
+      resolveTenantRequestContext(
+        staffIdentity,
+        { tenantId: TENANT_A, schoolId: SCHOOL_A_HIGH },
+        { requestId: 'ambiguous-account-link' },
+        { at: NOW },
+        db
+      )
+    )
+
     await expectDenial('TENANT_DENIED', () =>
       resolveTenantRequestContext(
         teacherIdentity,
@@ -157,7 +273,7 @@ async function run(): Promise<void> {
     )
     await expectDenial('SCHOOL_DENIED', () =>
       resolveTenantRequestContext(
-        identity(SCHOOL_ADMIN_ACCOUNT, 'context-proof-school-admin'),
+        schoolAdminIdentity,
         { tenantId: TENANT_A, schoolId: SCHOOL_A_HIGH },
         { requestId: 'sibling-school' },
         { at: NOW },
@@ -201,7 +317,28 @@ async function run(): Promise<void> {
       db
         .update(schema.accountSessions)
         .set({ status: 'active', updatedAt: new Date(NOW.getTime() + 1) })
-        .where(eq(schema.accountSessions.providerSessionId, teacherIdentity.sessionId))
+        .where(eq(schema.accountSessions.providerSessionId, teacherIdentity.sessionId)),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.message.includes('inactive Account Session records are immutable')
+    )
+    await assert.rejects(
+      db.insert(schema.accountSessions).values({
+        accountId: TEACHER_ACCOUNT,
+        providerSessionId: blankRevocationSessionId,
+        status: 'revoked',
+        assuranceLevel: 'aal1',
+        securityVersion: 1,
+        authenticatedAt: new Date('2026-08-02T11:00:00Z'),
+        expiresAt: new Date('2026-08-02T13:00:00Z'),
+        revokedAt: NOW,
+        revocationReason: '   ',
+      }),
+      (error: unknown) =>
+        typeof error === 'object' &&
+        error !== null &&
+        'constraint_name' in error &&
+        error.constraint_name === 'account_sessions_revocation_evidence_check'
     )
     await expectDenial('SESSION_REVOKED', () =>
       resolveTenantRequestContext(
@@ -213,7 +350,6 @@ async function run(): Promise<void> {
       )
     )
 
-    const disabledIdentity = identity(ISLAND_ADMIN_ACCOUNT, 'context-proof-disabled')
     await db
       .update(accounts)
       .set({ status: 'disabled', disabledAt: NOW, disabledReason: 'Context proof' })
@@ -228,7 +364,6 @@ async function run(): Promise<void> {
       )
     )
 
-    const expansionIdentity = identity(TEACHER_ACCOUNT, 'context-proof-expansion')
     await db.insert(affiliations).values({
       id: EXPANSION_AFFILIATION,
       tenantId: TENANT_A,
@@ -266,9 +401,26 @@ async function run(): Promise<void> {
     assert.equal(observedExpansion.legacyComparison, 'observed_expansion')
 
     console.log(
-      'Tenant Request Context proof passed: verified Account sessions, explicit multi-context selection, bounded roles, Tenant/School/subtree denials, MFA, revocation, disablement, and legacy expansion enforcement.'
+      'Tenant Request Context proof passed: verified Account sessions, explicit multi-context selection, guardian relationship boundaries, ambiguous-link denial, bounded roles, Tenant/School/subtree denials, MFA, immutable revocation, disablement, and scope-aware legacy expansion enforcement.'
     )
   } finally {
+    await db.delete(accountLinks).where(eq(accountLinks.id, AMBIGUOUS_ACCOUNT_LINK))
+    await db
+      .delete(personRelationships)
+      .where(eq(personRelationships.id, NON_GUARDIAN_RELATIONSHIP))
+    await db
+      .delete(roleTemplateAssignments)
+      .where(eq(roleTemplateAssignments.id, NON_GUARDIAN_ROLE))
+    await db.delete(affiliations).where(eq(affiliations.id, NON_GUARDIAN_AFFILIATION))
+    await db.delete(roleTemplateAssignments).where(eq(roleTemplateAssignments.id, EXPANSION_ROLE))
+    await db.delete(affiliations).where(eq(affiliations.id, EXPANSION_AFFILIATION))
+    await db
+      .update(accounts)
+      .set({ status: 'active', disabledAt: null, disabledReason: null, updatedAt: NOW })
+      .where(eq(accounts.id, ISLAND_ADMIN_ACCOUNT))
+    await db
+      .delete(schema.accountSessions)
+      .where(inArray(schema.accountSessions.providerSessionId, sessionIds))
     await client.end()
   }
 }

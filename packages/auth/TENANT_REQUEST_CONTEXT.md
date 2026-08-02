@@ -22,7 +22,7 @@ Tenant, Education Organization, and School identifiers from headers or HTTP-only
 8. guardian-to-student relationship before a parent context selects a School;
 9. absence of unexplained allow expansion in legacy comparison mode.
 
-When an Account has multiple Tenants or a Person has multiple valid organization/School contexts, no row ordering is used. The resolver returns `CONTEXT_REQUIRED` until the caller supplies an explicit valid selector. The server-derived context selector UI lists at most 50 options and re-runs the complete resolver before setting selector cookies.
+When an Account has multiple Tenants or a Person has multiple valid organization/School contexts, no row ordering is used. Multiple active Account Links inside one Tenant are treated as invalid identity state. Guardian School contexts are derived only from current `parent_of`/`guardian_of` relationships to active students. The resolver returns `CONTEXT_REQUIRED` until the caller supplies an explicit valid selector. The server-derived context selector UI lists at most 50 options and re-runs the complete resolver before setting selector cookies.
 
 ## Bounded immutable context
 
@@ -48,6 +48,6 @@ After cutover, production uses the new resolver alone and fails closed. Rollback
 
 ## Evidence and remaining blockers
 
-`auth:tenant-context-poc` is guarded to a disposable loopback PostgreSQL database. It proves multi-Tenant and multi-School explicit selection, separate Tenant People, bounded roles, wrong-Tenant and sibling-School denial, subtree mismatch, MFA, immediate session revocation, Account disablement, and legacy allow-expansion enforcement.
+`auth:tenant-context-poc` is guarded to a disposable loopback PostgreSQL database and cleans up its mutations so it can be repeated against the same seeded fixture. It proves multi-Tenant and multi-School explicit selection, guardian and non-guardian relationship boundaries, ambiguous Account Link denial, separate Tenant People, bounded roles, wrong-Tenant and sibling-School denial, subtree mismatch, MFA, immediate session revocation, Account disablement, immutable revocation evidence, and scope-aware legacy allow-expansion enforcement.
 
 This work does not make OpenSchool production-ready. Capability Policy Decisions, non-owner transaction-scoped database roles, forced RLS, atomic audit/outbox and durable invalidation, production invitation/MFA/support lifecycle, and the complete Isolation Matrix remain #85–#90.

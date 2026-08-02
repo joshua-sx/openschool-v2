@@ -1,5 +1,9 @@
 import { normalizeInternalRedirectPath } from '@/lib/redirects'
-import { createServerClient, verifySupabaseIdentity } from '@openschool/auth/server'
+import {
+  createServerClient,
+  registerVerifiedAccountSession,
+  verifySupabaseIdentity,
+} from '@openschool/auth/server'
 import { getPublicEnv } from '@openschool/config/public'
 import { cookies } from 'next/headers'
 import { type NextRequest, NextResponse } from 'next/server'
@@ -19,7 +23,8 @@ export async function GET(request: NextRequest) {
 
     if (!error) {
       try {
-        await verifySupabaseIdentity(supabase)
+        const identity = await verifySupabaseIdentity(supabase)
+        await registerVerifiedAccountSession(identity)
         return NextResponse.redirect(new URL(next, env.NEXT_PUBLIC_APP_URL))
       } catch {
         return NextResponse.redirect(`${env.NEXT_PUBLIC_WWW_URL}/auth/login?error=auth_failed`)

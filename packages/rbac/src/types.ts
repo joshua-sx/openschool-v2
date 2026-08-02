@@ -16,6 +16,10 @@ export interface PermissionCheckOptions {
   resourceOwnerId?: string
   resourceClassId?: string
   resourceStudentId?: string
+  /**
+   * Relationship facts must come from server-side Tenant-scoped database
+   * lookups, never from client input or another unverified source.
+   */
   resourceClassAssigned?: boolean
   resourceStudentLinked?: boolean
   childClassLinked?: boolean

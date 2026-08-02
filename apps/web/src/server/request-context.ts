@@ -95,6 +95,7 @@ export async function resolveVerifiedRequestState(
       {
         requiredAssuranceLevel,
         comparisonMode: process.env.NODE_ENV === 'production' ? 'off' : 'enforce',
+        // Deliberately uncached until #88/#89 prove durable cross-node invalidation.
       }
     )
     return {

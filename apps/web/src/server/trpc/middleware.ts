@@ -10,7 +10,9 @@ export const requireAuth = publicProcedure.use(async ({ ctx, next }) => {
   if (!ctx.tenantContext || !ctx.requestContext || !ctx.userId) {
     const contextRequired = ctx.denialReason === 'CONTEXT_REQUIRED'
     const unauthenticated =
-      ctx.denialReason === 'UNAUTHENTICATED' || ctx.denialReason === 'TOKEN_INVALID'
+      !ctx.denialReason ||
+      ctx.denialReason === 'UNAUTHENTICATED' ||
+      ctx.denialReason === 'TOKEN_INVALID'
     throw new TRPCError({
       code: contextRequired
         ? 'PRECONDITION_FAILED'

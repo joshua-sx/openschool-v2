@@ -59,21 +59,22 @@ export async function POST(request: NextRequest) {
     sameSite: 'lax' as const,
     secure,
   }
-  cookieStore.set(CONTEXT_COOKIE_NAMES.tenantId, selectors.tenantId ?? '', options)
+  const response = NextResponse.redirect(new URL('/dashboard', env.NEXT_PUBLIC_APP_URL), 303)
+  response.cookies.set(CONTEXT_COOKIE_NAMES.tenantId, selectors.tenantId, options)
   if (selectors.educationOrganizationId) {
-    cookieStore.set(
+    response.cookies.set(
       CONTEXT_COOKIE_NAMES.educationOrganizationId,
       selectors.educationOrganizationId,
       options
     )
   } else {
-    cookieStore.delete(CONTEXT_COOKIE_NAMES.educationOrganizationId)
+    response.cookies.delete(CONTEXT_COOKIE_NAMES.educationOrganizationId)
   }
   if (selectors.schoolId) {
-    cookieStore.set(CONTEXT_COOKIE_NAMES.schoolId, selectors.schoolId, options)
+    response.cookies.set(CONTEXT_COOKIE_NAMES.schoolId, selectors.schoolId, options)
   } else {
-    cookieStore.delete(CONTEXT_COOKIE_NAMES.schoolId)
+    response.cookies.delete(CONTEXT_COOKIE_NAMES.schoolId)
   }
 
-  return NextResponse.redirect(new URL('/dashboard', env.NEXT_PUBLIC_APP_URL), 303)
+  return response
 }

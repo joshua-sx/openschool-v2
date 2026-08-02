@@ -102,7 +102,7 @@ export const accountSessions = pgTable(
     check('account_sessions_time_order_check', sql`${table.expiresAt} > ${table.authenticatedAt}`),
     check(
       'account_sessions_revocation_evidence_check',
-      sql`${table.status} <> 'revoked' OR (${table.revokedAt} IS NOT NULL AND ${table.revocationReason} IS NOT NULL)`
+      sql`${table.status} <> 'revoked' OR (${table.revokedAt} IS NOT NULL AND ${table.revocationReason} IS NOT NULL AND btrim(${table.revocationReason}) <> '')`
     ),
   ]
 )

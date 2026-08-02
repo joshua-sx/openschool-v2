@@ -18,7 +18,7 @@ CREATE TABLE "account_sessions" (
 	CONSTRAINT "account_sessions_assurance_level_check" CHECK ("account_sessions"."assurance_level" IN ('aal1', 'aal2')),
 	CONSTRAINT "account_sessions_security_version_positive" CHECK ("account_sessions"."security_version" > 0),
 	CONSTRAINT "account_sessions_time_order_check" CHECK ("account_sessions"."expires_at" > "account_sessions"."authenticated_at"),
-	CONSTRAINT "account_sessions_revocation_evidence_check" CHECK ("account_sessions"."status" <> 'revoked' OR ("account_sessions"."revoked_at" IS NOT NULL AND "account_sessions"."revocation_reason" IS NOT NULL))
+	CONSTRAINT "account_sessions_revocation_evidence_check" CHECK ("account_sessions"."status" <> 'revoked' OR ("account_sessions"."revoked_at" IS NOT NULL AND "account_sessions"."revocation_reason" IS NOT NULL AND btrim("account_sessions"."revocation_reason") <> ''))
 );
 --> statement-breakpoint
 ALTER TABLE "account_sessions" ADD CONSTRAINT "account_sessions_account_id_accounts_id_fk" FOREIGN KEY ("account_id") REFERENCES "public"."accounts"("id") ON DELETE restrict ON UPDATE restrict;--> statement-breakpoint

@@ -47,6 +47,7 @@ describe('hasPermission', () => {
       }),
       false
     )
+    assert.equal(hasPermission(context, 'grades:create', { resourceClassId: 'class-1' }), false)
   })
 
   it('limits parents to their linked students', () => {
@@ -63,6 +64,25 @@ describe('hasPermission', () => {
       hasPermission(context, 'grades:read', {
         resourceStudentId: 'student-2',
         resourceStudentLinked: false,
+      }),
+      false
+    )
+  })
+
+  it('limits parents to classes linked through their children', () => {
+    const context = tenantContext('parent')
+
+    assert.equal(
+      hasPermission(context, 'classes:read', {
+        resourceClassId: 'class-1',
+        childClassLinked: true,
+      }),
+      true
+    )
+    assert.equal(
+      hasPermission(context, 'classes:read', {
+        resourceClassId: 'class-2',
+        childClassLinked: false,
       }),
       false
     )

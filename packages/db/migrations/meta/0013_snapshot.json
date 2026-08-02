@@ -1484,7 +1484,7 @@
         },
         "account_sessions_revocation_evidence_check": {
           "name": "account_sessions_revocation_evidence_check",
-          "value": "\"account_sessions\".\"status\" <> 'revoked' OR (\"account_sessions\".\"revoked_at\" IS NOT NULL AND \"account_sessions\".\"revocation_reason\" IS NOT NULL)"
+          "value": "\"account_sessions\".\"status\" <> 'revoked' OR (\"account_sessions\".\"revoked_at\" IS NOT NULL AND \"account_sessions\".\"revocation_reason\" IS NOT NULL AND btrim(\"account_sessions\".\"revocation_reason\") <> '')"
         }
       },
       "isRLSEnabled": false

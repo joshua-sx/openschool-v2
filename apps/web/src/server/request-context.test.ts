@@ -45,6 +45,32 @@ describe('Tenant context selectors', () => {
     assert.deepEqual(readTenantContextSelectors(headers({}), cookies({})), {})
   })
 
+  it('falls back to selector cookies when selector headers are absent', () => {
+    assert.deepEqual(
+      readTenantContextSelectors(
+        headers({}),
+        cookies({
+          [CONTEXT_COOKIE_NAMES.tenantId]: 'cookie-tenant',
+          [CONTEXT_COOKIE_NAMES.schoolId]: 'cookie-school',
+        })
+      ),
+      { tenantId: 'cookie-tenant', schoolId: 'cookie-school' }
+    )
+  })
+
+  it('prefers the canonical organization header over its legacy alias', () => {
+    assert.deepEqual(
+      readTenantContextSelectors(
+        headers({
+          'x-education-organization-id': 'canonical-organization',
+          'x-org-id': 'alias-organization',
+        }),
+        cookies({})
+      ),
+      { educationOrganizationId: 'canonical-organization' }
+    )
+  })
+
   it('compares normalized origins and rejects missing or malformed origins', () => {
     assert.equal(isAllowedRequestOrigin('https://school.test', 'https://school.test/'), true)
     assert.equal(isAllowedRequestOrigin('https://school.test', 'https://other.test'), false)
