@@ -76,6 +76,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
+      ALLOW_SECURITY_POC: "true"
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/openschool
 
     steps:
@@ -103,3 +104,6 @@ jobs:
         run: |
           bun run db:migrate
           bun run db:seed
+
+      - name: Prove transaction-scoped RLS with real roles
+        run: bun run db:security-poc
