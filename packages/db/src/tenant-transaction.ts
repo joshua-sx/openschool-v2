@@ -101,6 +101,7 @@ export type TenantPlacementDenialReason =
   | 'TENANT_PLACEMENT_UNKNOWN'
   | 'TENANT_PLACEMENT_DISABLED'
   | 'TENANT_PLACEMENT_UNSUPPORTED'
+  | 'TENANT_SUSPENDED'
 
 export class TenantDatabaseError extends Error {
   constructor(
@@ -268,16 +269,18 @@ interface RuntimeRoleEvidence extends Record<string, unknown> {
   canInsertInvitationDelivery: boolean
   canUpdateInvitationDelivery: boolean
   canDeleteInvitationDelivery: boolean
-  canUseInvitationSchema: boolean
+  canUsePrivateSchema: boolean
   canCreateInInvitationSchema: boolean
   canExecuteInvitationAcceptance: boolean
   canExecuteIdentityRevocation: boolean
+  canExecuteTenantAdmission: boolean
   canAssumeMigrationRole: boolean
   canAssumeOtherExecutionRole: boolean
   canAssumeBackupRole: boolean
   canAssumeEmergencyRole: boolean
   canAssumeInvitationAcceptor: boolean
   canAssumeIdentityRevoker: boolean
+  canAssumeTenantAdmissionResolver: boolean
   operationalRolesExist: boolean
   hasUnsafeMembership: boolean
 }
@@ -334,10 +337,10 @@ async function assertSafeExecutionRole(
       has_table_privilege(current_user, 'public.invitation_delivery_outbox', 'DELETE')
         as "canDeleteInvitationDelivery",
       has_schema_privilege(current_user, 'openschool_private', 'USAGE')
-        as "canUseInvitationSchema",
+        as "canUsePrivateSchema",
       has_schema_privilege(current_user, 'openschool_private', 'CREATE')
         as "canCreateInInvitationSchema",
-      -- Resolve by catalog OID so the worker can prove denial without private-schema USAGE.
+      -- Resolve by catalog OID so safety checks do not depend on name lookup privileges.
       coalesce((
         select has_function_privilege(current_user, procedure.oid, 'EXECUTE')
         from pg_proc procedure
@@ -354,6 +357,14 @@ async function assertSafeExecutionRole(
           and procedure.proname = 'apply_identity_revocation'
           and procedure.proargtypes = '25 2950 25'::oidvector
       ), false) as "canExecuteIdentityRevocation",
+      coalesce((
+        select has_function_privilege(current_user, procedure.oid, 'EXECUTE')
+        from pg_proc procedure
+        inner join pg_namespace namespace on namespace.oid = procedure.pronamespace
+        where namespace.nspname = 'openschool_private'
+          and procedure.proname = 'resolve_tenant_admission_status'
+          and procedure.proargtypes = '2950'::oidvector
+      ), false) as "canExecuteTenantAdmission",
       exists (
         select 1 from pg_roles candidate
         where candidate.rolname = ${migrationUsername}
@@ -384,6 +395,11 @@ async function assertSafeExecutionRole(
         where candidate.rolname = 'openschool_identity_revoker'
           and pg_has_role(current_user, candidate.oid, 'member')
       ) as "canAssumeIdentityRevoker",
+      exists (
+        select 1 from pg_roles candidate
+        where candidate.rolname = 'openschool_tenant_admission_resolver'
+          and pg_has_role(current_user, candidate.oid, 'member')
+      ) as "canAssumeTenantAdmissionResolver",
       (
         select count(*) = 2
         from pg_roles candidate
@@ -427,16 +443,18 @@ async function assertSafeExecutionRole(
     evidence.canInsertInvitationDelivery !== !canProcessAuditOutbox ||
     evidence.canUpdateInvitationDelivery !== canProcessAuditOutbox ||
     evidence.canDeleteInvitationDelivery ||
-    evidence.canUseInvitationSchema !== !canProcessAuditOutbox ||
+    !evidence.canUsePrivateSchema ||
     evidence.canCreateInInvitationSchema ||
     evidence.canExecuteInvitationAcceptance !== !canProcessAuditOutbox ||
     evidence.canExecuteIdentityRevocation !== !canProcessAuditOutbox ||
+    !evidence.canExecuteTenantAdmission ||
     evidence.canAssumeMigrationRole ||
     evidence.canAssumeOtherExecutionRole ||
     evidence.canAssumeBackupRole ||
     evidence.canAssumeEmergencyRole ||
     evidence.canAssumeInvitationAcceptor ||
     evidence.canAssumeIdentityRevoker ||
+    evidence.canAssumeTenantAdmissionResolver ||
     !evidence.operationalRolesExist ||
     evidence.hasUnsafeMembership
   ) {
@@ -579,6 +597,17 @@ async function assertActivePooledPlacement(
   transaction: DatabaseTransaction,
   tenantId: string
 ): Promise<void> {
+  const tenantAdmission = await transaction.execute<
+    Record<string, unknown> & { status: string | null }
+  >(sql`select openschool_private.resolve_tenant_admission_status(${tenantId}::uuid) as status`)
+  const tenantStatus = tenantAdmission[0]?.status
+  if (tenantStatus === null || tenantStatus === undefined) {
+    deny('TENANT_PLACEMENT_UNKNOWN', 'Tenant placement is not configured')
+  }
+  if (tenantStatus !== 'active') {
+    deny('TENANT_SUSPENDED', 'Tenant is not active')
+  }
+
   const [placement] = await transaction
     .select({
       adapter: tenantPlacements.adapter,

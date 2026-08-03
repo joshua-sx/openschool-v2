@@ -64,6 +64,7 @@ function context(overrides: Partial<PolicyContext>): PolicyContext {
 
 function databaseContext(policyContext: PolicyContext): TenantDatabaseContext {
   assert.ok(policyContext.tenantId)
+  assert.ok(policyContext.personId)
   return {
     accountId: policyContext.accountId,
     personId: policyContext.personId,

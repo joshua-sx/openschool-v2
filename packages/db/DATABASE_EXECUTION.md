@@ -10,11 +10,15 @@ OpenSchool separates schema ownership from product and background execution:
 | `DATABASE_RUNTIME_ROLE` | non-secret role-separation assertion | fixed `openschool_runtime` role used by named RLS policies |
 | `DATABASE_WORKER_URL` | explicitly typed Tenant jobs | distinct login with the same safety attributes and narrower table grants |
 | `DATABASE_WORKER_ROLE` | non-secret role-separation assertion | fixed `openschool_worker` role used by named RLS policies |
-| `openschool_backup` | future restore delegation | `NOLOGIN`; never granted to runtime or worker |
-| `openschool_emergency` | future controlled break-glass delegation | `NOLOGIN`; never granted to runtime or worker |
+| `DATABASE_CONTROL_PLANE_URL` | global platform administration | fixed non-owner login with no direct table grants; only reviewed private control-plane functions are executable |
+| `DATABASE_CONTROL_PLANE_ROLE` | non-secret role-separation assertion | fixed `openschool_control_plane` role, distinct from every Tenant execution identity |
+| `openschool_backup` | future restore delegation | `NOLOGIN`; never granted to an execution identity |
+| `openschool_emergency` | future controlled break-glass delegation | `NOLOGIN`; never granted to an execution identity |
 | `openschool_identity_revoker` | private Account/session/Affiliation/role transitions | `NOLOGIN`, `NOBYPASSRLS`; runtime may execute its reviewed function but cannot assume the role |
+| `openschool_platform_access_resolver` | global Account/session/grant resolution | `NOLOGIN`, `NOBYPASSRLS`; owns the read-only platform resolver |
+| `openschool_tenant_lifecycle_manager` | Tenant status plus platform audit/invalidation transaction | `NOLOGIN`, `NOBYPASSRLS`; owns the only lifecycle mutation function |
 
-Migration, runtime, and worker configuration are parsed separately so the web process never needs the owner or worker credential. Local validation/provisioning rejects reused database usernames. Runtime startup also checks the connected PostgreSQL role, ownership, schema creation, truncation, privileged memberships, and the configured migration-role relationship before exposing an operation callback.
+Migration, runtime, worker, and control-plane configuration are parsed separately so the web process never needs the owner or worker credential. Local validation/provisioning rejects reused database usernames. Runtime/control-plane startup also checks the connected PostgreSQL role, ownership, schema creation, direct table grants, function execution, and privileged memberships before exposing an operation callback.
 
 ## Transaction interfaces
 
@@ -22,6 +26,7 @@ Migration, runtime, and worker configuration are parsed separately so the web pr
 - `withTenantTransaction` validates canonical Account, Person, Tenant, session, organization, School, assurance, and request context. It resolves the exact active pooled Tenant Placement before invoking product code.
 - `withPolicyTenantTransaction` additionally binds the allowed capability, policy version, and one to sixteen same-Tenant query constraints for database enforcement.
 - `withWorkerTenantTransaction` requires a Tenant, job ID, job type, and request ID and uses the separately credentialed worker pool.
+- `resolvePlatformDatabaseContext` and `withPlatformPolicyTransaction` use the no-table-access control-plane pool. They can execute only reviewed private functions and never expose a general global database handle.
 
 During identity bootstrap, `bindIdentityTenantResolutionContext` can narrow the same transaction only to assignment-derived Schools or guardian-linked Students. It cannot grant writes or general Tenant scope. See [the first forced-RLS slice](./STUDENT_RLS.md).
 
@@ -29,9 +34,9 @@ Every context value is parameterized through `set_config(..., true)` inside the 
 
 ## Grants and provisioning
 
-`db:provision-roles` is a guarded, loopback-only development/CI provisioner. Its `identities` phase creates or rotates the named roles before migrations containing explicit `TO` clauses. Its `grants` phase resets runtime/worker table and schema privileges after migration and applies the reviewed minimum. Production roles must be created by controlled infrastructure using the same contract; this local script intentionally refuses remote databases.
+`db:provision-roles` is a guarded, loopback-only development/CI provisioner. Its `identities` phase creates or rotates the named roles before migrations containing explicit `TO` clauses. Its `grants` phase resets runtime, worker, and control-plane table/schema privileges after migration and applies the reviewed minimum. Production roles must be created by controlled infrastructure using the same contract; this local script intentionally refuses remote databases.
 
-Every new product table or operation requires an explicit grant review. Identity lifecycle changes use column-level grants held by `openschool_identity_revoker`; runtime receives only `EXECUTE` on the private function, while worker receives neither execution nor role membership. Do not add `GRANT ... ON ALL TABLES`, schema `CREATE`, table ownership, `BYPASSRLS`, a service-role credential, or migration-role membership to runtime infrastructure.
+Every new product table or operation requires an explicit grant review. Identity lifecycle changes use column-level grants held by `openschool_identity_revoker`; runtime receives only `EXECUTE` on the private function, while worker receives neither execution nor role membership. Platform lifecycle changes use separate column-level grants held by the two platform `NOLOGIN` owners; the control-plane login receives only private-function execution and no product-table grant. Do not add `GRANT ... ON ALL TABLES`, schema `CREATE`, table ownership, `BYPASSRLS`, a service-role credential, or migration-role membership to application infrastructure.
 
 ## Reviewed raw SQL allowlist
 
@@ -45,6 +50,6 @@ The `db:boundary-check` CI gate scans tracked TypeScript under `apps`, `packages
 
 ## Evidence and rollback
 
-`db:execution-poc` runs through real runtime and worker logins. It proves role separation and grants, private identity-revocation execution boundaries, unknown-placement denial before the operation, identity/Tenant/worker settings, cleanup after commit/rollback/SQL error, reuse of the same physical session, and queued work through an exhausted one-connection pool. `db:student-rls-poc` adds forced-policy, scope, write, side-channel, and query-plan evidence for the first slice.
+`db:execution-poc` runs through real runtime and worker logins. It proves role separation and grants, private identity-revocation execution boundaries, unknown-placement denial before the operation, identity/Tenant/worker settings, cleanup after commit/rollback/SQL error, reuse of the same physical session, and queued work through an exhausted one-connection pool. `db:student-rls-poc` adds forced-policy, scope, write, side-channel, and query-plan evidence for the first slice. `platform:tenant-lifecycle-poc` proves the isolated control-plane login, MFA/reauthentication, concurrent suspension linearization, runtime/worker denial, unaffected-Tenant continuity, audit/outbox rollback, reactivation, and grant revocation.
 
 The application may disable the School/Student slice with `OPENSCHOOL_STUDENT_SLICE_MODE=disabled`. Owner or service-role application access is not an accepted rollback path. Platform-wide RLS remains #90; atomic audit/outbox work remains #88.

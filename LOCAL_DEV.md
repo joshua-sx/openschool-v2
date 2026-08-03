@@ -33,9 +33,11 @@ The supported variables are:
 | `DATABASE_MIGRATION_URL` | server only | Schema-owner migration, seed, and recovery connection; never used by the app |
 | `DATABASE_MIGRATION_ROLE` | server only, non-secret | Expected owner role name used by runtime safety assertions |
 | `DATABASE_RUNTIME_URL` | server only | Non-owner request and identity-bootstrap connection |
-| `DATABASE_RUNTIME_ROLE` | server only, non-secret | Expected runtime role name used for three-way role separation |
+| `DATABASE_RUNTIME_ROLE` | server only, non-secret | Expected runtime role name used for four-way role separation |
 | `DATABASE_WORKER_URL` | server only | Separately credentialed non-owner background-work connection |
-| `DATABASE_WORKER_ROLE` | server only, non-secret | Expected worker role name used for three-way role separation |
+| `DATABASE_WORKER_ROLE` | server only, non-secret | Expected worker role name used for four-way role separation |
+| `DATABASE_CONTROL_PLANE_URL` | server only | Isolated platform-administration connection with no direct product-table access |
+| `DATABASE_CONTROL_PLANE_ROLE` | server only, non-secret | Fixed control-plane role used for four-way execution-role separation |
 | `OPENSCHOOL_STUDENT_SLICE_MODE` | server only | `forced_rls` enables the reviewed slice; `disabled` is the fail-closed rollback switch |
 | `OPENSCHOOL_POLICY_VERSION` | server only | Optional accepted capability-policy rollback version; an unknown value fails closed |
 | `SUPABASE_SECRET_KEY` | server only | Supabase administrative MFA and invitation-delivery adapter; never expose to the browser |
@@ -84,7 +86,7 @@ bun run db:seed
 ALLOW_ROLE_PROVISIONING=true ROLE_PROVISIONING_PHASE=grants bun run db:provision-roles
 ```
 
-Role provisioning is idempotent, refuses non-loopback databases, verifies every URL username against its non-secret role assertion, and creates the fixed `openschool_runtime` and `openschool_worker` logins from `.env.local`. The `identities` phase must run before named-role RLS migrations; the `grants` phase resets and reapplies the reviewed privileges after migrations. Production credentials require separately controlled infrastructure and must not reuse these development passwords. The web process needs only the runtime URL, role assertions, and slice mode; do not inject the migration or worker URL into it.
+Role provisioning is idempotent, refuses non-loopback databases, verifies every URL username against its non-secret role assertion, and creates the fixed `openschool_runtime`, `openschool_worker`, and `openschool_control_plane` logins from `.env.local`. The `identities` phase must run before named-role RLS migrations; the `grants` phase resets and reapplies the reviewed privileges after migrations. Production credentials require separately controlled infrastructure and must not reuse these development passwords. The web process may receive the runtime and control-plane URLs plus role assertions; do not inject the migration or worker URL into it. Only platform-administration code may import the control-plane transaction seam.
 
 The seed is idempotent and creates two Tenants with pooled placements; a ministry, board, network, district, and second-Tenant hierarchy; three Schools spanning primary, secondary, and all-through profiles; organization and School roles; classes, students, enrollments, a parent relationship, and a representative grade. Seeded user records are application fixtures; they are not login identities in Supabase Auth.
 

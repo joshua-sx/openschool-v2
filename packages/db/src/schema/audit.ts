@@ -52,8 +52,15 @@ export type AuditLog = typeof auditLogs.$inferSelect
 export type NewAuditLog = typeof auditLogs.$inferInsert
 
 export const AUDIT_OUTCOMES = ['attempted', 'succeeded', 'denied', 'failed'] as const
-export const AUDIT_ACTOR_TYPES = ['account', 'worker', 'system', 'support'] as const
-export const AUDIT_SOURCES = ['web', 'worker', 'migration', 'support', 'system'] as const
+export const AUDIT_ACTOR_TYPES = ['account', 'worker', 'system', 'support', 'platform'] as const
+export const AUDIT_SOURCES = [
+  'web',
+  'worker',
+  'migration',
+  'support',
+  'system',
+  'platform',
+] as const
 export const AUDIT_RETENTION_CLASSES = [
   'operational',
   'security',
@@ -162,11 +169,11 @@ export const auditEvents = pgTable(
     ),
     check(
       'audit_events_actor_type_check',
-      sql`${table.actorType} IN ('account', 'worker', 'system', 'support')`
+      sql`${table.actorType} IN ('account', 'worker', 'system', 'support', 'platform')`
     ),
     check(
       'audit_events_source_check',
-      sql`${table.source} IN ('web', 'worker', 'migration', 'support', 'system')`
+      sql`${table.source} IN ('web', 'worker', 'migration', 'support', 'system', 'platform')`
     ),
     check(
       'audit_events_retention_check',
@@ -182,11 +189,11 @@ export const auditEvents = pgTable(
     ),
     check(
       'audit_events_account_actor_check',
-      sql`(${table.actorType} NOT IN ('account', 'support')) OR (${table.actorAccountId} IS NOT NULL AND ${table.actorPersonId} IS NOT NULL)`
+      sql`(${table.actorType} NOT IN ('account', 'support', 'platform')) OR (${table.actorAccountId} IS NOT NULL AND (${table.actorType} = 'platform' OR ${table.actorPersonId} IS NOT NULL))`
     ),
     check(
       'audit_events_support_context_check',
-      sql`(${table.actorType} = 'support' AND ${table.supportGrantId} IS NOT NULL AND ${table.purpose} IS NOT NULL AND ${table.source} = 'support') OR (${table.actorType} <> 'support' AND ${table.supportGrantId} IS NULL)`
+      sql`(${table.actorType} = 'support' AND ${table.supportGrantId} IS NOT NULL AND ${table.purpose} IS NOT NULL AND ${table.source} = 'support') OR (${table.actorType} <> 'support' AND ${table.supportGrantId} IS NULL AND (${table.actorType} <> 'platform' OR (${table.actorPersonId} IS NULL AND ${table.source} = 'platform')))`
     ),
     check('audit_events_content_hash_check', sql`${table.contentHash} ~ '^[0-9a-f]{64}$'`),
     pgPolicy('audit_events_runtime_select', {

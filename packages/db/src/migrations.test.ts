@@ -243,4 +243,44 @@ describe('database migration baseline', () => {
       false
     )
   })
+
+  it('installs an isolated platform grant store and atomic Tenant lifecycle authority', () => {
+    const migration = readFileSync(join(migrationsDirectory, '0023_cloudy_blue_shield.sql'), 'utf8')
+    for (const expected of [
+      'CREATE TABLE "platform_access_grants"',
+      'platform_access_grants_no_active_overlap',
+      'Platform Access Grant anchors are immutable',
+      'resolve_tenant_admission_status',
+      'resolve_platform_access',
+      'apply_tenant_lifecycle',
+      'SECURITY DEFINER',
+      "session_user <> 'openschool_control_plane'",
+      "current_user <> 'openschool_tenant_lifecycle_manager'",
+      "current_setting('app.platform_access_grant_id', true)",
+      "'security.context.invalidate'",
+      'audit_events_platform_lifecycle_insert',
+      'audit_outbox_platform_lifecycle_insert',
+      "CHECK (\"actor_type\" IN ('account', 'worker', 'system', 'support', 'platform')) NOT VALID",
+      'VALIDATE CONSTRAINT "audit_events_actor_type_check"',
+      'VALIDATE CONSTRAINT "audit_events_source_check"',
+      'VALIDATE CONSTRAINT "audit_events_account_actor_check"',
+      'VALIDATE CONSTRAINT "audit_events_support_context_check"',
+      'OWNER TO "openschool_platform_access_resolver"',
+      'OWNER TO "openschool_tenant_admission_resolver"',
+      'OWNER TO "openschool_tenant_lifecycle_manager"',
+      'TO "openschool_control_plane"',
+      'REVOKE ALL ON TABLE public.platform_access_grants',
+      'TO "openschool_runtime", "openschool_worker"',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+    assert.equal(
+      migration.includes('GRANT SELECT ON TABLE public.tenants TO "openschool_control_plane"'),
+      false
+    )
+    assert.equal(
+      migration.includes('GRANT UPDATE ON TABLE public.tenants TO "openschool_control_plane"'),
+      false
+    )
+  })
 })

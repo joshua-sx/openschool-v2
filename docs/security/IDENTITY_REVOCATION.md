@@ -1,6 +1,6 @@
 # Privileged MFA and identity revocation
 
-This runbook covers the Tenant-administrator portion of story #101: recent-authentication evidence, self-service TOTP, Account and session lifecycle controls, Affiliation and role revocation, audit evidence, and local access invalidation. It does not authorize platform Tenant suspension or support access. Those operations require a separately verified platform-access store and control-plane audit actor so a Tenant role can never become a platform role.
+This runbook covers the Tenant-administrator portion of story #101: recent-authentication evidence, self-service TOTP, Account and session lifecycle controls, Affiliation and role revocation, audit evidence, and local access invalidation. Platform Tenant suspension is governed separately by [Platform Tenant lifecycle control plane](./PLATFORM_TENANT_LIFECYCLE.md). Neither path authorizes support access.
 
 ## Security boundary
 
@@ -54,9 +54,7 @@ Passkeys are not part of this control because the current provider capability is
 
 ## Tenant suspension boundary
 
-The Tenant Request Context checks current Tenant status before consulting its bounded cache, so an already-suspended Tenant is denied on the next request. This slice intentionally exposes no Tenant-suspension route: the current canonical context is Tenant-scoped, while `platform.tenants.manage` requires separately verified platform access. Granting suspension to an organization or School administrator would be a privilege escalation.
-
-Completing story #101 therefore still requires a control-plane identity store, platform request/transaction context, platform Audit Ledger actor, narrow Tenant lifecycle authority, and live proofs that platform roles have no implicit Tenant data access. Story #102 can then add tenant-approved support grants without reusing platform control-plane authority as a data-access bypass.
+Tenant suspension now uses a separately credentialed control plane, global effective-dated access grants, a platform Policy Context with no Person, a narrow private lifecycle authority, and a platform Audit actor. Runtime and worker transactions use a separate fixed admission function to recheck and lock current Tenant status before product work without receiving Tenant update authority. Organization and School roles cannot cross into that control plane, and platform roles still receive no implicit Tenant data access. See the dedicated runbook for bootstrap, operation, proof, and rollback rules.
 
 ## Verification
 
@@ -75,7 +73,8 @@ The proof covers MFA and recent-login denials, rollback on a simulated audit fai
 - [ ] Provider MFA reconciliation consumes or alerts on pending `account.mfa` invalidations.
 - [ ] Security invalidation publishing meets the approved latency objective across every application node.
 - [ ] Audit failure, stale-context race, provider outage, and shared-Account recovery drills pass.
-- [ ] Platform Tenant suspension and story #102 support/break-glass controls are complete.
+- [x] Platform Tenant suspension has a separate access store, database role, atomic lifecycle authority, and guarded real-role proof.
+- [ ] Story #102 support/break-glass controls are complete.
 - [ ] Accessibility testing covers keyboard, screen reader, zoom, mobile, and authenticator recovery flows.
 
 Safe rollback may hide new MFA enrollment UI or pause new lifecycle operations. It must not weaken existing MFA/recent-auth obligations, re-enable direct runtime mutation, ignore local session/version state, delete audit evidence, or accept stale JWT authorization.

@@ -199,7 +199,7 @@ const currentBundle = createPolicyBundle({
       key: 'super_admin',
       description: 'Operates the OpenSchool platform without implicit Tenant data access.',
       grants: grants('super_admin', [
-        [CAPABILITIES.PLATFORM_TENANTS_READ, SCOPES.PLATFORM, [audit('platform.tenant.read')]],
+        [CAPABILITIES.PLATFORM_TENANTS_READ, SCOPES.PLATFORM, [mfa, audit('platform.tenant.read')]],
         [
           CAPABILITIES.PLATFORM_TENANTS_MANAGE,
           SCOPES.PLATFORM,

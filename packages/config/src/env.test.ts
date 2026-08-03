@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { EnvironmentValidationError, parsePublicEnv } from './public'
 import {
+  parseControlPlaneEnv,
   parseInvitationDeliveryEnv,
   parseMigrationEnv,
   parseOpenSignupAllowed,
@@ -19,9 +20,11 @@ const validPublicEnv = {
   DATABASE_MIGRATION_URL: 'postgresql://should-not-be-public',
   DATABASE_RUNTIME_URL: 'postgresql://should-not-be-public',
   DATABASE_WORKER_URL: 'postgresql://should-not-be-public',
+  DATABASE_CONTROL_PLANE_URL: 'postgresql://should-not-be-public',
   DATABASE_MIGRATION_ROLE: 'should-not-be-public',
   DATABASE_RUNTIME_ROLE: 'should-not-be-public',
   DATABASE_WORKER_ROLE: 'should-not-be-public',
+  DATABASE_CONTROL_PLANE_ROLE: 'should-not-be-public',
 }
 
 describe('public environment validation', () => {
@@ -37,9 +40,11 @@ describe('public environment validation', () => {
     assert.equal('DATABASE_MIGRATION_URL' in parsed, false)
     assert.equal('DATABASE_RUNTIME_URL' in parsed, false)
     assert.equal('DATABASE_WORKER_URL' in parsed, false)
+    assert.equal('DATABASE_CONTROL_PLANE_URL' in parsed, false)
     assert.equal('DATABASE_MIGRATION_ROLE' in parsed, false)
     assert.equal('DATABASE_RUNTIME_ROLE' in parsed, false)
     assert.equal('DATABASE_WORKER_ROLE' in parsed, false)
+    assert.equal('DATABASE_CONTROL_PLANE_ROLE' in parsed, false)
   })
 
   it('reports a missing variable by name', () => {
@@ -113,12 +118,14 @@ describe('server environment validation', () => {
         DATABASE_MIGRATION_ROLE: 'migration',
         DATABASE_RUNTIME_ROLE: 'openschool_runtime',
         DATABASE_WORKER_ROLE: 'openschool_worker',
+        DATABASE_CONTROL_PLANE_ROLE: 'openschool_control_plane',
       }),
       {
         DATABASE_RUNTIME_URL: 'postgresql://openschool_runtime:secret@localhost:5432/db',
         DATABASE_MIGRATION_ROLE: 'migration',
         DATABASE_RUNTIME_ROLE: 'openschool_runtime',
         DATABASE_WORKER_ROLE: 'openschool_worker',
+        DATABASE_CONTROL_PLANE_ROLE: 'openschool_control_plane',
       }
     )
   })
@@ -130,7 +137,7 @@ describe('server environment validation', () => {
     )
   })
 
-  it('requires distinct migration, runtime, and worker roles', () => {
+  it('requires distinct migration, runtime, worker, and control-plane roles', () => {
     assert.throws(
       () =>
         parseServerEnv({
@@ -138,8 +145,9 @@ describe('server environment validation', () => {
           DATABASE_MIGRATION_ROLE: 'owner',
           DATABASE_RUNTIME_ROLE: 'openschool_runtime',
           DATABASE_WORKER_ROLE: 'owner',
+          DATABASE_CONTROL_PLANE_ROLE: 'openschool_control_plane',
         }),
-      /migration, runtime, and worker database roles must be distinct/
+      /migration, runtime, worker, and control-plane database roles must be distinct/
     )
   })
 
@@ -150,12 +158,14 @@ describe('server environment validation', () => {
         DATABASE_MIGRATION_ROLE: 'migration',
         DATABASE_RUNTIME_ROLE: 'openschool_runtime',
         DATABASE_WORKER_ROLE: 'openschool_worker',
+        DATABASE_CONTROL_PLANE_ROLE: 'openschool_control_plane',
       }),
       {
         DATABASE_WORKER_URL: 'postgresql://openschool_worker:secret@localhost:5432/db',
         DATABASE_MIGRATION_ROLE: 'migration',
         DATABASE_RUNTIME_ROLE: 'openschool_runtime',
         DATABASE_WORKER_ROLE: 'openschool_worker',
+        DATABASE_CONTROL_PLANE_ROLE: 'openschool_control_plane',
       }
     )
   })
@@ -168,8 +178,28 @@ describe('server environment validation', () => {
           DATABASE_MIGRATION_ROLE: 'migration',
           DATABASE_RUNTIME_ROLE: 'openschool_runtime',
           DATABASE_WORKER_ROLE: 'openschool_worker',
+          DATABASE_CONTROL_PLANE_ROLE: 'openschool_control_plane',
         }),
       /DATABASE_WORKER_URL: username must match the DATABASE_WORKER_ROLE assertion/
+    )
+  })
+
+  it('validates the isolated control-plane role and URL', () => {
+    const source = {
+      DATABASE_CONTROL_PLANE_URL: 'postgresql://openschool_control_plane:secret@localhost:5432/db',
+      DATABASE_MIGRATION_ROLE: 'migration',
+      DATABASE_RUNTIME_ROLE: 'openschool_runtime',
+      DATABASE_WORKER_ROLE: 'openschool_worker',
+      DATABASE_CONTROL_PLANE_ROLE: 'openschool_control_plane',
+    }
+    assert.deepEqual(parseControlPlaneEnv(source), source)
+    assert.throws(
+      () =>
+        parseControlPlaneEnv({
+          ...source,
+          DATABASE_CONTROL_PLANE_URL: 'postgresql://openschool_runtime:secret@localhost:5432/db',
+        }),
+      /DATABASE_CONTROL_PLANE_URL: username must match the DATABASE_CONTROL_PLANE_ROLE assertion/
     )
   })
 

@@ -3,9 +3,11 @@
   "globalDependencies": [".env.local", ".env"],
   "globalEnv": [
     "DATABASE_RUNTIME_URL",
+    "DATABASE_CONTROL_PLANE_URL",
     "DATABASE_MIGRATION_ROLE",
     "DATABASE_RUNTIME_ROLE",
     "DATABASE_WORKER_ROLE",
+    "DATABASE_CONTROL_PLANE_ROLE",
     "OPENSCHOOL_STUDENT_SLICE_MODE",
     "OPENSCHOOL_POLICY_VERSION",
     "NEXT_PUBLIC_APP_URL",
@@ -51,7 +53,8 @@
         "DATABASE_MIGRATION_URL",
         "DATABASE_MIGRATION_ROLE",
         "DATABASE_RUNTIME_URL",
-        "DATABASE_WORKER_URL"
+        "DATABASE_WORKER_URL",
+        "DATABASE_CONTROL_PLANE_URL"
       ]
     },
     "db:execution-poc": {
@@ -145,6 +148,19 @@
         "DATABASE_MIGRATION_URL",
         "DATABASE_RUNTIME_URL",
         "OPENSCHOOL_POLICY_VERSION"
+      ]
+    },
+    "db:platform-tenant-lifecycle-poc": {
+      "cache": false,
+      "env": [
+        "ALLOW_DATABASE_EXECUTION_POC",
+        "ALLOW_PLATFORM_TENANT_LIFECYCLE_POC",
+        "DATABASE_MIGRATION_URL",
+        "DATABASE_MIGRATION_ROLE",
+        "DATABASE_RUNTIME_URL",
+        "DATABASE_WORKER_URL",
+        "DATABASE_CONTROL_PLANE_URL",
+        "DATABASE_CONTROL_PLANE_ROLE"
       ]
     },
     "db:prepare-upgrade-fixture": {
