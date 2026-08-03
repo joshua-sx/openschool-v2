@@ -488,7 +488,7 @@ export async function createStudent(
             ${normalized.studentNumber},
             ${normalized.email},
             ${normalized.normalizedEmail},
-            ${validFrom}::timestamp with time zone
+            ${validFrom.toISOString()}::timestamp with time zone
           )
         `)
         const row = rows[0]

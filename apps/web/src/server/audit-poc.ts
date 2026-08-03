@@ -226,7 +226,7 @@ async function runProof(): Promise<void> {
               null::text,
               null::text,
               null::text,
-              ${new Date()}::timestamp with time zone
+              ${new Date().toISOString()}::timestamp with time zone
             )
           `)
           await appendAuditEventInTransaction(transaction, faultContext, contextA, createDecision, {
