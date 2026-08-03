@@ -66,6 +66,11 @@ function retryDelayMs(attemptCount: number): number {
   return Math.min(15 * 60_000, 30_000 * 2 ** Math.max(0, attemptCount - 1))
 }
 
+export function resolveInvitationDeliveryCompletionTime(clock: () => Date, claimedAt: Date): Date {
+  const completedAt = clock()
+  return completedAt < claimedAt ? claimedAt : completedAt
+}
+
 function deliveryRedirect(appOrigin: string, token: string): string {
   const callback = new URL('/auth/callback', appOrigin)
   callback.searchParams.set('next', '/auth/invitation')
@@ -132,7 +137,7 @@ async function deliverOne(
       expiresAt: claimed.invitation.expiresAt,
     })
   } catch {
-    const failedAt = clock()
+    const failedAt = resolveInvitationDeliveryCompletionTime(clock, at)
     const deadLetter = claimed.delivery.attemptCount >= MAX_DELIVERY_ATTEMPTS
     await withWorkerTenantTransaction(context, (tx) =>
       completeInvitationDelivery(tx, {
@@ -152,7 +157,7 @@ async function deliverOne(
     return deadLetter ? 'dead_letter' : 'failed'
   }
 
-  const deliveredAt = clock()
+  const deliveredAt = resolveInvitationDeliveryCompletionTime(clock, at)
   await withWorkerTenantTransaction(context, (tx) =>
     completeInvitationDelivery(tx, {
       tenantId: context.tenantId,
