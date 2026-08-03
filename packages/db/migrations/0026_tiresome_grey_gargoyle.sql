@@ -1425,10 +1425,10 @@ BEGIN
 
   PERFORM set_config('app.tenant_id', p_tenant_id::text, true);
   PERFORM set_config('app.support_grant_id', p_support_grant_id::text, true);
-  SELECT support_account_id, platform_access_grant_id
+  SELECT support_grant.support_account_id, support_grant.platform_access_grant_id
   INTO target_support_account_id, target_platform_access_grant_id
-  FROM public.support_access_grants
-  WHERE tenant_id = p_tenant_id AND id = p_support_grant_id;
+  FROM public.support_access_grants AS support_grant
+  WHERE support_grant.tenant_id = p_tenant_id AND support_grant.id = p_support_grant_id;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'SUPPORT_ACCESS_DENIED' USING ERRCODE = '42501';
   END IF;
@@ -1642,10 +1642,10 @@ BEGIN
 
   PERFORM set_config('app.tenant_id', p_tenant_id::text, true);
   PERFORM set_config('app.support_grant_id', p_support_grant_id::text, true);
-  SELECT support_account_id, platform_access_grant_id
+  SELECT support_grant.support_account_id, support_grant.platform_access_grant_id
   INTO target_support_account_id, target_platform_access_grant_id
-  FROM public.support_access_grants
-  WHERE tenant_id = p_tenant_id AND id = p_support_grant_id;
+  FROM public.support_access_grants AS support_grant
+  WHERE support_grant.tenant_id = p_tenant_id AND support_grant.id = p_support_grant_id;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'SUPPORT_ACCESS_DENIED' USING ERRCODE = '42501';
   END IF;
