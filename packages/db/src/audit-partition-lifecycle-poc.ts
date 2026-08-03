@@ -97,13 +97,16 @@ async function exerciseNonDestructiveRecovery(admin: ReturnType<typeof postgres>
     Array<{
       canonical: number | string
       defaultRows: number | string
+      destinationHash: string
       quarantineGuards: number | string
+      sourceHash: string
       source: number | string
     }>
   >`
     select
       (select count(*) from recovery_events) as canonical,
       (select count(*) from recovery_default) as "defaultRows",
+      (select content_hash from recovery_events limit 1) as "destinationHash",
       (
         select count(*)
         from pg_trigger
@@ -114,16 +117,26 @@ async function exerciseNonDestructiveRecovery(admin: ReturnType<typeof postgres>
             'recovery_quarantine_delete_rejected'
           )
       ) as "quarantineGuards",
+      (select content_hash from recovery_quarantine limit 1) as "sourceHash",
       (select count(*) from recovery_quarantine) as source
   `
   assert.deepEqual(
     {
       canonical: Number(counts?.canonical),
       defaultRows: Number(counts?.defaultRows),
+      destinationHash: counts?.destinationHash,
       quarantineGuards: Number(counts?.quarantineGuards),
+      sourceHash: counts?.sourceHash,
       source: Number(counts?.source),
     },
-    { canonical: 1, defaultRows: 0, quarantineGuards: 2, source: 1 }
+    {
+      canonical: 1,
+      defaultRows: 0,
+      destinationHash: 'a'.repeat(64),
+      quarantineGuards: 2,
+      sourceHash: 'a'.repeat(64),
+      source: 1,
+    }
   )
   await assert.rejects(
     admin`update recovery_quarantine set content_hash = repeat('b', 64)`,
@@ -160,6 +173,20 @@ async function run(): Promise<void> {
     await admin.unsafe(`
       alter table audit_events detach partition audit_events_2026_q4;
       drop table audit_events_2026_q4;
+    `)
+
+    stage = 'prove an overlapping quarterly range is refused'
+    await admin.unsafe(`
+      create table audit_events_overlap_probe partition of audit_events
+        for values from ('2026-10-01T00:00:00Z') to ('2027-01-01T00:00:00Z');
+    `)
+    await assert.rejects(
+      maintainAuditPartitionHorizon(jobContext(), PROOF_HORIZON_DAYS),
+      (error: unknown) => sqlState(error) === '42P17'
+    )
+    await admin.unsafe(`
+      alter table audit_events detach partition audit_events_overlap_probe;
+      drop table audit_events_overlap_probe;
     `)
 
     stage = 'create and verify the missing partition through the real worker role'
@@ -245,7 +272,9 @@ async function run(): Promise<void> {
       createdPartitions: created.createdPartitions,
       horizonUntil: created.horizonUntil,
       defaultOccupancyAlert: 'critical',
+      overlappingRangeRefused: true,
       recoverySourcePreserved: true,
+      recoveryHashReconciled: true,
     })
   } catch (error) {
     failure = error
