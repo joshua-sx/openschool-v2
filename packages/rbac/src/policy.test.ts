@@ -298,22 +298,34 @@ describe('capability Policy Decisions', () => {
     )
   })
 
-  it('requires MFA for safeguarded Account administration and carries audit evidence', () => {
+  it('requires MFA and recent reauthentication for safeguarded Account administration', () => {
     const request = {
       capability: CAPABILITIES.ACCOUNTS_MANAGE,
       requestedScope: 'school',
       resource: { kind: 'account', tenantId: 'tenant-1', schoolId: 'school-1' },
     } as const
     assert.equal(decision(request).reason, 'MFA_REQUIRED')
+    assert.equal(
+      decision({
+        ...request,
+        context: context({ assuranceLevel: 'aal2' }),
+        attributes: { now: NOW },
+      }).reason,
+      'REAUTHENTICATION_REQUIRED'
+    )
 
     const allowed = decision({
       ...request,
-      context: context({ assuranceLevel: 'aal2' }),
+      context: context({
+        assuranceLevel: 'aal2',
+        authenticatedAt: '2026-08-02T11:58:00.000Z',
+      }),
+      attributes: { now: NOW },
     })
     assert.equal(allowed.effect, 'allow')
     assert.deepEqual(
       allowed.obligations.map(({ kind }) => kind),
-      ['mfa', 'audit']
+      ['mfa', 'reauthentication', 'audit']
     )
   })
 })

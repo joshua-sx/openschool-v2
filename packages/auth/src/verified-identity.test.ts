@@ -45,6 +45,24 @@ describe('verified Supabase identity', () => {
     assert.equal(Object.isFrozen(identity), true)
   })
 
+  it('uses signed AMR timestamps for reauthentication without trusting token refresh time', async () => {
+    const identity = await verifySupabaseIdentity(
+      verifier(
+        validClaims({
+          aal: 'aal2',
+          amr: [
+            { method: 'password', timestamp: NOW_SECONDS - 3_600 },
+            { method: 'totp', timestamp: NOW_SECONDS - 120 },
+            { method: 'token_refresh', timestamp: NOW_SECONDS - 10 },
+          ],
+        })
+      ),
+      NOW
+    )
+
+    assert.equal(identity.reauthenticatedAt, new Date((NOW_SECONDS - 120) * 1000).toISOString())
+  })
+
   it('distinguishes missing authentication from invalid verification', async () => {
     await assert.rejects(
       verifySupabaseIdentity(verifier(null), NOW),
@@ -84,6 +102,8 @@ describe('verified Supabase identity', () => {
       validClaims({ aud: 'service_role' }),
       validClaims({ session_id: null }),
       validClaims({ aal: 'aal3' }),
+      validClaims({ amr: [{ method: 'totp', timestamp: 'recent' }] }),
+      validClaims({ amr: [{ method: 'totp', timestamp: NOW_SECONDS + 120 }] }),
     ]
 
     for (const claims of cases) {

@@ -56,4 +56,13 @@ describe('Policy Context adapter', () => {
     const policyContext = toPolicyContext(requestContext, identity)
     assert.equal(policyContext.authenticatedAt, undefined)
   })
+
+  it('preserves verified interactive reauthentication evidence', () => {
+    const policyContext = toPolicyContext(requestContext, {
+      ...identity,
+      reauthenticatedAt: '2026-08-02T11:58:00.000Z',
+    })
+
+    assert.equal(policyContext.authenticatedAt, '2026-08-02T11:58:00.000Z')
+  })
 })

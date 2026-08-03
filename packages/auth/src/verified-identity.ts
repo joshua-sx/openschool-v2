@@ -6,6 +6,8 @@ export interface VerifiedAccountIdentity {
   sessionId: string
   email: string | null
   assuranceLevel: AssuranceLevel
+  /** Newest verified interactive authentication method from the signed AMR claim. */
+  reauthenticatedAt?: string
   issuedAt: string
   expiresAt: string
 }
@@ -44,6 +46,46 @@ function numericClaim(claims: Record<string, unknown>, name: string): number {
     throw new IdentityVerificationError('TOKEN_INVALID', `Verified token is missing ${name}`)
   }
   return value
+}
+
+function verifiedInteractiveAuthenticationAt(
+  value: unknown,
+  expiresAtSeconds: number,
+  nowSeconds: number
+): string | undefined {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) {
+    throw new IdentityVerificationError('TOKEN_INVALID', 'Verified token has an invalid amr claim')
+  }
+
+  let newestTimestamp: number | undefined
+  for (const entry of value) {
+    if (typeof entry !== 'object' || entry === null) {
+      throw new IdentityVerificationError(
+        'TOKEN_INVALID',
+        'Verified token has an invalid amr entry'
+      )
+    }
+    const { method, timestamp } = entry as Record<string, unknown>
+    if (
+      typeof method !== 'string' ||
+      method.length === 0 ||
+      !Number.isSafeInteger(timestamp) ||
+      (timestamp as number) <= 0 ||
+      (timestamp as number) > nowSeconds + 60 ||
+      (timestamp as number) >= expiresAtSeconds
+    ) {
+      throw new IdentityVerificationError(
+        'TOKEN_INVALID',
+        'Verified token has an invalid amr entry'
+      )
+    }
+    if (method !== 'token_refresh') {
+      newestTimestamp = Math.max(newestTimestamp ?? 0, timestamp as number)
+    }
+  }
+
+  return newestTimestamp === undefined ? undefined : new Date(newestTimestamp * 1000).toISOString()
 }
 
 /**
@@ -101,12 +143,19 @@ export async function verifySupabaseIdentity(
     throw new IdentityVerificationError('TOKEN_INVALID', 'Verified token claims are not acceptable')
   }
 
+  const reauthenticatedAt = verifiedInteractiveAuthenticationAt(
+    claims.amr,
+    expiresAtSeconds,
+    nowSeconds
+  )
+
   return Object.freeze({
     provider: 'supabase',
     subject,
     sessionId,
     email: typeof claims.email === 'string' ? claims.email : null,
     assuranceLevel,
+    ...(reauthenticatedAt ? { reauthenticatedAt } : {}),
     issuedAt: new Date(issuedAtSeconds * 1000).toISOString(),
     expiresAt: new Date(expiresAtSeconds * 1000).toISOString(),
   })
