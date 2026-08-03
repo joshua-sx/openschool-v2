@@ -1251,10 +1251,7 @@ DECLARE
   context_policy_version text := nullif(current_setting('app.policy_version', true), '');
   context_reauthenticated_at timestamp with time zone;
   resolved_at timestamp with time zone := statement_timestamp();
-  resolved_account public.accounts%ROWTYPE;
-  resolved_session public.account_sessions%ROWTYPE;
-  resolved_platform_grant public.platform_access_grants%ROWTYPE;
-  resolved_grant public.support_access_grants%ROWTYPE;
+  resolved record;
   expected_role text;
   exact_constraints jsonb;
   use_operation_id uuid := gen_random_uuid();
@@ -1287,8 +1284,28 @@ BEGIN
   PERFORM set_config('app.tenant_id', p_tenant_id::text, true);
   PERFORM set_config('app.support_grant_id', p_support_grant_id::text, true);
 
-  SELECT account, account_session, platform_grant, support_grant
-  INTO resolved_account, resolved_session, resolved_platform_grant, resolved_grant
+  SELECT
+    account.id AS account_id,
+    account.security_version AS account_security_version,
+    account_session.id AS account_session_id,
+    account_session.assurance_level AS assurance_level,
+    account_session.reauthenticated_at AS session_reauthenticated_at,
+    account_session.expires_at AS session_expires_at,
+    platform_grant.id AS platform_grant_id,
+    platform_grant.role_template_key AS platform_role_template_key,
+    platform_grant.valid_until AS platform_valid_until,
+    support_grant.id AS support_grant_id,
+    support_grant.kind AS support_kind,
+    support_grant.status AS support_status,
+    support_grant.scope_type AS support_scope_type,
+    support_grant.tenant_id AS support_tenant_id,
+    support_grant.education_organization_id AS support_organization_id,
+    support_grant.school_id AS support_school_id,
+    support_grant.purpose AS support_purpose,
+    support_grant.allowed_capabilities AS allowed_capabilities,
+    support_grant.bound_account_session_id AS bound_account_session_id,
+    support_grant.valid_until AS support_valid_until
+  INTO resolved
   FROM public.support_access_grants AS support_grant
   INNER JOIN public.accounts AS account
     ON account.id = support_grant.support_account_id
@@ -1323,49 +1340,49 @@ BEGIN
     RAISE EXCEPTION 'SUPPORT_ACCESS_DENIED' USING ERRCODE = '42501';
   END IF;
 
-  expected_role := CASE resolved_grant.kind
+  expected_role := CASE resolved.support_kind
     WHEN 'support' THEN 'support_agent'
     WHEN 'break_glass' THEN 'break_glass_operator'
     ELSE NULL
   END;
-  IF expected_role IS NULL OR resolved_platform_grant.role_template_key <> expected_role THEN
+  IF expected_role IS NULL OR resolved.platform_role_template_key <> expected_role THEN
     RAISE EXCEPTION 'SUPPORT_ACCESS_DENIED' USING ERRCODE = '42501';
   END IF;
-  IF resolved_grant.status = 'active'
-    AND resolved_grant.bound_account_session_id <> resolved_session.id
+  IF resolved.support_status = 'active'
+    AND resolved.bound_account_session_id <> resolved.account_session_id
   THEN
     RAISE EXCEPTION 'SUPPORT_ACCESS_SESSION_REUSED' USING ERRCODE = '42501';
   END IF;
 
-  exact_constraints := CASE resolved_grant.scope_type
+  exact_constraints := CASE resolved.support_scope_type
     WHEN 'tenant' THEN jsonb_build_array(jsonb_build_object(
-      'kind', 'tenant', 'tenantId', resolved_grant.tenant_id
+      'kind', 'tenant', 'tenantId', resolved.support_tenant_id
     ))
     WHEN 'organization_subtree' THEN jsonb_build_array(jsonb_build_object(
-      'kind', 'organization_subtree', 'tenantId', resolved_grant.tenant_id,
-      'ancestorOrganizationId', resolved_grant.education_organization_id
+      'kind', 'organization_subtree', 'tenantId', resolved.support_tenant_id,
+      'ancestorOrganizationId', resolved.support_organization_id
     ))
     WHEN 'school' THEN jsonb_build_array(jsonb_build_object(
-      'kind', 'school', 'tenantId', resolved_grant.tenant_id,
-      'schoolId', resolved_grant.school_id
+      'kind', 'school', 'tenantId', resolved.support_tenant_id,
+      'schoolId', resolved.support_school_id
     ))
   END;
 
-  PERFORM set_config('app.account_id', resolved_account.id::text, true);
+  PERFORM set_config('app.account_id', resolved.account_id::text, true);
   PERFORM set_config('app.person_id', '', true);
-  IF resolved_grant.status = 'approved' THEN
+  IF resolved.support_status = 'approved' THEN
     UPDATE public.support_access_grants
-    SET status = 'active', bound_account_session_id = resolved_session.id,
+    SET status = 'active', bound_account_session_id = resolved.account_session_id,
       opened_at = resolved_at, updated_at = resolved_at
     WHERE id = p_support_grant_id;
     PERFORM openschool_private.append_support_notification(
       p_tenant_id, p_support_grant_id, open_operation_id, 'opened',
-      resolved_account.id, resolved_at
+      resolved.account_id, resolved_at
     );
   END IF;
   PERFORM openschool_private.append_support_notification(
     p_tenant_id, p_support_grant_id, use_operation_id, 'used',
-    resolved_account.id, resolved_at
+    resolved.account_id, resolved_at
   );
 
   INSERT INTO public.audit_events (
@@ -1376,15 +1393,15 @@ BEGIN
     change_summary, purpose, source, retention_class, content_hash, created_at
   ) VALUES (
     event_id, resolved_at, 1, 'support.session.use.intent', 'attempted', p_tenant_id,
-    resolved_grant.education_organization_id, resolved_grant.school_id,
-    'support', resolved_account.id, NULL, p_capability, context_policy_version,
+    resolved.support_organization_id, resolved.support_school_id,
+    'support', resolved.account_id, NULL, p_capability, context_policy_version,
     jsonb_build_object('effect', 'allow', 'queryConstraints', exact_constraints),
     context_request_id, context_correlation_id, p_support_grant_id, 'support_session',
     use_operation_id::text,
     CASE WHEN p_capability = 'support.students.read'
       THEN '["student_personal"]'::jsonb ELSE '["internal"]'::jsonb END,
     jsonb_build_object('changedFields', jsonb_build_array('access')),
-    resolved_grant.purpose, 'support', 'security', 'pending', resolved_at
+    resolved.support_purpose, 'support', 'security', 'pending', resolved_at
   );
   INSERT INTO public.audit_outbox (
     id, tenant_id, audit_event_id, audit_event_occurred_at, topic,
@@ -1396,7 +1413,7 @@ BEGIN
     context_correlation_id,
     jsonb_build_object(
       'tenantId', p_tenant_id, 'requestId', context_request_id,
-      'correlationId', context_correlation_id, 'actorAccountId', resolved_account.id,
+      'correlationId', context_correlation_id, 'actorAccountId', resolved.account_id,
       'supportGrantId', p_support_grant_id
     ),
     jsonb_build_object(
@@ -1408,12 +1425,12 @@ BEGIN
   );
 
   RETURN QUERY SELECT
-    resolved_account.id, resolved_session.id, resolved_account.security_version,
-    resolved_platform_grant.id, resolved_platform_grant.role_template_key,
-    resolved_grant.id, resolved_grant.kind, resolved_grant.purpose,
-    resolved_grant.allowed_capabilities, exact_constraints,
-    resolved_session.assurance_level, resolved_session.reauthenticated_at,
-    least(resolved_session.expires_at, resolved_platform_grant.valid_until, resolved_grant.valid_until),
+    resolved.account_id, resolved.account_session_id, resolved.account_security_version,
+    resolved.platform_grant_id, resolved.platform_role_template_key,
+    resolved.support_grant_id, resolved.support_kind, resolved.support_purpose,
+    resolved.allowed_capabilities, exact_constraints,
+    resolved.assurance_level, resolved.session_reauthenticated_at,
+    least(resolved.session_expires_at, resolved.platform_valid_until, resolved.support_valid_until),
     use_operation_id;
 END;
 $$;--> statement-breakpoint
@@ -1443,9 +1460,7 @@ DECLARE
   context_policy_version text := nullif(current_setting('app.policy_version', true), '');
   context_reauthenticated_at timestamp with time zone;
   changed_at timestamp with time zone := statement_timestamp();
-  resolved_account public.accounts%ROWTYPE;
-  resolved_session public.account_sessions%ROWTYPE;
-  resolved_grant public.support_access_grants%ROWTYPE;
+  resolved record;
   operation_id uuid := gen_random_uuid();
   pending_notification_id uuid;
   event_id uuid := gen_random_uuid();
@@ -1474,8 +1489,12 @@ BEGIN
 
   PERFORM set_config('app.tenant_id', p_tenant_id::text, true);
   PERFORM set_config('app.support_grant_id', p_support_grant_id::text, true);
-  SELECT account, account_session, support_grant
-  INTO resolved_account, resolved_session, resolved_grant
+  SELECT
+    account.id AS account_id,
+    support_grant.education_organization_id AS support_organization_id,
+    support_grant.school_id AS support_school_id,
+    support_grant.purpose AS support_purpose
+  INTO resolved
   FROM public.support_access_grants AS support_grant
   INNER JOIN public.accounts AS account
     ON account.id = support_grant.support_account_id
@@ -1507,16 +1526,16 @@ BEGIN
     RAISE EXCEPTION 'SUPPORT_ACCESS_DENIED' USING ERRCODE = '42501';
   END IF;
 
-  PERFORM set_config('app.account_id', resolved_account.id::text, true);
+  PERFORM set_config('app.account_id', resolved.account_id::text, true);
   PERFORM set_config('app.person_id', '', true);
   UPDATE public.support_access_grants
   SET status = 'closed', closed_at = changed_at,
-    closed_by_account_id = resolved_account.id, closed_by_person_id = NULL,
+    closed_by_account_id = resolved.account_id, closed_by_person_id = NULL,
     close_reason = normalized_reason, review_status = 'pending', updated_at = changed_at
   WHERE id = p_support_grant_id;
   pending_notification_id := openschool_private.append_support_notification(
     p_tenant_id, p_support_grant_id, operation_id, 'closed',
-    resolved_account.id, changed_at
+    resolved.account_id, changed_at
   );
 
   INSERT INTO public.audit_events (
@@ -1527,13 +1546,13 @@ BEGIN
     change_summary, purpose, source, retention_class, content_hash, created_at
   ) VALUES (
     event_id, changed_at, 1, 'support.session.close', 'succeeded', p_tenant_id,
-    resolved_grant.education_organization_id, resolved_grant.school_id,
-    'support', resolved_account.id, NULL, 'support.sessions.use', context_policy_version,
+    resolved.support_organization_id, resolved.support_school_id,
+    'support', resolved.account_id, NULL, 'support.sessions.use', context_policy_version,
     jsonb_build_object('effect', 'allow'), context_request_id, context_correlation_id,
     p_support_grant_id, 'support_access_grant', p_support_grant_id::text,
     '["internal"]'::jsonb,
     jsonb_build_object('changedFields', jsonb_build_array('status')),
-    resolved_grant.purpose, 'support', 'security', 'pending', changed_at
+    resolved.support_purpose, 'support', 'security', 'pending', changed_at
   );
   INSERT INTO public.audit_outbox (
     id, tenant_id, audit_event_id, audit_event_occurred_at, topic,
@@ -1544,7 +1563,7 @@ BEGIN
     'support.session.close:' || p_support_grant_id::text, context_correlation_id,
     jsonb_build_object(
       'tenantId', p_tenant_id, 'requestId', context_request_id,
-      'correlationId', context_correlation_id, 'actorAccountId', resolved_account.id,
+      'correlationId', context_correlation_id, 'actorAccountId', resolved.account_id,
       'supportGrantId', p_support_grant_id
     ),
     jsonb_build_object(

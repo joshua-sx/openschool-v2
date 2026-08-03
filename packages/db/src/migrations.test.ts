@@ -382,5 +382,7 @@ describe('database migration baseline', () => {
     )
     assert.equal(migration.includes('CHECK (("audit_events".'), false)
     assert.equal(migration.includes('CHECK ("platform_access_grants".'), false)
+    assert.equal(migration.includes('SELECT account, account_session, platform_grant'), false)
+    assert.equal(migration.includes('SELECT account, account_session, support_grant'), false)
   })
 })
