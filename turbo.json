@@ -138,6 +138,15 @@
         "INVITATION_TOKEN_ENCRYPTION_KEYS"
       ]
     },
+    "identity:revocation-poc": {
+      "cache": false,
+      "env": [
+        "ALLOW_IDENTITY_REVOCATION_POC",
+        "DATABASE_MIGRATION_URL",
+        "DATABASE_RUNTIME_URL",
+        "OPENSCHOOL_POLICY_VERSION"
+      ]
+    },
     "db:prepare-upgrade-fixture": {
       "cache": false,
       "env": ["ALLOW_TENANT_FOUNDATION_POC", "DATABASE_MIGRATION_URL", "DATABASE_MIGRATION_ROLE"]
