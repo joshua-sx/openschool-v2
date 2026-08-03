@@ -303,7 +303,10 @@ async function loadAuthorizedStudents(
     .select({
       id: people.id,
       personId: people.id,
-      legacyStudentId: students.id,
+      legacyStudentId: sql<string>`coalesce(
+        ${studentProfiles.legacyStudentId},
+        ${schoolEnrollments.legacyStudentId}
+      )`,
       schoolEnrollmentId: schoolEnrollments.id,
       studentAffiliationId: schoolEnrollments.studentAffiliationId,
       tenantId: schoolEnrollments.tenantId,
@@ -387,7 +390,7 @@ async function loadAuthorizedStudents(
         eq(affiliations.schoolId, schoolEnrollments.schoolId)
       )
     )
-    .innerJoin(
+    .leftJoin(
       students,
       and(
         eq(students.tenantId, schoolEnrollments.tenantId),
