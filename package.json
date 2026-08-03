@@ -48,7 +48,7 @@
     "db:studio": "turbo run db:studio --filter=@openschool/db"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
+    "@biomejs/biome": "^2.5.6",
     "@openschool/config": "workspace:*",
     "@openschool/isolation": "workspace:*",
     "@types/node": "^20.19.33",
