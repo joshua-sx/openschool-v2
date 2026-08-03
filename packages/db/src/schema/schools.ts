@@ -13,6 +13,7 @@ import {
 } from 'drizzle-orm/pg-core'
 import { organizations } from './organizations'
 import { ENTITY_STATUS } from './status'
+import { STUDENT_ADMITTER_CAPABILITIES } from './student-policy-capabilities'
 import { tenants } from './tenancy'
 
 export const schools = pgTable(
@@ -94,6 +95,18 @@ export const schools = pgTable(
       for: 'select',
       to: 'openschool_worker',
       using: sql`${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid`,
+    }),
+    pgPolicy('schools_student_admitter_select', {
+      for: 'select',
+      to: 'openschool_student_admitter',
+      using: sql`
+        session_user = 'openschool_runtime'
+        AND current_user = 'openschool_student_admitter'
+        AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND nullif(current_setting('app.policy_capability', true), '')
+          IN (${STUDENT_ADMITTER_CAPABILITIES})
+        AND public.openschool_school_scope_allows(${table.tenantId}, ${table.id})
+      `,
     }),
     pgPolicy('schools_runtime_insert_deny', {
       for: 'insert',

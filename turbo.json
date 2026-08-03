@@ -165,6 +165,18 @@
         "OPENSCHOOL_POLICY_VERSION"
       ]
     },
+    "canonical:student-admission-poc": {
+      "cache": false,
+      "env": [
+        "ALLOW_CANONICAL_STUDENT_ADMISSION_POC",
+        "DATABASE_MIGRATION_URL",
+        "DATABASE_RUNTIME_URL",
+        "DATABASE_MIGRATION_ROLE",
+        "DATABASE_RUNTIME_ROLE",
+        "OPENSCHOOL_STUDENT_SLICE_MODE",
+        "OPENSCHOOL_POLICY_VERSION"
+      ]
+    },
     "provider:mfa-reconcile": {
       "cache": false,
       "env": [

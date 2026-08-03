@@ -33,6 +33,7 @@
     "invitation:onboarding-poc": "turbo run invitation:onboarding-poc --filter=web",
     "identity:revocation-poc": "turbo run identity:revocation-poc --filter=web",
     "api:isolation-poc": "turbo run api:isolation-poc --filter=web",
+    "canonical:student-admission-poc": "turbo run canonical:student-admission-poc --filter=web",
     "provider:mfa-reconcile": "turbo run provider:mfa-reconcile --filter=web",
     "platform:tenant-lifecycle-poc": "turbo run db:platform-tenant-lifecycle-poc --filter=@openschool/db",
     "support:access-poc": "turbo run db:support-access-poc --filter=@openschool/db",

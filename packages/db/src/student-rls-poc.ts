@@ -32,7 +32,6 @@ const UNKNOWN_ID = '00000000-0000-4000-8000-000000000499'
 const POLICY_VERSION = 'student-rls-poc.v1'
 const PROOF_RUN_ID = crypto.randomUUID()
 const PROOF_STUDENT_ACCOUNT = crypto.randomUUID()
-const PROOF_STUDENT_ID = crypto.randomUUID()
 const PROOF_EMAIL = `student-rls-${PROOF_RUN_ID}@proof.test`
 const PROOF_ACCOUNTS = [
   '00000000-0000-4000-8000-000000000201',
@@ -110,8 +109,11 @@ async function visibleStudentIds(transaction: DatabaseTransaction): Promise<stri
   )
 }
 
-async function visibleStudentCount(transaction: DatabaseTransaction): Promise<number> {
-  const [row] = await transaction.select({ count: sql<number>`count(*)::int` }).from(students)
+async function visibleProofStudentCount(transaction: DatabaseTransaction): Promise<number> {
+  const [row] = await transaction
+    .select({ count: sql<number>`count(*)::int` })
+    .from(students)
+    .where(eq(students.email, PROOF_EMAIL))
   return row?.count ?? 0
 }
 
@@ -173,11 +175,16 @@ async function provePolicyMetadata(admin: ReturnType<typeof createMigrationClien
       'schools_runtime_insert_deny',
       'schools_runtime_select',
       'schools_runtime_update_deny',
+      'schools_student_admitter_select',
       'schools_support_manager_select',
       'schools_worker_delete_deny',
       'schools_worker_insert_deny',
       'schools_worker_select',
       'schools_worker_update_deny',
+      'students_admitter_delete_deny',
+      'students_admitter_insert',
+      'students_admitter_select',
+      'students_admitter_update',
       'students_runtime_delete',
       'students_runtime_insert',
       'students_runtime_select',
@@ -328,7 +335,16 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
     assert.equal(organizationIds.includes(STUDENT_A_PRIMARY), true)
     assert.equal(organizationIds.includes(STUDENT_A_HIGH), true)
     assert.equal(organizationIds.includes(STUDENT_B), false)
-    assert.equal(organizationIds.length, 1102)
+    const organizationProofCount = await runtime.withPolicyTenantTransaction(
+      organizationAdmin,
+      policy('tenant.students.read', {
+        kind: 'organization_subtree',
+        tenantId: TENANT_A,
+        ancestorOrganizationId: TENANT_A,
+      }),
+      visibleProofStudentCount
+    )
+    assert.equal(organizationProofCount, 1100)
 
     const schoolPolicy = policy('tenant.students.read', {
       kind: 'school',
@@ -343,7 +359,12 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
     assert.equal(schoolIds.includes(STUDENT_A_PRIMARY), true)
     assert.equal(schoolIds.includes(STUDENT_A_HIGH), false)
     assert.equal(schoolIds.includes(STUDENT_B), false)
-    assert.equal(schoolIds.length, 101)
+    const schoolProofCount = await runtime.withPolicyTenantTransaction(
+      schoolAdmin,
+      schoolPolicy,
+      visibleProofStudentCount
+    )
+    assert.equal(schoolProofCount, 100)
 
     const teacherIds = await runtime.withPolicyTenantTransaction(
       teacher,
@@ -380,12 +401,12 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
     )
     assert.deepEqual(selfIds, [STUDENT_A_HIGH])
 
-    const tenantBCount = await runtime.withPolicyTenantTransaction(
+    const tenantBProofCount = await runtime.withPolicyTenantTransaction(
       tenantBAdmin,
       policy('tenant.students.read', { kind: 'tenant', tenantId: TENANT_B }),
-      visibleStudentCount
+      visibleProofStudentCount
     )
-    assert.equal(tenantBCount, 1001)
+    assert.equal(tenantBProofCount, 1000)
 
     const wrongTenantContext = { ...organizationAdmin, tenantId: TENANT_B }
     await assert.rejects(
@@ -410,7 +431,7 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
         .where(eq(students.id, UNKNOWN_ID))
         .limit(1)
       assert.deepEqual(knownSibling, unknown)
-      assert.equal(await visibleStudentCount(transaction), 101)
+      assert.equal(await visibleProofStudentCount(transaction), 100)
       const page = await transaction
         .select({ schoolId: students.schoolId, tenantId: students.tenantId })
         .from(students)
@@ -433,25 +454,8 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
       tenantId: TENANT_A,
       schoolId: SCHOOL_A_PRIMARY,
     })
-    const [created] = await runtime.withPolicyTenantTransaction(
-      schoolAdmin,
-      createPolicy,
-      (transaction) =>
-        transaction
-          .insert(students)
-          .values({
-            id: PROOF_STUDENT_ID,
-            tenantId: TENANT_A,
-            schoolId: SCHOOL_A_PRIMARY,
-            firstName: 'Forced',
-            lastName: 'RLS Proof',
-            email: PROOF_EMAIL,
-          })
-          .returning({ id: students.id })
-    )
-    assert.equal(created?.id, PROOF_STUDENT_ID)
-
     for (const target of [
+      { tenantId: TENANT_A, schoolId: SCHOOL_A_PRIMARY },
       { tenantId: TENANT_A, schoolId: SCHOOL_A_HIGH },
       { tenantId: TENANT_A, schoolId: UNKNOWN_ID },
       { tenantId: TENANT_B, schoolId: SCHOOL_B },
@@ -474,36 +478,12 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
       tenantId: TENANT_A,
       schoolId: SCHOOL_A_PRIMARY,
     })
-    const [updated] = await runtime.withPolicyTenantTransaction(
-      schoolAdmin,
-      updatePolicy,
-      (transaction) =>
-        transaction
-          .update(students)
-          .set({ firstName: 'Updated' })
-          .where(eq(students.id, PROOF_STUDENT_ID))
-          .returning({ firstName: students.firstName })
-    )
-    assert.equal(updated?.firstName, 'Updated')
-
-    const invisibleUpdates = await runtime.withPolicyTenantTransaction(
-      schoolAdmin,
-      updatePolicy,
-      (transaction) =>
-        transaction
-          .update(students)
-          .set({ firstName: 'Must not change' })
-          .where(inArray(students.id, [STUDENT_A_HIGH, STUDENT_B]))
-          .returning({ id: students.id })
-    )
-    assert.deepEqual(invisibleUpdates, [])
-
     await expectSqlState(
       runtime.withPolicyTenantTransaction(schoolAdmin, updatePolicy, (transaction) =>
         transaction
           .update(students)
-          .set({ schoolId: SCHOOL_A_HIGH })
-          .where(eq(students.id, PROOF_STUDENT_ID))
+          .set({ firstName: 'Direct write rejected' })
+          .where(eq(students.id, STUDENT_A_PRIMARY))
       ),
       '42501'
     )
@@ -532,26 +512,12 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
       tenantId: TENANT_A,
       schoolId: SCHOOL_A_PRIMARY,
     })
-    const invisibleDeletes = await runtime.withPolicyTenantTransaction(
-      schoolAdmin,
-      deletePolicy,
-      (transaction) =>
-        transaction
-          .delete(students)
-          .where(inArray(students.id, [STUDENT_A_HIGH, STUDENT_B]))
-          .returning({ id: students.id })
+    await expectSqlState(
+      runtime.withPolicyTenantTransaction(schoolAdmin, deletePolicy, (transaction) =>
+        transaction.delete(students).where(eq(students.id, STUDENT_A_PRIMARY))
+      ),
+      '42501'
     )
-    assert.deepEqual(invisibleDeletes, [])
-    const [deleted] = await runtime.withPolicyTenantTransaction(
-      schoolAdmin,
-      deletePolicy,
-      (transaction) =>
-        transaction
-          .delete(students)
-          .where(eq(students.id, PROOF_STUDENT_ID))
-          .returning({ id: students.id })
-    )
-    assert.equal(deleted?.id, PROOF_STUDENT_ID)
 
     const workerContext: WorkerDatabaseContext = {
       tenantId: TENANT_B,
@@ -559,7 +525,10 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
       jobType: 'student_rls_proof',
       requestId: REQUEST_ID,
     }
-    assert.equal(await worker.withWorkerTenantTransaction(workerContext, visibleStudentCount), 1001)
+    assert.equal(
+      await worker.withWorkerTenantTransaction(workerContext, visibleProofStudentCount),
+      1000
+    )
     await expectSqlState(
       worker.withWorkerTenantTransaction(workerContext, (transaction) =>
         transaction.insert(students).values({
@@ -573,7 +542,7 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
     )
 
     console.log(
-      `Student forced-RLS proof passed: named policies, no-context denial, omitted-predicate isolation, Organization/School/class/guardian/self scopes, probing/count/pagination resistance, positive and negative writes, worker limits, and ${String(executionTime)}ms indexed plan.`
+      `Student forced-RLS proof passed: named policies, no-context denial, omitted-predicate isolation, Organization/School/class/guardian/self scopes, probing/count/pagination resistance, direct-write denial, worker limits, and ${String(executionTime)}ms indexed plan.`
     )
   } finally {
     await Promise.allSettled([runtime.close(), worker.close(), rawRuntime.end({ timeout: 5 })])

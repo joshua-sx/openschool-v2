@@ -35,6 +35,9 @@ const SCHOOL_ADMIN_ACCOUNT = '00000000-0000-4000-8000-000000000202'
 const SCHOOL_ADMIN_PERSON = '00000000-0000-4000-8000-000000000902'
 const SCHOOL_A = '00000000-0000-4000-8000-000000000101'
 const SCHOOL_B = '00000000-0000-4000-8000-000000000102'
+const STUDENT_A = '00000000-0000-4000-8000-000000000401'
+const STUDENT_SIBLING_SCHOOL = '00000000-0000-4000-8000-000000000402'
+const STUDENT_OTHER_TENANT = '00000000-0000-4000-8000-000000000403'
 const PROOF_TIMEOUT_MS = 90_000
 
 interface VersionRow {
@@ -263,11 +266,27 @@ async function run(): Promise<void> {
         correlationId: crypto.randomUUID(),
       },
       (transaction) =>
-        transaction.execute<{ schoolId: string }>(sql`
-        select school_id as "schoolId" from students order by id
+        transaction.execute<{ id: string; schoolId: string }>(sql`
+        select id, school_id as "schoolId" from students order by id
       `)
     )
-    assert.deepEqual(studentRows, [{ schoolId: SCHOOL_A }])
+    assert.equal(
+      studentRows.some(({ id }) => id === STUDENT_A),
+      true
+    )
+    assert.equal(
+      studentRows.some(({ id }) => id === STUDENT_SIBLING_SCHOOL),
+      false
+    )
+    assert.equal(
+      studentRows.some(({ id }) => id === STUDENT_OTHER_TENANT),
+      false
+    )
+    assert.equal(studentRows.length > 0, true)
+    assert.equal(
+      studentRows.every(({ schoolId }) => schoolId === SCHOOL_A),
+      true
+    )
     await assert.rejects(
       withSupportPolicyTenantTransaction(
         { ...supportA, requestId: crypto.randomUUID() },

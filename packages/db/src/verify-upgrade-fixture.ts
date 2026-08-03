@@ -42,6 +42,8 @@ async function run(): Promise<void> {
         affiliations: number
         roleAssignments: number
         relationships: number
+        schoolEnrollments: number
+        compatibilityEvidence: number
       }>
     >`
       select
@@ -76,13 +78,16 @@ async function run(): Promise<void> {
         (select count(*)::int from identity_migration_events) as "migrationEvents",
         (select count(*)::int from affiliations) as affiliations,
         (select count(*)::int from role_template_assignments) as "roleAssignments",
-        (select count(*)::int from person_relationships) as relationships
+        (select count(*)::int from person_relationships) as relationships,
+        (select count(*)::int from school_enrollments) as "schoolEnrollments",
+        (select count(*)::int from student_compatibility_evidence) as "compatibilityEvidence"
     `
     assert.deepEqual(counts, {
       assignments: 3,
       accountLinks: 2,
       accounts: 2,
       affiliations: 6,
+      compatibilityEvidence: 2,
       missingTenantRows: 0,
       migrationEvents: 2,
       organizations: 2,
@@ -90,6 +95,7 @@ async function run(): Promise<void> {
       roleAssignments: 6,
       roots: 2,
       schools: 3,
+      schoolEnrollments: 2,
       studentPeople: 2,
       tenants: 2,
       userPeople: 2,
@@ -149,7 +155,7 @@ async function run(): Promise<void> {
     )
 
     console.log(
-      'Upgrade verification passed: legacy reads retained, Account and Tenant-scoped Person parity proven, non-login students preserved, and cross-Tenant identity links rejected.'
+      'Upgrade verification passed: canonical People, Student Profiles, School enrollments, and compatibility evidence preserve legacy parity while cross-Tenant identity links remain rejected.'
     )
   } finally {
     await client.end()

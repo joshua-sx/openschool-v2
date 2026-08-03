@@ -5,11 +5,11 @@ import { ISOLATION_EVIDENCE_IDS, ISOLATION_MATRIX, evaluateIsolationMatrixGate }
 const metadata = {
   commit: 'abc123',
   ciRun: 'local',
-  migration: '0027_audit_partition_lifecycle',
+  migration: '0028_greedy_ultimates',
   postgresVersion: '17.10',
   roleEvidenceDigest: 'a'.repeat(64),
   policyEvidenceDigest: 'b'.repeat(64),
-  planEvidence: { indexName: 'students_tenant_school_idx', executionTimeMs: 1.5 },
+  planEvidence: { indexName: 'school_enrollments_tenant_school_current_idx', executionTimeMs: 1.5 },
 } as const
 
 describe('Tenant Isolation Matrix gate', () => {
@@ -42,7 +42,7 @@ describe('Tenant Isolation Matrix gate', () => {
     assert.deepEqual(api?.missingNegativeEvidence, ['api_isolation'])
   })
 
-  it('requires both positive and negative contracts for every implemented M1 row', () => {
+  it('requires both positive and negative contracts for every implemented row', () => {
     for (const contract of ISOLATION_MATRIX) {
       if (contract.implementation === 'disabled') {
         assert.ok(contract.disabledReason)

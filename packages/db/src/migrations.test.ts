@@ -55,6 +55,28 @@ describe('database migration baseline', () => {
     }
   })
 
+  it('installs canonical learner admission with forced RLS and compatibility parity', () => {
+    const migration = readFileSync(join(migrationsDirectory, '0028_greedy_ultimates.sql'), 'utf8')
+    for (const expected of [
+      'CREATE TABLE "school_enrollments"',
+      'CREATE TABLE "student_compatibility_evidence"',
+      'ALTER TABLE "school_enrollments" FORCE ROW LEVEL SECURITY',
+      'ALTER TABLE "student_compatibility_evidence" FORCE ROW LEVEL SECURITY',
+      'school_enrollments_primary_no_active_overlap',
+      'openschool_canonical_student_scope_allows',
+      'openschool_validate_school_enrollment',
+      'student_compatibility_evidence_append_only',
+      'openschool_private"."admit_canonical_student',
+      'openschool_private"."update_canonical_student',
+      'OWNER TO "openschool_student_admitter"',
+      'REVOKE INSERT, UPDATE, DELETE ON TABLE "students" FROM "openschool_runtime"',
+      'CANONICAL_STUDENT_ADMISSION_CONTEXT_INVALID',
+      'STUDENT_COMPATIBILITY_LINK_MISMATCH',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+  })
+
   it('installs a partitioned append-only Audit Ledger and guarded outbox', () => {
     const migration = readFileSync(
       join(migrationsDirectory, '0015_atomic_audit_outbox.sql'),

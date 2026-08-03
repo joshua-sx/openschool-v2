@@ -25,6 +25,7 @@ const SCHOOL_B = '00000000-0000-4000-8000-000000000103'
 const STUDENT_A_PRIMARY = '00000000-0000-4000-8000-000000000401'
 const STUDENT_A_HIGH = '00000000-0000-4000-8000-000000000402'
 const STUDENT_B = '00000000-0000-4000-8000-000000000403'
+const PERSON_STUDENT_A_HIGH = '00000000-0000-4000-8000-000000000912'
 const PROOF_STUDENT_ACCOUNT = '00000000-0000-4000-8000-000000000209'
 const PROOF_STUDENT_PERSON = '00000000-0000-4000-8000-000000000912'
 const PROOF_RUN_ID = crypto.randomUUID()
@@ -180,7 +181,8 @@ async function runProof(): Promise<void> {
   assert.equal(teacherSchoolWide.effect, 'deny')
   assert.equal(teacherSchoolWide.reason, 'SCOPE_NOT_GRANTED')
   assert.equal(
-    (await getStudentById(databaseContext(teacher), teacher, teacherStudents, STUDENT_A_HIGH))?.id,
+    (await getStudentById(databaseContext(teacher), teacher, teacherStudents, STUDENT_A_HIGH))
+      ?.legacyStudentId,
     STUDENT_A_HIGH
   )
   assert.equal(
@@ -190,7 +192,7 @@ async function runProof(): Promise<void> {
   assert.deepEqual(
     (
       await getStudentsBySchool(databaseContext(teacher), teacher, teacherStudents, SCHOOL_A_HIGH)
-    ).map(({ id }) => id),
+    ).map(({ legacyStudentId }) => legacyStudentId),
     [STUDENT_A_HIGH]
   )
   assert.deepEqual(
@@ -210,7 +212,7 @@ async function runProof(): Promise<void> {
   })
   assert.equal(
     (await getStudentById(databaseContext(guardian), guardian, guardianStudents, STUDENT_A_HIGH))
-      ?.id,
+      ?.legacyStudentId,
     STUDENT_A_HIGH
   )
   assert.equal(
@@ -230,7 +232,7 @@ async function runProof(): Promise<void> {
   })
   assert.equal(
     (await getStudentById(databaseContext(student), student, selfStudents, STUDENT_A_HIGH))?.id,
-    STUDENT_A_HIGH
+    PERSON_STUDENT_A_HIGH
   )
   assert.equal(
     await getStudentById(databaseContext(student), student, selfStudents, STUDENT_A_PRIMARY),

@@ -14,6 +14,7 @@ import { appRouter } from './routers'
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]'])
 const F = ISOLATION_FIXTURES
+const PERSON_A_PRIMARY = '00000000-0000-4000-8000-000000000911'
 const PROOF_RUN_ID = crypto.randomUUID()
 const SESSION_IDS = [
   `api-isolation-${PROOF_RUN_ID}-organization-admin`,
@@ -156,10 +157,11 @@ async function run(): Promise<void> {
       (await schoolCaller.schools.getById({ schoolId: F.schoolAPrimary })).id,
       F.schoolAPrimary
     )
-    assert.equal(
-      (await schoolCaller.students.getById({ studentId: F.studentAPrimary })).id,
-      F.studentAPrimary
-    )
+    const primaryStudent = await schoolCaller.students.getById({
+      studentId: F.studentAPrimary,
+    })
+    assert.equal(primaryStudent.id, PERSON_A_PRIMARY)
+    assert.equal(primaryStudent.legacyStudentId, F.studentAPrimary)
 
     const [knownSiblingSchool, crossTenantSchool, unknownSchool] = await Promise.all([
       trpcFailure(schoolCaller.schools.getById({ schoolId: F.schoolAHigh })),
@@ -183,7 +185,7 @@ async function run(): Promise<void> {
       schoolCaller.students.getBySchool({ schoolId: F.schoolB }),
     ])
     assert.equal(
-      sameScopeBatch.some(({ id }) => id === F.studentAPrimary),
+      sameScopeBatch.some(({ legacyStudentId }) => legacyStudentId === F.studentAPrimary),
       true
     )
     assert.deepEqual(siblingBatch, [])

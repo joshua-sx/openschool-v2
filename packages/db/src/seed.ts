@@ -20,8 +20,10 @@ import {
   people,
   personRelationships,
   roleTemplateAssignments,
+  schoolEnrollments,
   schoolGovernanceAssignments,
   schools,
+  studentCompatibilityEvidence,
   studentProfiles,
   students,
   teacherProfiles,
@@ -724,6 +726,79 @@ const seed = {
       issuanceReason: 'Representative identity foundation fixture',
     },
   ] satisfies Array<typeof personRelationships.$inferInsert>,
+  schoolEnrollments: [
+    ['1001', HORIZON_TENANT_ID, '911', '101', '961', '401'],
+    ['1002', HORIZON_TENANT_ID, '912', '102', '962', '402'],
+    ['1003', ISLAND_TENANT_ID, '913', '103', '963', '403'],
+  ].map(
+    ([
+      enrollmentSuffix,
+      tenantId,
+      personSuffix,
+      schoolSuffix,
+      affiliationSuffix,
+      studentSuffix,
+    ]) => ({
+      id: `00000000-0000-4000-8000-00000000${enrollmentSuffix}`,
+      tenantId,
+      personId: `00000000-0000-4000-8000-000000000${personSuffix}`,
+      schoolId: `00000000-0000-4000-8000-000000000${schoolSuffix}`,
+      studentAffiliationId: `00000000-0000-4000-8000-000000000${affiliationSuffix}`,
+      legacyStudentId: `00000000-0000-4000-8000-000000000${studentSuffix}`,
+      enrollmentType: 'primary' as const,
+      status: 'enrolled' as const,
+      validFrom: new Date('2026-01-01T00:00:00Z'),
+      admissionReason: 'Representative canonical SIS fixture',
+      source: 'legacy_backfill' as const,
+    })
+  ) satisfies Array<typeof schoolEnrollments.$inferInsert>,
+  studentCompatibilityEvidence: [
+    ['1101', HORIZON_TENANT_ID, '911', '101', '1001', '961', '401', 'Mia', 'Morgan', 'HPS-0001'],
+    ['1102', HORIZON_TENANT_ID, '912', '102', '1002', '962', '402', 'Noah', 'Brown', 'HHS-0001'],
+    ['1103', ISLAND_TENANT_ID, '913', '103', '1003', '963', '403', 'Ava', 'Martinez', 'ICS-0001'],
+  ].map(
+    ([
+      evidenceSuffix,
+      tenantId,
+      personSuffix,
+      schoolSuffix,
+      enrollmentSuffix,
+      affiliationSuffix,
+      studentSuffix,
+      firstName,
+      lastName,
+      studentNumber,
+    ]) => {
+      const snapshot = {
+        firstName,
+        lastName,
+        dateOfBirth:
+          studentSuffix === '401'
+            ? '2016-03-12'
+            : studentSuffix === '402'
+              ? '2011-06-24'
+              : '2014-01-08',
+        studentNumber,
+        email: null,
+        schoolId: `00000000-0000-4000-8000-000000000${schoolSuffix}`,
+      }
+      return {
+        id: `00000000-0000-4000-8000-00000000${evidenceSuffix}`,
+        tenantId,
+        personId: `00000000-0000-4000-8000-000000000${personSuffix}`,
+        schoolId: `00000000-0000-4000-8000-000000000${schoolSuffix}`,
+        schoolEnrollmentId: `00000000-0000-4000-8000-00000000${enrollmentSuffix}`,
+        studentAffiliationId: `00000000-0000-4000-8000-000000000${affiliationSuffix}`,
+        legacyStudentId: `00000000-0000-4000-8000-000000000${studentSuffix}`,
+        operation: 'backfill' as const,
+        parityStatus: 'matched' as const,
+        canonicalSnapshot: snapshot,
+        legacySnapshot: snapshot,
+        requestId: `seed:student:${studentSuffix}`,
+        recordedAt: new Date('2026-01-01T00:00:00Z'),
+      }
+    }
+  ) satisfies Array<typeof studentCompatibilityEvidence.$inferInsert>,
   identityMigrationEvents: [
     ['941', '921', HORIZON_TENANT_ID, '201', '901'],
     ['942', '922', HORIZON_TENANT_ID, '202', '902'],
@@ -935,6 +1010,12 @@ try {
         .values(row)
         .onConflictDoUpdate({ target: personRelationships.id, set: valuesWithoutId(row) })
     }
+    for (const row of seed.schoolEnrollments) {
+      await tx.insert(schoolEnrollments).values(row).onConflictDoNothing()
+    }
+    for (const row of seed.studentCompatibilityEvidence) {
+      await tx.insert(studentCompatibilityEvidence).values(row).onConflictDoNothing()
+    }
     for (const row of seed.identityMigrationEvents) {
       await tx.insert(identityMigrationEvents).values(row).onConflictDoNothing()
     }
@@ -1086,6 +1167,24 @@ try {
         seed.personRelationships.map(({ id }) => id)
       )
     )
+  const seededSchoolEnrollments = await db
+    .select({ id: schoolEnrollments.id })
+    .from(schoolEnrollments)
+    .where(
+      inArray(
+        schoolEnrollments.id,
+        seed.schoolEnrollments.map(({ id }) => id)
+      )
+    )
+  const seededCompatibilityEvidence = await db
+    .select({ id: studentCompatibilityEvidence.id })
+    .from(studentCompatibilityEvidence)
+    .where(
+      inArray(
+        studentCompatibilityEvidence.id,
+        seed.studentCompatibilityEvidence.map(({ id }) => id)
+      )
+    )
 
   assertCount('tenants', seededTenants.length, seed.tenants.length)
   assertCount('organizations', seededOrganizations.length, seed.organizations.length)
@@ -1115,6 +1214,12 @@ try {
     seed.roleTemplateAssignments.length
   )
   assertCount('Person relationships', seededRelationships.length, seed.personRelationships.length)
+  assertCount('School enrollments', seededSchoolEnrollments.length, seed.schoolEnrollments.length)
+  assertCount(
+    'Student compatibility evidence',
+    seededCompatibilityEvidence.length,
+    seed.studentCompatibilityEvidence.length
+  )
 
   console.log(
     `Seed verified: ${seededTenants.length} tenants, ` +
@@ -1122,7 +1227,8 @@ try {
       `${seededSchools.length} schools, ` +
       `${seededUsers.length} accounts, ${seededPeople.length} people, ` +
       `${seededStudents.length} students without required login, ` +
-      `${seededAffiliations.length} effective affiliations.`
+      `${seededAffiliations.length} effective affiliations, ` +
+      `${seededSchoolEnrollments.length} canonical School enrollments.`
   )
 } finally {
   await sql.end()

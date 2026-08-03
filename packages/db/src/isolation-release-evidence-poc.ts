@@ -89,7 +89,7 @@ async function run(): Promise<void> {
       readFileSync(new URL('../migrations/meta/_journal.json', import.meta.url), 'utf8')
     ) as { entries?: Array<{ tag?: string }> }
     const migration = journal.entries?.at(-1)?.tag
-    assert.equal(migration, '0027_audit_partition_lifecycle')
+    assert.equal(migration, '0028_greedy_ultimates')
 
     const roles = await admin.execute<RoleDefinition>(sql`
       select
@@ -109,6 +109,7 @@ async function run(): Promise<void> {
       getServerEnv().DATABASE_WORKER_ROLE,
       getServerEnv().DATABASE_CONTROL_PLANE_ROLE,
       'openschool_audit_partition_manager',
+      'openschool_student_admitter',
     ]) {
       assert.equal(
         roles.some(({ name }) => name === requiredRole),
@@ -184,20 +185,30 @@ async function run(): Promise<void> {
         await transaction.execute(sql`set local enable_seqscan = off`)
         const result = await transaction.execute<Record<string, unknown>>(sql`
           explain (analyze, buffers, format json)
-          select id
-          from students
+          select person_id
+          from school_enrollments
           where tenant_id = ${F.tenantA}::uuid
             and school_id = ${F.schoolAPrimary}::uuid
-            and status = 'active'
+            and status = 'enrolled'
+          order by valid_from, valid_until, person_id
           limit 50
         `)
         return planDocument(result[0]?.['QUERY PLAN'])
       }
     )
     const indexNames = [...collectIndexNames(plan)].sort()
-    assert.equal(indexNames.includes('students_tenant_school_idx'), true)
+    const expectedIndexName = 'school_enrollments_tenant_school_current_idx'
+    assert.equal(
+      indexNames.includes(expectedIndexName),
+      true,
+      `Expected ${expectedIndexName}; observed indexes: ${indexNames.join(', ') || 'none'}`
+    )
     const executionTimeMs = plan['Execution Time']
     assert.equal(typeof executionTimeMs, 'number')
+    assert.ok(
+      (executionTimeMs as number) < 1000,
+      `Canonical enrollment query took ${String(executionTimeMs)}ms`
+    )
 
     const evidence = Object.freeze({
       metadata: Object.freeze({
@@ -208,7 +219,7 @@ async function run(): Promise<void> {
         roleEvidenceDigest: sha256(roles),
         policyEvidenceDigest: sha256(policies),
         planEvidence: Object.freeze({
-          indexName: 'students_tenant_school_idx',
+          indexName: expectedIndexName,
           executionTimeMs,
         }),
       }),
