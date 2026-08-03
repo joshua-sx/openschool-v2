@@ -123,6 +123,7 @@ describe('database migration baseline', () => {
       'ENROLLMENT_TRANSITION_UNAVAILABLE',
       'OWNER TO "openschool_student_admitter"',
       'REVOKE INSERT, UPDATE, DELETE ON "school_enrollment_transition_events"',
+      'GRANT INSERT, UPDATE ON "school_enrollment_transition_events"',
     ]) {
       assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
     }

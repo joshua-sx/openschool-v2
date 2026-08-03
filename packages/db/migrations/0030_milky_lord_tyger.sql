@@ -152,7 +152,7 @@ GRANT SELECT ON
   "accounts", "account_links", "organization_tree_versions",
   "school_enrollment_transition_events"
   TO "openschool_student_admitter";--> statement-breakpoint
-GRANT INSERT ON "school_enrollment_transition_events"
+GRANT INSERT, UPDATE ON "school_enrollment_transition_events"
   TO "openschool_student_admitter";--> statement-breakpoint
 GRANT UPDATE ("valid_until", "end_reason", "end_evidence_reference", "ended_by_account_id", "ended_at", "version", "updated_at")
   ON "school_enrollments" TO "openschool_student_admitter";--> statement-breakpoint
