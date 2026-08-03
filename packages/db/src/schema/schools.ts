@@ -70,7 +70,9 @@ export const schools = pgTable(
           OR (
             nullif(current_setting('app.policy_capability', true), '')
               IN (
-                'tenant.schools.read', 'tenant.students.create',
+                'tenant.schools.read',
+                'tenant.students.create', 'tenant.students.read',
+                'tenant.students.update', 'tenant.students.delete',
                 'support.schools.read', 'support.students.read',
                 'tenant.accounts.invite', 'tenant.accounts.manage',
                 'tenant.academic_structure.read', 'tenant.academic_structure.manage',

@@ -150,6 +150,18 @@ describe('database migration baseline', () => {
     }
   })
 
+  it('allows student capabilities to resolve schools for canonical learner reads', () => {
+    const migration = readFileSync(join(migrationsDirectory, '0032_flaky_speedball.sql'), 'utf8')
+    for (const expected of [
+      'ALTER POLICY "schools_runtime_select"',
+      "'tenant.students.create', 'tenant.students.read'",
+      "'tenant.students.update', 'tenant.students.delete'",
+      'public.openschool_school_scope_allows',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+  })
+
   it('installs a partitioned append-only Audit Ledger and guarded outbox', () => {
     const migration = readFileSync(
       join(migrationsDirectory, '0015_atomic_audit_outbox.sql'),

@@ -66,7 +66,7 @@ function fallbackMetadata(): IsolationReleaseMetadata {
   return {
     commit: process.env.GITHUB_SHA ?? 'local-uncommitted',
     ciRun: process.env.GITHUB_RUN_ID ?? 'local',
-    migration: '0031_curved_rumiko_fujikawa',
+    migration: '0032_flaky_speedball',
     postgresVersion: 'not-recorded',
     roleEvidenceDigest: '0'.repeat(64),
     policyEvidenceDigest: '0'.repeat(64),
