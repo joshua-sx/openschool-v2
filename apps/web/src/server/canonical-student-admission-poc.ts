@@ -244,6 +244,9 @@ async function runProof(): Promise<void> {
     )
     assert.equal(updated.email, 'updated.canonical@example.test')
     assert.equal(updated.parityStatus, 'matched')
+    assert.equal('displayName' in updated, false)
+    assert.equal('normalizedDisplayName' in updated, false)
+    assert.equal('normalizedEmail' in updated, false)
 
     const evidence = await admin
       .select({ operation: studentCompatibilityEvidence.operation })

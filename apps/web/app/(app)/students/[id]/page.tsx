@@ -87,7 +87,7 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
     setFieldErrors(errors)
     setServerError(null)
     const firstError = firstStudentFormError(errors)
-    if (firstError && firstError !== 'schoolId') {
+    if (firstError) {
       fields.current[firstError]?.focus()
       return
     }

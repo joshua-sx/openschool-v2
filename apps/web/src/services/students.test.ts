@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { validateStudentData, validateStudentUpdateData } from './students'
+import { TRPCError } from '@trpc/server'
+import {
+  normalizeStudentMutationError,
+  validateStudentData,
+  validateStudentUpdateData,
+} from './students'
 
 describe('student validation', () => {
   it('requires names when validating a complete student record', () => {
@@ -38,5 +43,15 @@ describe('student validation', () => {
     assert.deepEqual(validateStudentUpdateData({ dateOfBirth: '2999-01-01' }), [
       { field: 'dateOfBirth', message: 'Date of birth cannot be in the future' },
     ])
+  })
+
+  it('maps alphanumeric PostgreSQL exclusion errors to a stable conflict', () => {
+    const normalized = normalizeStudentMutationError({ cause: { code: '23P01' } })
+    assert.ok(normalized instanceof TRPCError)
+    assert.equal(normalized.code, 'CONFLICT')
+    assert.equal(
+      normalized.message,
+      'A learner with this student number or active enrollment already exists'
+    )
   })
 })

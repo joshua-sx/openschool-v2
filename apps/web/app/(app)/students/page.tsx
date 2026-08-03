@@ -28,7 +28,7 @@ export default function StudentsPage() {
     if (!query) return true
     return (
       `${student.firstName} ${student.lastName}`.toLocaleLowerCase().includes(query) ||
-      student.studentNumber?.toLocaleLowerCase().includes(query)
+      (student.studentNumber?.toLocaleLowerCase().includes(query) ?? false)
     )
   })
 
@@ -114,9 +114,9 @@ export default function StudentsPage() {
 
       <div
         className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
-        aria-busy={studentsLoading}
+        aria-busy={schoolsLoading || studentsLoading}
       >
-        {studentsLoading ? (
+        {schoolsLoading || studentsLoading ? (
           <output className="flex items-center justify-center py-12">
             <Loader2 aria-hidden="true" className="h-6 w-6 animate-spin text-gray-400" />
             <span className="ml-2 text-gray-500">Loading learners…</span>

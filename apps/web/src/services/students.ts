@@ -213,7 +213,7 @@ function databaseErrorCode(error: unknown): string | null {
     if (!current || typeof current !== 'object' || visited.has(current)) return null
     visited.add(current)
     const candidate = current as { cause?: unknown; code?: unknown }
-    if (typeof candidate.code === 'string' && /^\d{5}$/.test(candidate.code)) {
+    if (typeof candidate.code === 'string' && /^[0-9A-Z]{5}$/.test(candidate.code)) {
       return candidate.code
     }
     current = candidate.cause
@@ -221,7 +221,7 @@ function databaseErrorCode(error: unknown): string | null {
   return null
 }
 
-function normalizeStudentMutationError(error: unknown): unknown {
+export function normalizeStudentMutationError(error: unknown): unknown {
   if (error instanceof TRPCError) return error
   const code = databaseErrorCode(error)
   if (code === '23505' || code === '23P01') {
@@ -592,7 +592,11 @@ export async function updateStudent(
         const updatedAt = new Date(row.occurredAt)
         const updated: CanonicalStudent = Object.freeze({
           ...existing,
-          ...normalized,
+          firstName: normalized.firstName,
+          lastName: normalized.lastName,
+          dateOfBirth: normalized.dateOfBirth,
+          studentNumber: normalized.studentNumber,
+          email: normalized.email,
           parityStatus: 'matched',
           updatedAt,
         })

@@ -36,4 +36,60 @@ describe('student form validation', () => {
       { dateOfBirth: 'Date of birth cannot be in the future' }
     )
   })
+
+  it('compares dates against the local calendar day', () => {
+    const now = new Date(2026, 0, 2, 23, 30)
+    assert.deepEqual(
+      validateStudentForm(
+        { ...complete, dateOfBirth: '2026-01-02' },
+        { now, requireSchool: false }
+      ),
+      {}
+    )
+    assert.deepEqual(
+      validateStudentForm(
+        { ...complete, dateOfBirth: '2026-01-03' },
+        { now, requireSchool: false }
+      ),
+      { dateOfBirth: 'Date of birth cannot be in the future' }
+    )
+  })
+
+  it('enforces name, student number, and email length boundaries', () => {
+    const emailAtLimit = `${'a'.repeat(314)}@b.com`
+    const emailOverLimit = `${'a'.repeat(315)}@b.com`
+    assert.equal(emailAtLimit.length, 320)
+    assert.equal(emailOverLimit.length, 321)
+    assert.deepEqual(
+      validateStudentForm(
+        {
+          ...complete,
+          firstName: 'a'.repeat(100),
+          lastName: 'b'.repeat(100),
+          studentNumber: 'c'.repeat(64),
+          email: emailAtLimit,
+        },
+        { requireSchool: false }
+      ),
+      {}
+    )
+    assert.deepEqual(
+      validateStudentForm(
+        {
+          ...complete,
+          firstName: 'a'.repeat(101),
+          lastName: 'b'.repeat(101),
+          studentNumber: 'c'.repeat(65),
+          email: emailOverLimit,
+        },
+        { requireSchool: false }
+      ),
+      {
+        firstName: 'Use 100 characters or fewer',
+        lastName: 'Use 100 characters or fewer',
+        studentNumber: 'Use 64 characters or fewer',
+        email: 'Use 320 characters or fewer',
+      }
+    )
+  })
 })

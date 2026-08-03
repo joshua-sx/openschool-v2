@@ -27,9 +27,16 @@ function dateOnlyIsValid(value: string): boolean {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
 }
 
+function localDateOnly(value: Date): string {
+  const year = value.getFullYear()
+  const month = `${value.getMonth() + 1}`.padStart(2, '0')
+  const day = `${value.getDate()}`.padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export function validateStudentForm(
   data: StudentFormData,
-  options: { requireSchool: boolean }
+  options: { now?: Date; requireSchool: boolean }
 ): StudentFormErrors {
   const errors: StudentFormErrors = {}
   const firstName = data.firstName.normalize('NFKC').trim()
@@ -46,12 +53,12 @@ export function validateStudentForm(
   if (data.dateOfBirth) {
     if (!dateOnlyIsValid(data.dateOfBirth)) {
       errors.dateOfBirth = 'Enter a valid date'
-    } else if (data.dateOfBirth > new Date().toISOString().slice(0, 10)) {
+    } else if (data.dateOfBirth > localDateOnly(options.now ?? new Date())) {
       errors.dateOfBirth = 'Date of birth cannot be in the future'
     }
   }
-  if (email && !EMAIL_PATTERN.test(email)) errors.email = 'Enter a valid email address'
-  else if (email.length > 320) errors.email = 'Use 320 characters or fewer'
+  if (email.length > 320) errors.email = 'Use 320 characters or fewer'
+  else if (email && !EMAIL_PATTERN.test(email)) errors.email = 'Enter a valid email address'
   return errors
 }
 
