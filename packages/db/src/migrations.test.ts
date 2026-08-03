@@ -103,6 +103,10 @@ describe('database migration baseline', () => {
       'audit_events_partition_manager_select',
       'ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY',
       'ALTER TABLE public.%I FORCE ROW LEVEL SECURITY',
+      'GRANT EXECUTE ON FUNCTION "openschool_hash_audit_event_on_insert"()',
+      'GRANT EXECUTE ON FUNCTION "openschool_guard_audit_event_insert"()',
+      'GRANT EXECUTE ON FUNCTION "openschool_reject_audit_event_change"()',
+      'GRANT EXECUTE ON FUNCTION "openschool_reject_audit_evidence_delete"()',
       'FROM PUBLIC',
       'TO "openschool_worker"',
     ]) {

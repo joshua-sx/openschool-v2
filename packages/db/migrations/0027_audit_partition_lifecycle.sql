@@ -3,6 +3,14 @@
 
 GRANT USAGE, CREATE ON SCHEMA "public" TO "openschool_audit_partition_manager";--> statement-breakpoint
 GRANT USAGE, CREATE ON SCHEMA "openschool_private" TO "openschool_audit_partition_manager";--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION "openschool_hash_audit_event_on_insert"()
+  TO "openschool_audit_partition_manager";--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION "openschool_guard_audit_event_insert"()
+  TO "openschool_audit_partition_manager";--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION "openschool_reject_audit_event_change"()
+  TO "openschool_audit_partition_manager";--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION "openschool_reject_audit_evidence_delete"()
+  TO "openschool_audit_partition_manager";--> statement-breakpoint
 
 ALTER TABLE "audit_events" OWNER TO "openschool_audit_partition_manager";--> statement-breakpoint
 ALTER TABLE "audit_events_2026_q3" OWNER TO "openschool_audit_partition_manager";--> statement-breakpoint
@@ -264,6 +272,26 @@ BEGIN
 
   IF has_schema_privilege('openschool_worker', 'public', 'CREATE')
     OR has_schema_privilege('openschool_worker', 'openschool_private', 'CREATE')
+    OR NOT has_function_privilege(
+      'openschool_audit_partition_manager',
+      'public.openschool_hash_audit_event_on_insert()',
+      'EXECUTE'
+    )
+    OR NOT has_function_privilege(
+      'openschool_audit_partition_manager',
+      'public.openschool_guard_audit_event_insert()',
+      'EXECUTE'
+    )
+    OR NOT has_function_privilege(
+      'openschool_audit_partition_manager',
+      'public.openschool_reject_audit_event_change()',
+      'EXECUTE'
+    )
+    OR NOT has_function_privilege(
+      'openschool_audit_partition_manager',
+      'public.openschool_reject_audit_evidence_delete()',
+      'EXECUTE'
+    )
     OR NOT has_function_privilege(
       'openschool_worker',
       'openschool_private.maintain_audit_partition_horizon(integer)',
