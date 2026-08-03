@@ -1,4 +1,9 @@
 import {
+  PlatformRequestContextError,
+  resolvePlatformRequestContext,
+  toPlatformPolicyContext,
+} from '@openschool/auth/server'
+import {
   CAPABILITY_REGISTRY,
   type Capability,
   type PolicyContext,
@@ -102,6 +107,50 @@ export function protectedProcedure(
         policyContext: ctx.policyContext,
         policyDecision: decision,
         userId: ctx.userId,
+      },
+    })
+  })
+}
+
+/**
+ * Resolves global authority from the isolated platform store. Tenant request
+ * context is intentionally ignored: no Tenant Person or role can satisfy this
+ * middleware, and a platform role gains no implicit Tenant data access.
+ */
+export function platformProcedure(capability: Capability) {
+  return requireVerifiedIdentity.use(async ({ ctx, next }) => {
+    let platformContext: Awaited<ReturnType<typeof resolvePlatformRequestContext>>
+    try {
+      platformContext = await resolvePlatformRequestContext(ctx.identity, {
+        requestId: crypto.randomUUID(),
+      })
+    } catch (error) {
+      if (error instanceof PlatformRequestContextError) {
+        throw new TRPCError({
+          code: error.reason === 'SESSION_REVOKED' ? 'CONFLICT' : 'FORBIDDEN',
+          message: error.reason,
+          cause: error,
+        })
+      }
+      throw error
+    }
+    const platformPolicyContext = toPlatformPolicyContext(platformContext, ctx.identity)
+    const decision = evaluatePolicy({
+      bundle: policyBundle(),
+      context: platformPolicyContext,
+      capability,
+      resource: { kind: 'platform' },
+    })
+    if (decision.effect === 'deny') throwPolicyDenial(decision)
+
+    return next({
+      ctx: {
+        ...ctx,
+        identity: ctx.identity,
+        platformContext,
+        platformPolicyContext,
+        policyDecision: decision,
+        userId: platformContext.accountId,
       },
     })
   })

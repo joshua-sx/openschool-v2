@@ -284,7 +284,7 @@ async function resolveAccountSession(
 /** Registers or refreshes the revocable Account session for a verified identity. */
 export async function registerVerifiedAccountSession(
   identity: VerifiedAccountIdentity,
-  requestId = crypto.randomUUID(),
+  requestId: string = crypto.randomUUID(),
   at = new Date()
 ): Promise<void> {
   await withIdentityTransaction(

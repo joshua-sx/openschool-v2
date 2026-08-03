@@ -230,6 +230,8 @@ describe('capability Policy Decisions', () => {
       roleTemplateKeys: ['super_admin'],
       activeSchoolId: undefined,
       platformAccess: true,
+      assuranceLevel: 'aal2',
+      personId: undefined,
     })
     const platformRead = decision({
       context: platform,
@@ -245,7 +247,7 @@ describe('capability Policy Decisions', () => {
 
     assert.equal(platformRead.effect, 'allow')
     assert.equal(tenantRead.reason, 'SCOPE_NOT_GRANTED')
-    assert.equal(unverifiedPlatform.reason, 'RESOURCE_SCOPE_MISMATCH')
+    assert.equal(unverifiedPlatform.reason, 'CONTEXT_MISSING')
   })
 
   it('enforces and explains support MFA, reauthentication, purpose, and audit obligations', () => {

@@ -192,7 +192,7 @@ async function run(): Promise<void> {
     await admin.unsafe(`grant select, insert on audit_events, audit_outbox to ${runtimeRole}`)
 
     await admin.unsafe(
-      `grant select on tenant_placements, students, audit_outbox, account_invitations, invitation_delivery_outbox to ${workerRole}`
+      `grant select on tenants, tenant_placements, students, audit_outbox, account_invitations, invitation_delivery_outbox to ${workerRole}`
     )
     await admin.unsafe(`grant select, insert on audit_events to ${workerRole}`)
     await admin.unsafe(`grant update on audit_outbox to ${workerRole}`)

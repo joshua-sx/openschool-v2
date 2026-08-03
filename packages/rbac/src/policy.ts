@@ -41,7 +41,7 @@ function deny(
 function validContext(context: PolicyContext | null | undefined): context is PolicyContext {
   return Boolean(
     context?.accountId &&
-      context.personId &&
+      (context.personId || (context.platformAccess === true && !context.tenantId)) &&
       Array.isArray(context.roleTemplateKeys) &&
       context.roleTemplateKeys.length > 0 &&
       context.roleTemplateKeys.every((key) => typeof key === 'string' && key.length > 0) &&
@@ -144,7 +144,7 @@ function constraintForGrant(
       if (resource.schoolId && resource.schoolId !== context.activeSchoolId) return null
       return frozen({ kind: 'school' as const, tenantId, schoolId: context.activeSchoolId })
     case 'class':
-      if (!tenantId) return null
+      if (!tenantId || !context.personId) return null
       if (
         resource.schoolId &&
         context.activeSchoolId &&
@@ -161,11 +161,11 @@ function constraintForGrant(
         ...(context.activeSchoolId ? { schoolId: context.activeSchoolId } : {}),
       })
     case 'self':
-      if (!tenantId) return null
+      if (!tenantId || !context.personId) return null
       if (resource.personId && resource.personId !== context.personId) return null
       return frozen({ kind: 'self' as const, tenantId, personId: context.personId })
     case 'linked_student': {
-      if (!tenantId) return null
+      if (!tenantId || !context.personId) return null
       const relationship = request.attributes?.relationship
       if (resource.kind === 'class' && relationship?.childClassLinked === false) return null
       if (resource.kind !== 'class' && relationship?.studentLinked === false) return null

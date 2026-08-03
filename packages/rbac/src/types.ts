@@ -33,7 +33,8 @@ export type ResourceKind =
 export interface PolicyContext {
   accountId: string
   legacyUserId?: string
-  personId: string
+  /** Present for Tenant actors; global platform actors never require a Tenant Person. */
+  personId?: string
   tenantId?: string
   userEmail?: string
   roleTemplateKeys: readonly string[]

@@ -89,6 +89,7 @@ function policyContext(tenant: 'a' | 'b'): PolicyContext {
 
 function databaseContext(context: PolicyContext, requestId: string): TenantDatabaseContext {
   assert.ok(context.tenantId)
+  assert.ok(context.personId)
   return {
     accountId: context.accountId,
     personId: context.personId,
