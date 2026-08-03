@@ -159,7 +159,7 @@ async function runProof(): Promise<void> {
     ])
 
     const createDecision = allow(contextA, CAPABILITIES.STUDENTS_CREATE, {
-      kind: 'student',
+      kind: 'school',
       tenantId: TENANT_A,
       schoolId: SCHOOL_A,
     })
