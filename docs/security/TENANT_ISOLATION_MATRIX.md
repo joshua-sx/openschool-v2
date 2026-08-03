@@ -1,7 +1,7 @@
 # M1 tenant isolation matrix
 
 - Owner: Security Engineering
-- Status: Required test contract; first School/Student forced-RLS and atomic Audit Ledger slices implemented, full cross-path enforcement pending
+- Status: Implemented M1 surfaces continuously enforced; disabled product paths and production approvals remain NO-GO
 - Governing ADRs: [0001](../adr/0001-tenant-isolation-and-placement.md), [0004](../adr/0004-request-context-and-session-verification.md), [0005](../adr/0005-capability-authorization.md), [0006](../adr/0006-database-execution-and-rls.md)
 
 Each implementation issue converts the relevant rows below into automated tests. Positive tests are necessary but never sufficient: every path requires same-Tenant allow and cross-scope deny evidence.
@@ -17,28 +17,28 @@ Each implementation issue converts the relevant rows below into automated tests.
 
 | Path | Positive evidence | Negative evidence | Context/cleanup evidence | Blocks |
 | --- | --- | --- | --- | --- |
-| Identity/session | valid verified Account resolves explicit Tenant | forged/expired/revoked token and disabled Account denied | membership/security version invalidates active session | all M1 |
-| Context selection | valid organization/School pair resolves | arbitrary Tenant, sibling subtree, mismatched School denied | no selector with multiple options returns `CONTEXT_REQUIRED` | tenant context |
-| API/tRPC | capability and scope allow request | IDOR with Tenant B/sibling/resource-type IDs is indistinguishable and denied | batch inputs validate every element | first vertical slice |
-| Policy module | role template plus active affiliation grants capability | expired/future/revoked/wrong-scope grant denied with stable reason | policy version included in decision | authorization |
-| Query module | approved Scope constrains query | missing/wrong resource scope returns no foreign row | every query requires transaction adapter | data access |
+| Identity/session | verified Account resolves its explicit Tenant through identity/revocation proofs | forged/expired/revoked token, disabled Account, stale membership/security, and valid foreign Account targets denied | provider reconciliation, session races, and invalidation retain durable evidence | M1 gate |
+| Context selection | valid organization/School pair resolves through the non-owner runtime | arbitrary Tenant, sibling subtree, mismatched School, and ambiguous selector denied | no selector with multiple options returns `CONTEXT_REQUIRED`; cache includes every security/scope input | M1 gate |
+| API/tRPC | actual tRPC middleware, service, pooled placement, and runtime role return same-scope School/Student fixtures | valid Tenant B and sibling IDs match unknown-record errors; concurrent batch-equivalent requests return no foreign rows | forged Request/Policy Context binding fails before query; malformed input remains a separate validation case | M1 gate |
+| Policy module | role template plus active affiliation grants capability | expired/future/revoked/wrong-scope grant denied with stable reason | policy version and exact query constraints included in decision | M1 gate |
+| Query module | approved Scope constrains actual School/Student services | missing/wrong/cross-Tenant resource scope returns no foreign row | every product query uses the placement-aware transaction adapter | M1 gate |
 | PostgreSQL/RLS | `db:student-rls-poc` proves runtime `SELECT`/`INSERT`/`UPDATE`/`DELETE` for the first School/Student slice and worker Tenant reads | no context, wrong Tenant/scope, cross-Tenant writes, probing, aggregate, pagination, and ungranted worker writes fail closed | named role/policy assertions, transaction cleanup, forced-RLS metadata, accepted index, and 1,000 ms CI budget; remaining tables move to #90 | full RLS matrix |
-| Organization Tree | versioned insert, descendants, siblings, and reparenting pass in the domain and real PostgreSQL proof | cycles, incomplete closure, sealed-version mutation, overlap, and cross-Tenant references fail by constraint/trigger | reparenting changes current resolution while prior tree and School governance remain available as-of time | hierarchy authorization remains pending |
-| School/class | assigned teacher reaches assigned classes | another School/class in same Tenant denied | assignment expiry invalidates access | academics |
-| Guardian/student | active verified relationship reaches linked student | unlinked sibling/student denied | relationship expiry/revocation invalidates access | portals |
-| Platform control plane | operator manages placement metadata | operator cannot read school records without support grant | grant creation/use/expiry audited | operations |
-| Support/break glass | approved scoped grant permits named purpose | missing, expired, broader, or reused grant denied | Tenant notified; every read/action and closure audited | support launch |
-| Files/object store | authorized record issues short-lived URL | changed object ID/Tenant metadata/signed URL replay denied | expiry and deletion/retention honored | documents |
-| Cache | same Tenant/policy version hit returns correct data | Tenant B cannot receive Tenant A key/value | revocation/policy changes invalidate | caching |
-| Search | indexed Tenant A results scoped correctly | crafted query cannot return Tenant B/sibling results or counts | deletion and permission change propagate | search |
-| Jobs/queues | signed job resolves Tenant and capability | forged Tenant, stale grant, replay, cross-placement job denied | idempotency and dead-letter evidence retain context | background work |
-| Notifications | recipient relationship and Tenant validated | stale guardian/address or cross-Tenant recipient denied | content minimized and delivery audited | communications |
-| Import | staged Tenant A rows and references apply atomically | Tenant B IDs, duplicate IDs, formula payloads, oversized files denied | preview, rollback, and error report scoped | bulk import |
-| Export/report | approved fields and scope produce Tenant A file | cross-Tenant filters, hidden columns, stale support grant denied | step-up auth, expiry, download and deletion audited | reporting |
-| Analytics | approved aggregate respects Tenant/data product | row-level cross-Tenant drill-through denied | lineage, purpose, retention recorded | cross-tenant analytics |
+| Organization Tree | versioned insert, descendants, siblings, and reparenting pass in domain and PostgreSQL | cycles, incomplete closure, sealed mutation, overlap, and cross-Tenant references fail | current resolution changes without rewriting historical governance | M1 gate |
+| School/class | assigned teacher reaches assigned class students | valid sibling School/class denied | assignment expiry is covered by policy/effective-period evidence | M1 gate |
+| Guardian/student | active verified relationship reaches linked student | valid unlinked sibling and cross-Tenant students denied | relationship scope is resolved at query time | M1 gate |
+| Platform control plane | operator manages isolated Tenant lifecycle metadata | Tenant roles/runtime/worker cannot assume platform authority or read another Tenant | suspension/reactivation, provider evidence, audit, and outbox are atomic | M1 gate |
+| Support/break glass | approved, exact-scope, MFA/reauthenticated grant permits named diagnostics | missing, expired, broader, cross-Tenant, reused, or wrong-session grant denied | Tenant notified; every read/action/closure/review audited | M1 gate; deployed operations pending |
+| Files/object store | **Disabled:** no product adapter exists; Tenant object-key contract is negative evidence only | missing/mismatched Tenant prefixes and unsafe paths fail contract tests | real URL, retention, malware, and deletion evidence required when implemented | production NO-GO |
+| Cache | short-lived Request Context cache keys Tenant, Account, session, versions, assurance, policy, and selectors | mismatched/omitted Tenant key rejected; security changes create a different key | Account/session invalidation and TTL proven; durable cross-node invalidation remains production work | M1 gate |
+| Search | **Disabled:** no search adapter/index exists | no synthetic green evidence accepted | full row/count/deletion propagation suite required when implemented | production NO-GO |
+| Jobs/queues | invitation, provider security, support, and ordinary job envelopes retain Tenant and request context | omitted Tenant, stale lease/grant, poison row, replay, and cross-Tenant targets denied | retries, fencing, dead-letter, and minimized payload evidence tested | M1 gate; deployed schedulers pending |
+| Notifications | support notifications are Tenant-visible and scope-filtered | valid sibling grant notification is hidden; cross-Tenant delivery context denied | durable outbox is minimized/audited; external delivery rehearsal pending | M1 gate; production delivery pending |
+| Import | **Disabled:** no bulk import adapter exists | no synthetic green evidence accepted | staging, formula/size, reconciliation, rollback, and error-file suite required | production NO-GO |
+| Export/report | **Disabled as a product path:** Audit export requests/outbox are Tenant-scoped, but no general report file delivery exists | Audit export cross-Tenant scope/replay denied; no claim for unbuilt reports | file expiry, step-up, download/deletion audit required when implemented | production NO-GO |
+| Analytics | **Disabled:** no governed analytics data product exists | no pooled bypass or synthetic aggregate evidence accepted | lineage, Tenant set, purpose, retention, and drill-through suite required | production NO-GO |
 | Audit | `audit:poc` proves Student/Account Link mutation evidence, audited reads/exports, and outbox retry; `audit:partition-poc` proves least-privilege quarterly partition creation | fault-injected audit failure rolls back mutation; Tenant/sibling visibility is scoped; runtime and owner tampering fail; default occupancy records a critical alert and NO-GO | hashes, redaction, denied/failed/support evidence, correlation, idempotent publish, 45-day partition horizon, exact bounds, indexes, RLS, triggers, idempotence, and non-destructive recovery are asserted; remaining mutations move through #90 | privileged mutations |
-| Backup/restore | full isolated restore matches counts/checksums | wrong-Tenant restore target and RLS-filtered backup fail | scheduled drill records RPO/RTO evidence | production |
-| Placement routing | Tenant maps to correct pooled adapter | unknown/tampered placement fails closed | move supports verification and rollback | bridge/silo |
+| Backup/restore | disposable Tenant snapshot restores with count and SHA-256 reconciliation | valid wrong-Tenant target and RLS-filtered full backup are detected | evidence-only drill; production PITR, encryption, schedule, RPO/RTO, and off-site restore remain pending | M1 gate; production NO-GO |
+| Placement routing | Tenant maps to the real pooled transaction adapter | unknown/disabled/unsupported placement fails before product operation | release evidence records actual roles and pooled plan; bridge/silo disabled | M1 gate |
 
 ## Test mechanics
 
@@ -47,3 +47,10 @@ Each implementation issue converts the relevant rows below into automated tests.
 - Run RLS tests through the actual non-owner login role, never only as migration owner.
 - Verify query plans and indexes using production-shape row counts before accepting hierarchy or RLS policies.
 - Record test name, commit, migration version, PostgreSQL version, role attributes, policy definitions, and CI run as evidence.
+
+## Automated gate
+
+The [Isolation Matrix gate](./ISOLATION_GATE.md) and machine-readable registry in
+`packages/isolation/src/matrix.ts` are authoritative for automated coverage. A green implemented-M1
+decision does not change `docs/PRODUCTION_READINESS.md`: disabled paths, production infrastructure,
+independent review, and named jurisdiction/operations/legal approvals remain NO-GO.
