@@ -316,6 +316,13 @@ describe('database migration baseline', () => {
       ),
       false
     )
+    const revokerPolicy = migration.slice(
+      migration.indexOf('CREATE POLICY "provider_security_reconciliation_revoker_insert"'),
+      migration.indexOf('CREATE POLICY "provider_security_reconciliation_worker_select"')
+    )
+    assert.equal(revokerPolicy.includes("session_user = 'openschool_runtime'"), true)
+    assert.equal(revokerPolicy.includes("current_user = 'openschool_identity_revoker'"), true)
+    assert.equal(revokerPolicy.includes('target_account.security_version'), false)
   })
 
   it('blocks new identity sessions until the latest provider MFA reset completes', () => {

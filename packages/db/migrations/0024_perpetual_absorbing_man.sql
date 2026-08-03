@@ -42,11 +42,6 @@ CREATE POLICY "provider_security_reconciliation_revoker_insert" ON "provider_sec
         AND "provider_security_reconciliation_outbox"."actor_account_id" = nullif(current_setting('app.account_id', true), '')::uuid
         AND "provider_security_reconciliation_outbox"."actor_person_id" = nullif(current_setting('app.person_id', true), '')::uuid
         AND "provider_security_reconciliation_outbox"."request_id" = nullif(current_setting('app.request_id', true), '')
-        AND EXISTS (
-          SELECT 1 FROM public.accounts AS target_account
-          WHERE target_account.id = "provider_security_reconciliation_outbox"."account_id"
-            AND target_account.security_version = "provider_security_reconciliation_outbox"."expected_security_version"
-        )
       );--> statement-breakpoint
 CREATE POLICY "provider_security_reconciliation_worker_select" ON "provider_security_reconciliation_outbox" AS PERMISSIVE FOR SELECT TO "openschool_worker" USING (
         "provider_security_reconciliation_outbox"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid

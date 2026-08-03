@@ -107,11 +107,6 @@ export const providerSecurityReconciliationOutbox = pgTable(
         AND ${table.actorAccountId} = nullif(current_setting('app.account_id', true), '')::uuid
         AND ${table.actorPersonId} = nullif(current_setting('app.person_id', true), '')::uuid
         AND ${table.requestId} = nullif(current_setting('app.request_id', true), '')
-        AND EXISTS (
-          SELECT 1 FROM public.accounts AS target_account
-          WHERE target_account.id = ${table.accountId}
-            AND target_account.security_version = ${table.expectedSecurityVersion}
-        )
       `,
     }),
     pgPolicy('provider_security_reconciliation_worker_select', {
