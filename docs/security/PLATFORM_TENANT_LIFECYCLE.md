@@ -56,6 +56,8 @@ A Tenant suspension does not increment Account security versions because an Acco
 | Code | Meaning | Operator action |
 | --- | --- | --- |
 | `PLATFORM_ACCESS_DENIED` | no current platform grant or canonical Account/session | verify the Account and approved grant; do not create a Tenant role workaround |
+| `SESSION_REVOKED` | the Account Session is no longer active | sign in again from a new verified session |
+| `ACCOUNT_DISABLED` | the operator Account is disabled | escalate to Account recovery; do not reissue a platform grant |
 | `MFA_REQUIRED` | current verified token is below `aal2` | complete MFA |
 | `REAUTHENTICATION_REQUIRED` | interactive proof is missing or older than 15 minutes | reauthenticate and retry |
 | `SECURITY_CONTEXT_STALE` | Account, session, security version, or platform grant changed | reload from a new verified context |
@@ -73,7 +75,7 @@ The proof is destructive and accepts only an explicitly opted-in loopback databa
 ALLOW_PLATFORM_TENANT_LIFECYCLE_POC=true bun run platform:tenant-lifecycle-poc
 ```
 
-It proves login/table/function privilege separation, AAL1 denial, stale-reauthentication denial, immediate platform-grant revocation, in-flight lock ordering, post-commit runtime and worker denial, unaffected-Tenant continuity, audit/outbox evidence, induced outbox-failure rollback, and reactivation.
+It proves login/table/function privilege separation, AAL1 denial, stale-reauthentication denial, immediate platform-grant revocation, in-flight lock ordering, post-commit runtime and worker denial, unaffected-Tenant continuity, audit/outbox evidence, induced outbox-failure rollback, and reactivation. Cleanup is best-effort across every resource: it terminally revokes the synthetic grant and disables the synthetic Account so append-only audit attribution remains intact, then reports any incomplete cleanup as a combined failure.
 
 ## Operational checklist
 

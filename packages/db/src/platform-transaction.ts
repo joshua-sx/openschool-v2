@@ -138,8 +138,10 @@ async function assertSafeControlPlaneRole(database: ControlPlaneDatabase): Promi
   const expectedUsername = decodeURIComponent(
     new URL(environment.DATABASE_CONTROL_PLANE_URL).username
   )
-  const result = await database.execute<ControlPlaneRoleEvidence>(sql`
-    select
+  let result: ControlPlaneRoleEvidence[]
+  try {
+    result = await database.execute<ControlPlaneRoleEvidence>(sql`
+      select
       current_user as "currentUser",
       role.rolbypassrls as "bypassesRls",
       role.rolcreatedb as "canCreateDatabase",
@@ -185,9 +187,16 @@ async function assertSafeControlPlaneRole(database: ControlPlaneDatabase): Promi
         where granted_role.rolname <> current_user
           and pg_has_role(current_user, granted_role.oid, 'member')
       ) as "hasUnsafeMembership"
-    from pg_roles role
-    where role.rolname = current_user
-  `)
+      from pg_roles role
+      where role.rolname = current_user
+    `)
+  } catch (cause) {
+    deny(
+      'PLATFORM_DATABASE_ROLE_UNSAFE',
+      'Platform control-plane role evidence could not be established',
+      cause
+    )
+  }
   const evidence = result[0]
   if (
     !evidence ||

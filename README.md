@@ -84,9 +84,9 @@ bun run env:check
 ```
 
 The repository uses these variables. The web process receives only the public
-variables, `DATABASE_RUNTIME_URL`, the three non-secret role assertions, and
-the slice/policy selectors. Migration and worker credentials belong only to
-their separately operated tasks/processes.
+variables, `DATABASE_RUNTIME_URL`, `DATABASE_CONTROL_PLANE_URL`, the four
+non-secret role assertions, and the slice/policy selectors. Migration and
+worker credentials belong only to their separately operated tasks/processes.
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`

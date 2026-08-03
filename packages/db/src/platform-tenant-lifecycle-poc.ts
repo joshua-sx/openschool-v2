@@ -141,6 +141,8 @@ async function run(): Promise<void> {
   const authenticatedAt = new Date(Date.now() - 25 * 60 * 1000)
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000)
   let outboxInsertRevoked = false
+  let proofFailure: unknown
+  const cleanupErrors: Error[] = []
 
   try {
     proofStage = 'prepare proof identities and grants'
@@ -510,29 +512,81 @@ async function run(): Promise<void> {
     console.log(
       'Platform Tenant lifecycle proof passed: isolated role, MFA/reauth, grant revocation, in-flight linearization, cross-Tenant continuity, runtime/worker suspension denial, atomic audit/outbox rollback, and reactivation.'
     )
+  } catch (cause) {
+    proofFailure = cause
   } finally {
     proofStage = 'clean up proof resources'
+    const cleanupStep = async (label: string, action: () => Promise<unknown>): Promise<void> => {
+      try {
+        await action()
+      } catch (cause) {
+        cleanupErrors.push(
+          new Error(`Platform lifecycle proof cleanup failed: ${label}`, { cause })
+        )
+      }
+    }
     if (outboxInsertRevoked) {
-      await admin.unsafe(
-        'grant insert on table public.audit_outbox to openschool_tenant_lifecycle_manager'
+      await cleanupStep('restore lifecycle outbox authority', () =>
+        admin.unsafe(
+          'grant insert on table public.audit_outbox to openschool_tenant_lifecycle_manager'
+        )
       )
     }
-    await admin`
+    await cleanupStep(
+      'restore Tenant status',
+      () => admin`
       update tenants set status = 'active', updated_at = now() where id in (${TENANT_A}, ${TENANT_B})
     `
-    await admin`
+    )
+    // Audit events retain a restrictive Account foreign key, so proof cleanup
+    // terminally revokes authority instead of erasing its attribution anchor.
+    await cleanupStep(
+      'revoke synthetic platform grant',
+      () => admin`
+      update platform_access_grants
+      set status = 'revoked', revoked_at = now(), revoked_by_account_id = ${platformAccountId},
+        revocation_reason = 'Guarded proof cleanup', updated_at = now()
+      where id = ${platformGrantId} and status = 'active'
+    `
+    )
+    await cleanupStep(
+      'delete synthetic sessions',
+      () => admin`
       delete from account_sessions
       where provider_session_id in (
         ${platformProviderSessionId}, ${tenantASessionId}, ${tenantBSessionId}
       )
     `
-    await runtime.close()
-    await worker.close()
-    await closePlatformDatabasePoolForProof()
-    await directControlPlane.end()
-    await directRuntime.end()
-    await admin.end()
+    )
+    await cleanupStep(
+      'disable synthetic platform Account',
+      () => admin`
+      update accounts
+      set status = 'disabled', disabled_at = now(), disabled_reason = 'Guarded proof cleanup',
+        security_version = security_version + 1, updated_at = now()
+      where id = ${platformAccountId} and status = 'active'
+    `
+    )
+    await cleanupStep('close runtime pool', () => runtime.close())
+    await cleanupStep('close worker pool', () => worker.close())
+    await cleanupStep('close platform pool', () => closePlatformDatabasePoolForProof())
+    await cleanupStep('close direct control-plane connection', () => directControlPlane.end())
+    await cleanupStep('close direct runtime connection', () => directRuntime.end())
+    await cleanupStep('close administrator connection', () => admin.end())
     clearTimeout(proofWatchdog)
+  }
+
+  if (proofFailure !== undefined) {
+    if (cleanupErrors.length > 0) {
+      throw new AggregateError(
+        [proofFailure, ...cleanupErrors],
+        'Platform Tenant lifecycle proof and cleanup both failed'
+      )
+    }
+    throw proofFailure
+  }
+  if (cleanupErrors.length > 0) {
+    throw new AggregateError(cleanupErrors, 'Platform lifecycle proof cleanup was incomplete')
   }
 }
 

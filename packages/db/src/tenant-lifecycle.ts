@@ -36,7 +36,8 @@ export async function applyTenantLifecycle(
   if (!TENANT_LIFECYCLE_ACTIONS.includes(input.action)) {
     throw new Error('TENANT_LIFECYCLE_ACTION_INVALID')
   }
-  if (!UUID.test(input.tenantId)) throw new Error('TENANT_LIFECYCLE_TARGET_INVALID')
+  const tenantId = input.tenantId.toLowerCase()
+  if (!UUID.test(tenantId)) throw new Error('TENANT_LIFECYCLE_TARGET_INVALID')
   const reason = input.reason.trim()
   if (reason.length < 3 || reason.length > 512) {
     throw new Error('TENANT_LIFECYCLE_REASON_INVALID')
@@ -51,7 +52,7 @@ export async function applyTenantLifecycle(
       occurred_at as "occurredAt"
     from openschool_private.apply_tenant_lifecycle(
       ${input.action}::text,
-      ${input.tenantId}::uuid,
+      ${tenantId}::uuid,
       ${reason}::text
     )
   `)
@@ -61,7 +62,7 @@ export async function applyTenantLifecycle(
   if (
     rows.length !== 1 ||
     !row ||
-    row.tenantId !== input.tenantId ||
+    row.tenantId !== tenantId ||
     !['active', 'suspended'].includes(row.tenantStatus) ||
     !UUID.test(row.auditEventId) ||
     !UUID.test(row.outboxId) ||
