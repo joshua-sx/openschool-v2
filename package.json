@@ -32,6 +32,7 @@
     "invitation:deliver": "turbo run invitation:deliver --filter=web",
     "invitation:onboarding-poc": "turbo run invitation:onboarding-poc --filter=web",
     "identity:revocation-poc": "turbo run identity:revocation-poc --filter=web",
+    "provider:mfa-reconcile": "turbo run provider:mfa-reconcile --filter=web",
     "platform:tenant-lifecycle-poc": "turbo run db:platform-tenant-lifecycle-poc --filter=@openschool/db",
     "db:prepare-upgrade-fixture": "turbo run db:prepare-upgrade-fixture --filter=@openschool/db",
     "db:verify-upgrade-fixture": "turbo run db:verify-upgrade-fixture --filter=@openschool/db",

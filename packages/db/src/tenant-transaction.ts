@@ -269,10 +269,16 @@ interface RuntimeRoleEvidence extends Record<string, unknown> {
   canInsertInvitationDelivery: boolean
   canUpdateInvitationDelivery: boolean
   canDeleteInvitationDelivery: boolean
+  canSelectProviderSecurityReconciliation: boolean
+  canInsertProviderSecurityReconciliation: boolean
+  canUpdateProviderSecurityReconciliation: boolean
+  canDeleteProviderSecurityReconciliation: boolean
   canUsePrivateSchema: boolean
   canCreateInInvitationSchema: boolean
   canExecuteInvitationAcceptance: boolean
   canExecuteIdentityRevocation: boolean
+  canExecuteLegacyIdentityRevocation: boolean
+  canExecuteProviderSecurityResolver: boolean
   canExecuteTenantAdmission: boolean
   canAssumeMigrationRole: boolean
   canAssumeOtherExecutionRole: boolean
@@ -281,6 +287,7 @@ interface RuntimeRoleEvidence extends Record<string, unknown> {
   canAssumeInvitationAcceptor: boolean
   canAssumeIdentityRevoker: boolean
   canAssumeTenantAdmissionResolver: boolean
+  canAssumeProviderSecurityResolver: boolean
   operationalRolesExist: boolean
   hasUnsafeMembership: boolean
 }
@@ -336,6 +343,14 @@ async function assertSafeExecutionRole(
         as "canUpdateInvitationDelivery",
       has_table_privilege(current_user, 'public.invitation_delivery_outbox', 'DELETE')
         as "canDeleteInvitationDelivery",
+      has_table_privilege(current_user, 'public.provider_security_reconciliation_outbox', 'SELECT')
+        as "canSelectProviderSecurityReconciliation",
+      has_table_privilege(current_user, 'public.provider_security_reconciliation_outbox', 'INSERT')
+        as "canInsertProviderSecurityReconciliation",
+      has_table_privilege(current_user, 'public.provider_security_reconciliation_outbox', 'UPDATE')
+        as "canUpdateProviderSecurityReconciliation",
+      has_table_privilege(current_user, 'public.provider_security_reconciliation_outbox', 'DELETE')
+        as "canDeleteProviderSecurityReconciliation",
       has_schema_privilege(current_user, 'openschool_private', 'USAGE')
         as "canUsePrivateSchema",
       has_schema_privilege(current_user, 'openschool_private', 'CREATE')
@@ -356,7 +371,23 @@ async function assertSafeExecutionRole(
         where namespace.nspname = 'openschool_private'
           and procedure.proname = 'apply_identity_revocation'
           and procedure.proargtypes = '25 2950 25'::oidvector
+      ), false) as "canExecuteLegacyIdentityRevocation",
+      coalesce((
+        select has_function_privilege(current_user, procedure.oid, 'EXECUTE')
+        from pg_proc procedure
+        inner join pg_namespace namespace on namespace.oid = procedure.pronamespace
+        where namespace.nspname = 'openschool_private'
+          and procedure.proname = 'apply_identity_revocation_with_reconciliation'
+          and procedure.proargtypes = '25 2950 25'::oidvector
       ), false) as "canExecuteIdentityRevocation",
+      coalesce((
+        select has_function_privilege(current_user, procedure.oid, 'EXECUTE')
+        from pg_proc procedure
+        inner join pg_namespace namespace on namespace.oid = procedure.pronamespace
+        where namespace.nspname = 'openschool_private'
+          and procedure.proname = 'resolve_provider_mfa_reconciliation'
+          and procedure.proargtypes = '2950'::oidvector
+      ), false) as "canExecuteProviderSecurityResolver",
       coalesce((
         select has_function_privilege(current_user, procedure.oid, 'EXECUTE')
         from pg_proc procedure
@@ -400,6 +431,11 @@ async function assertSafeExecutionRole(
         where candidate.rolname = 'openschool_tenant_admission_resolver'
           and pg_has_role(current_user, candidate.oid, 'member')
       ) as "canAssumeTenantAdmissionResolver",
+      exists (
+        select 1 from pg_roles candidate
+        where candidate.rolname = 'openschool_provider_security_resolver'
+          and pg_has_role(current_user, candidate.oid, 'member')
+      ) as "canAssumeProviderSecurityResolver",
       (
         select count(*) = 2
         from pg_roles candidate
@@ -443,10 +479,16 @@ async function assertSafeExecutionRole(
     evidence.canInsertInvitationDelivery !== !canProcessAuditOutbox ||
     evidence.canUpdateInvitationDelivery !== canProcessAuditOutbox ||
     evidence.canDeleteInvitationDelivery ||
+    evidence.canSelectProviderSecurityReconciliation !== canProcessAuditOutbox ||
+    evidence.canInsertProviderSecurityReconciliation ||
+    evidence.canUpdateProviderSecurityReconciliation !== canProcessAuditOutbox ||
+    evidence.canDeleteProviderSecurityReconciliation ||
     !evidence.canUsePrivateSchema ||
     evidence.canCreateInInvitationSchema ||
     evidence.canExecuteInvitationAcceptance !== !canProcessAuditOutbox ||
     evidence.canExecuteIdentityRevocation !== !canProcessAuditOutbox ||
+    evidence.canExecuteLegacyIdentityRevocation ||
+    evidence.canExecuteProviderSecurityResolver !== canProcessAuditOutbox ||
     !evidence.canExecuteTenantAdmission ||
     evidence.canAssumeMigrationRole ||
     evidence.canAssumeOtherExecutionRole ||
@@ -455,6 +497,7 @@ async function assertSafeExecutionRole(
     evidence.canAssumeInvitationAcceptor ||
     evidence.canAssumeIdentityRevoker ||
     evidence.canAssumeTenantAdmissionResolver ||
+    evidence.canAssumeProviderSecurityResolver ||
     !evidence.operationalRolesExist ||
     evidence.hasUnsafeMembership
   ) {

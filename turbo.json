@@ -150,6 +150,15 @@
         "OPENSCHOOL_POLICY_VERSION"
       ]
     },
+    "provider:mfa-reconcile": {
+      "cache": false,
+      "env": [
+        "DATABASE_WORKER_URL",
+        "PROVIDER_MFA_RECONCILIATION_TENANT_ID",
+        "SUPABASE_SECRET_KEY",
+        "NEXT_PUBLIC_SUPABASE_URL"
+      ]
+    },
     "db:platform-tenant-lifecycle-poc": {
       "cache": false,
       "env": [

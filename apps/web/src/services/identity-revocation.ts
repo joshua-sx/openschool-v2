@@ -1,20 +1,14 @@
 import { appendAuditEventInTransaction, recordAuditAttempt } from '@openschool/audit'
 import {
-  type MfaAdministrationAdapter,
-  createSupabaseMfaAdministrationAdapter,
-} from '@openschool/auth/server'
-import {
   type IdentityRevocationAction,
   type IdentityRevocationEffect,
   type TenantDatabaseContext,
-  accounts,
   applyIdentityRevocation,
   identityRevocationOccurredAt,
   withPolicyTenantTransaction,
 } from '@openschool/db'
 import { type AllowedPolicyDecision, CAPABILITIES, type PolicyContext } from '@openschool/rbac'
 import { TRPCError } from '@trpc/server'
-import { eq } from 'drizzle-orm'
 import { assertDatabasePolicyContext, toDatabasePolicyContext } from './database-context'
 
 interface RevocationAuditDescriptor {
@@ -56,25 +50,6 @@ const AUDIT_DESCRIPTOR: Readonly<Record<IdentityRevocationAction, RevocationAudi
   },
 }
 
-const PROVIDER_MFA_RESET_TIMEOUT_MS = 5_000
-
-async function withProviderTimeout<T>(operation: Promise<T>): Promise<T> {
-  let timeout: ReturnType<typeof setTimeout> | undefined
-  try {
-    return await Promise.race([
-      operation,
-      new Promise<never>((_, reject) => {
-        timeout = setTimeout(
-          () => reject(new Error('MFA_PROVIDER_RESET_TIMEOUT')),
-          PROVIDER_MFA_RESET_TIMEOUT_MS
-        )
-      }),
-    ])
-  } finally {
-    if (timeout) clearTimeout(timeout)
-  }
-}
-
 export interface IdentityRevocationRequest {
   action: IdentityRevocationAction
   targetId: string
@@ -87,8 +62,7 @@ export interface IdentityRevocationResult {
   effects: readonly IdentityRevocationEffect[]
   auditEventId: string
   invalidationOutboxId: string
-  providerMfaReset: 'not_applicable' | 'completed' | 'pending'
-  deletedMfaFactorCount: number
+  providerMfaReset: 'not_applicable' | 'pending'
 }
 
 function postgresMessage(error: unknown): string | null {
@@ -171,15 +145,14 @@ async function recordRevocationFailure(
 }
 
 /**
- * Applies local fail-closed access invalidation first. Supabase factor deletion
- * follows the committed audit/outbox transaction and is safe to retry.
+ * Applies local fail-closed invalidation and atomically queues provider MFA
+ * reconciliation. Provider credentials never enter the web transaction.
  */
 export async function revokeIdentityAccess(
   databaseContext: TenantDatabaseContext,
   context: PolicyContext,
   decision: AllowedPolicyDecision,
-  input: IdentityRevocationRequest,
-  mfaAdapter?: MfaAdministrationAdapter
+  input: IdentityRevocationRequest
 ): Promise<Readonly<IdentityRevocationResult>> {
   assertDatabasePolicyContext(databaseContext, context)
   if (decision.capability !== CAPABILITIES.ACCOUNTS_MANAGE) {
@@ -191,8 +164,6 @@ export async function revokeIdentityAccess(
     effects: readonly IdentityRevocationEffect[]
     auditEventId: string
     invalidationOutboxId: string
-    providerSubject: string | null
-    identityProvider: string | null
   }
   try {
     committed = await withPolicyTenantTransaction(
@@ -200,23 +171,6 @@ export async function revokeIdentityAccess(
       toDatabasePolicyContext(decision),
       async (tx) => {
         const effects = await applyIdentityRevocation(tx, input)
-        let providerSubject: string | null = null
-        let identityProvider: string | null = null
-        if (input.action === 'account_mfa_reset') {
-          const affectedAccountId = effects[0]?.affectedAccountId
-          if (!affectedAccountId) throw new Error('IDENTITY_REVOCATION_EFFECT_MISSING')
-          const [target] = await tx
-            .select({
-              identityProvider: accounts.identityProvider,
-              providerSubject: accounts.providerSubject,
-            })
-            .from(accounts)
-            .where(eq(accounts.id, affectedAccountId))
-            .limit(1)
-          providerSubject = target?.providerSubject ?? null
-          identityProvider = target?.identityProvider ?? null
-        }
-
         const occurredAt = await identityRevocationOccurredAt(tx, effects)
         const audit = await appendAuditEventInTransaction(tx, databaseContext, context, decision, {
           eventType: 'account.manage',
@@ -237,38 +191,11 @@ export async function revokeIdentityAccess(
           effects,
           auditEventId: audit.eventId,
           invalidationOutboxId: audit.outboxId,
-          providerSubject,
-          identityProvider,
         }
       }
     )
   } catch (error) {
     return recordRevocationFailure(error, databaseContext, context, decision, input)
-  }
-
-  let providerMfaReset: IdentityRevocationResult['providerMfaReset'] = 'not_applicable'
-  let deletedMfaFactorCount = 0
-  if (input.action === 'account_mfa_reset') {
-    providerMfaReset = 'pending'
-    if (committed.identityProvider === 'supabase' && committed.providerSubject) {
-      try {
-        deletedMfaFactorCount = await withProviderTimeout(
-          (mfaAdapter ?? createSupabaseMfaAdministrationAdapter()).resetFactors(
-            committed.providerSubject
-          )
-        )
-        providerMfaReset = 'completed'
-      } catch (providerError) {
-        // Local securityVersion/session invalidation already committed. The
-        // direct provider operation is safe to retry, and the durable security
-        // outbox records that provider reconciliation remains required.
-        console.warn('identity.revocation.provider_mfa_reset_failed', {
-          requestId: databaseContext.requestId,
-          invalidationOutboxId: committed.invalidationOutboxId,
-          reason: providerError instanceof Error ? providerError.message : 'UNKNOWN_PROVIDER_ERROR',
-        })
-      }
-    }
   }
 
   return Object.freeze({
@@ -277,7 +204,6 @@ export async function revokeIdentityAccess(
     effects: committed.effects,
     auditEventId: committed.auditEventId,
     invalidationOutboxId: committed.invalidationOutboxId,
-    providerMfaReset,
-    deletedMfaFactorCount,
+    providerMfaReset: input.action === 'account_mfa_reset' ? 'pending' : 'not_applicable',
   })
 }

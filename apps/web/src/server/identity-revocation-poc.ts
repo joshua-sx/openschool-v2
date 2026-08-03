@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import {
   type VerifiedAccountIdentity,
+  processProviderMfaReconciliationBatch,
   resolveTenantRequestContext,
   toPolicyContext,
 } from '@openschool/auth/server'
@@ -12,12 +13,15 @@ import {
   affiliations,
   applyIdentityRevocation,
   auditOutbox,
+  claimProviderSecurityReconciliations,
   closeDatabaseExecutionPoolsForProof,
   createMigrationClient,
   people,
+  providerSecurityReconciliationOutbox,
   roleTemplateAssignments,
   withPolicyTenantTransaction,
   withTenantTransaction,
+  withWorkerTenantTransaction,
 } from '@openschool/db'
 import {
   type AllowedPolicyDecision,
@@ -26,7 +30,7 @@ import {
   selectPolicyBundle,
 } from '@openschool/rbac'
 import { TRPCError } from '@trpc/server'
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { toDatabasePolicyContext } from '../services/database-context'
 import { revokeIdentityAccess } from '../services/identity-revocation'
 
@@ -106,6 +110,10 @@ async function run(): Promise<void> {
   const targetRoleA = crypto.randomUUID()
   const targetRoleB = crypto.randomUUID()
   const targetRoleCrossTenant = crypto.randomUUID()
+  const unsupportedAccountId = crypto.randomUUID()
+  const unsupportedPersonId = crypto.randomUUID()
+  const unsupportedLinkId = crypto.randomUUID()
+  const unsupportedAffiliationId = crypto.randomUUID()
   const adminIdentity = identity(
     ADMIN_ACCOUNT,
     `identity-revocation-admin-${runId}`,
@@ -113,6 +121,14 @@ async function run(): Promise<void> {
     new Date(NOW.getTime() - 60_000).toISOString()
   )
   const targetSession = (label: string) => `identity-revocation-target-${label}-${runId}`
+  const reconciliationContext = () => ({
+    tenantId: TENANT_A,
+    jobId: crypto.randomUUID(),
+    jobType: 'provider_mfa_reconciliation',
+    requestId: crypto.randomUUID(),
+  })
+  let proofFailure: unknown
+  const cleanupErrors: Error[] = []
 
   try {
     await db.insert(accounts).values({
@@ -121,11 +137,24 @@ async function run(): Promise<void> {
       providerSubject: targetAccountId,
       primaryEmail: `${targetAccountId}@revocation-proof.test`,
     })
+    await db.insert(accounts).values({
+      id: unsupportedAccountId,
+      identityProvider: 'unsupported-proof-provider',
+      providerSubject: unsupportedAccountId,
+      primaryEmail: `${unsupportedAccountId}@revocation-proof.test`,
+    })
     await db.insert(people).values({
       id: targetPersonA,
       tenantId: TENANT_A,
       displayName: 'Revocation Proof Target',
       normalizedDisplayName: 'revocation proof target',
+      source: 'native',
+    })
+    await db.insert(people).values({
+      id: unsupportedPersonId,
+      tenantId: TENANT_A,
+      displayName: 'Unsupported Provider Proof Target',
+      normalizedDisplayName: 'unsupported provider proof target',
       source: 'native',
     })
     await db.insert(people).values({
@@ -143,6 +172,16 @@ async function run(): Promise<void> {
       status: 'active',
       validFrom: new Date(NOW.getTime() - 60_000),
       issuanceReason: 'Identity revocation proof',
+      activatedAt: new Date(NOW.getTime() - 60_000),
+    })
+    await db.insert(accountLinks).values({
+      id: unsupportedLinkId,
+      tenantId: TENANT_A,
+      accountId: unsupportedAccountId,
+      personId: unsupportedPersonId,
+      status: 'active',
+      validFrom: new Date(NOW.getTime() - 60_000),
+      issuanceReason: 'Unsupported provider reconciliation proof',
       activatedAt: new Date(NOW.getTime() - 60_000),
     })
     await assert.rejects(
@@ -179,6 +218,16 @@ async function run(): Promise<void> {
         validFrom: new Date(NOW.getTime() - 60_000),
         issuanceReason: 'Identity revocation proof',
       },
+      {
+        id: unsupportedAffiliationId,
+        tenantId: TENANT_A,
+        personId: unsupportedPersonId,
+        kind: 'employee',
+        scopeType: 'school',
+        schoolId: SCHOOL_A,
+        validFrom: new Date(NOW.getTime() - 60_000),
+        issuanceReason: 'Unsupported provider reconciliation proof',
+      },
     ])
     await db.insert(roleTemplateAssignments).values([
       {
@@ -211,6 +260,15 @@ async function run(): Promise<void> {
     assert.equal(allowed.effect, 'allow')
     const decision = allowed as AllowedPolicyDecision
 
+    await assert.rejects(
+      withPolicyTenantTransaction(
+        requestContext(adminContext, 'runtime-queue-read-denied'),
+        toDatabasePolicyContext(decision),
+        (tx) => tx.execute(sql`select id from provider_security_reconciliation_outbox limit 1`)
+      ),
+      (error: unknown) => hasPostgresCode(error, '42501')
+    )
+
     const adminContextWithoutRecentLogin = { ...adminContext }
     Reflect.deleteProperty(adminContextWithoutRecentLogin, 'reauthenticatedAt')
     const aal1 = toPolicyContext(
@@ -242,14 +300,15 @@ async function run(): Promise<void> {
       authenticatedAt: new Date(NOW.getTime() - 60_000),
       expiresAt: new Date(NOW.getTime() + 60 * 60_000),
     })
+    const rollbackContext = requestContext(adminContext, 'rollback')
     await assert.rejects(
       withPolicyTenantTransaction(
-        requestContext(adminContext, 'rollback'),
+        rollbackContext,
         toDatabasePolicyContext(decision),
         async (tx) => {
           await applyIdentityRevocation(tx, {
-            action: 'account_session_revoke',
-            targetId: rollbackSessionId,
+            action: 'account_mfa_reset',
+            targetId: targetAccountId,
             reason: 'Simulated audit failure',
           })
           throw new Error('SIMULATED_AUDIT_FAILURE')
@@ -258,10 +317,19 @@ async function run(): Promise<void> {
       /SIMULATED_AUDIT_FAILURE/
     )
     const [rolledBack] = await db
-      .select({ status: accountSessions.status })
+      .select({
+        status: accountSessions.status,
+        securityVersion: accounts.securityVersion,
+      })
       .from(accountSessions)
+      .innerJoin(accounts, eq(accounts.id, accountSessions.accountId))
       .where(eq(accountSessions.id, rollbackSessionId))
-    assert.equal(rolledBack?.status, 'active')
+    assert.deepEqual(rolledBack, { status: 'active', securityVersion: 1 })
+    const rollbackReconciliations = await db
+      .select({ id: providerSecurityReconciliationOutbox.id })
+      .from(providerSecurityReconciliationOutbox)
+      .where(eq(providerSecurityReconciliationOutbox.requestId, rollbackContext.requestId))
+    assert.equal(rollbackReconciliations.length, 0)
 
     const revokedOne = await revokeIdentityAccess(
       requestContext(adminContext, 'revoke-one'),
@@ -343,6 +411,17 @@ async function run(): Promise<void> {
       expiresAt: new Date(NOW.getTime() + 60 * 60_000),
     })
     const resetSubjects: string[] = []
+    let providerAttempts = 0
+    const providerAdapter = {
+      async resetFactors(providerSubject: string) {
+        resetSubjects.push(providerSubject)
+        providerAttempts += 1
+        if (providerAttempts === 1) {
+          throw new Error('SUPABASE_MFA_FACTOR_LIST_FAILED')
+        }
+        return 2
+      },
+    }
     const mfaReset = await revokeIdentityAccess(
       requestContext(adminContext, 'mfa-reset'),
       policyContext,
@@ -351,18 +430,126 @@ async function run(): Promise<void> {
         action: 'account_mfa_reset',
         targetId: targetAccountId,
         reason: 'Lost authenticator recovery',
-      },
-      {
-        async resetFactors(providerSubject) {
-          resetSubjects.push(providerSubject)
-          return 2
-        },
       }
     )
-    assert.equal(mfaReset.providerMfaReset, 'completed')
-    assert.equal(mfaReset.deletedMfaFactorCount, 2)
-    assert.deepEqual(resetSubjects, [targetAccountId])
+    assert.equal(mfaReset.providerMfaReset, 'pending')
     assert.equal(mfaReset.effects[0]?.securityVersion, 3)
+
+    const firstAttemptAt = new Date()
+    const firstBatch = await processProviderMfaReconciliationBatch(
+      reconciliationContext(),
+      providerAdapter,
+      {
+        at: firstAttemptAt,
+        clock: () => new Date(firstAttemptAt.getTime() + 1_000),
+      }
+    )
+    assert.deepEqual(firstBatch, {
+      claimed: 1,
+      completed: 0,
+      failed: 1,
+      deadLetter: 0,
+      deletedFactorCount: 0,
+    })
+    const [failedReconciliation] = await db
+      .select()
+      .from(providerSecurityReconciliationOutbox)
+      .where(
+        and(
+          eq(providerSecurityReconciliationOutbox.accountId, targetAccountId),
+          eq(providerSecurityReconciliationOutbox.expectedSecurityVersion, 3)
+        )
+      )
+    assert.ok(failedReconciliation)
+    assert.equal(failedReconciliation.status, 'failed')
+    assert.equal(failedReconciliation.attemptCount, 1)
+    assert.equal(failedReconciliation.lastErrorCode, 'SUPABASE_MFA_FACTOR_LIST_FAILED')
+
+    const retryAt = failedReconciliation.availableAt
+    const retryBatch = await processProviderMfaReconciliationBatch(
+      reconciliationContext(),
+      providerAdapter,
+      { at: retryAt, clock: () => retryAt }
+    )
+    assert.deepEqual(retryBatch, {
+      claimed: 1,
+      completed: 1,
+      failed: 0,
+      deadLetter: 0,
+      deletedFactorCount: 2,
+    })
+    const [completedReconciliation] = await db
+      .select()
+      .from(providerSecurityReconciliationOutbox)
+      .where(eq(providerSecurityReconciliationOutbox.id, failedReconciliation.id))
+    assert.equal(completedReconciliation?.status, 'completed')
+    assert.equal(completedReconciliation?.attemptCount, 2)
+    assert.equal(completedReconciliation?.deletedFactorCount, 2)
+
+    const leaseReset = await revokeIdentityAccess(
+      requestContext(adminContext, 'mfa-reset-lease-reclaim'),
+      policyContext,
+      decision,
+      {
+        action: 'account_mfa_reset',
+        targetId: targetAccountId,
+        reason: 'Lease reclamation proof',
+      }
+    )
+    assert.equal(leaseReset.effects[0]?.securityVersion, 4)
+    const leaseClaimAt = new Date(retryAt.getTime() + 1_000)
+    const leaseClaim = await withWorkerTenantTransaction(reconciliationContext(), (tx) =>
+      claimProviderSecurityReconciliations(tx, TENANT_A, { limit: 1, at: leaseClaimAt })
+    )
+    assert.equal(leaseClaim.length, 1)
+    assert.equal(leaseClaim[0]?.expectedSecurityVersion, 4)
+    const reclaimedAt = new Date(leaseClaimAt.getTime() + 5 * 60_000 + 1)
+    const reclaimedBatch = await processProviderMfaReconciliationBatch(
+      reconciliationContext(),
+      providerAdapter,
+      { at: reclaimedAt, clock: () => reclaimedAt }
+    )
+    assert.equal(reclaimedBatch.completed, 1)
+    const [reclaimed] = await db
+      .select()
+      .from(providerSecurityReconciliationOutbox)
+      .where(
+        and(
+          eq(providerSecurityReconciliationOutbox.accountId, targetAccountId),
+          eq(providerSecurityReconciliationOutbox.expectedSecurityVersion, 4)
+        )
+      )
+    assert.equal(reclaimed?.status, 'completed')
+    assert.equal(reclaimed?.attemptCount, 2)
+
+    const unsupportedReset = await revokeIdentityAccess(
+      requestContext(adminContext, 'unsupported-provider'),
+      policyContext,
+      decision,
+      {
+        action: 'account_mfa_reset',
+        targetId: unsupportedAccountId,
+        reason: 'Unsupported provider dead-letter proof',
+      }
+    )
+    assert.equal(unsupportedReset.providerMfaReset, 'pending')
+    const unsupportedBatch = await processProviderMfaReconciliationBatch(
+      reconciliationContext(),
+      {
+        async resetFactors() {
+          throw new Error('UNSUPPORTED_PROVIDER_MUST_NOT_REACH_ADAPTER')
+        },
+      },
+      { at: new Date(reclaimedAt.getTime() + 1_000) }
+    )
+    assert.equal(unsupportedBatch.deadLetter, 1)
+    const [unsupportedReconciliation] = await db
+      .select()
+      .from(providerSecurityReconciliationOutbox)
+      .where(eq(providerSecurityReconciliationOutbox.accountId, unsupportedAccountId))
+    assert.equal(unsupportedReconciliation?.status, 'dead_letter')
+    assert.equal(unsupportedReconciliation?.lastErrorCode, 'IDENTITY_PROVIDER_UNSUPPORTED')
+    assert.deepEqual(resetSubjects, [targetAccountId, targetAccountId, targetAccountId])
 
     const targetIdentity = identity(targetAccountId, targetSession('membership'), 'aal1')
     const targetContext = await resolveTenantRequestContext(
@@ -439,7 +626,7 @@ async function run(): Promise<void> {
       .select({ status: accounts.status, securityVersion: accounts.securityVersion })
       .from(accounts)
       .where(eq(accounts.id, targetAccountId))
-    assert.deepEqual(stillActive, { status: 'active', securityVersion: 3 })
+    assert.deepEqual(stillActive, { status: 'active', securityVersion: 4 })
 
     await db
       .update(roleTemplateAssignments)
@@ -475,7 +662,7 @@ async function run(): Promise<void> {
       decision,
       { action: 'account_disable', targetId: targetAccountId, reason: 'Disable account proof' }
     )
-    assert.equal(disabled.effects[0]?.securityVersion, 4)
+    assert.equal(disabled.effects[0]?.securityVersion, 5)
     const [disabledAccount] = await db
       .select({ status: accounts.status })
       .from(accounts)
@@ -494,39 +681,92 @@ async function run(): Promise<void> {
     assert.ok(securityOutboxRows.length >= 6)
 
     console.log(
-      'Identity revocation proof passed: MFA and recent-login obligations, rollback on missing evidence, serialized revocation races, one/all session revocation, MFA reset, membership invalidation, stale-context denial, cross-Tenant denial, Account disablement, and durable invalidation outbox evidence.'
+      'Identity revocation proof passed: MFA and recent-login obligations, atomic queue rollback, serialized revocation races, one/all session revocation, provider retry, lease reclaim, unsupported-provider dead letter, membership invalidation, stale-context denial, cross-Tenant denial, Account disablement, and durable invalidation evidence.'
     )
+  } catch (cause) {
+    proofFailure = cause
   } finally {
-    await db
-      .delete(accountSessions)
-      .where(
-        inArray(accountSessions.providerSessionId, [
-          adminIdentity.sessionId,
-          targetSession('rollback'),
-          targetSession('race'),
-          targetSession('all-0'),
-          targetSession('all-1'),
-          targetSession('mfa'),
-          targetSession('membership'),
-        ])
+    const cleanupStep = async (label: string, action: () => Promise<unknown>): Promise<void> => {
+      try {
+        await action()
+      } catch (cause) {
+        cleanupErrors.push(
+          new Error(`Identity revocation proof cleanup failed: ${label}`, { cause })
+        )
+      }
+    }
+    await cleanupStep('provider security reconciliation rows', () =>
+      db
+        .delete(providerSecurityReconciliationOutbox)
+        .where(
+          inArray(providerSecurityReconciliationOutbox.accountId, [
+            targetAccountId,
+            unsupportedAccountId,
+          ])
+        )
+    )
+    await cleanupStep('Account Sessions', () =>
+      db
+        .delete(accountSessions)
+        .where(
+          inArray(accountSessions.providerSessionId, [
+            adminIdentity.sessionId,
+            targetSession('rollback'),
+            targetSession('race'),
+            targetSession('all-0'),
+            targetSession('all-1'),
+            targetSession('mfa'),
+            targetSession('membership'),
+          ])
+        )
+    )
+    await cleanupStep('Role Template Assignments', () =>
+      db
+        .delete(roleTemplateAssignments)
+        .where(
+          inArray(roleTemplateAssignments.id, [targetRoleA, targetRoleB, targetRoleCrossTenant])
+        )
+    )
+    await cleanupStep('Affiliations', () =>
+      db
+        .delete(affiliations)
+        .where(
+          inArray(affiliations.id, [
+            targetAffiliationA,
+            targetAffiliationB,
+            targetAffiliationCrossTenant,
+            unsupportedAffiliationId,
+          ])
+        )
+    )
+    await cleanupStep('Account Links', () =>
+      db
+        .delete(accountLinks)
+        .where(inArray(accountLinks.id, [targetLinkA, targetLinkB, unsupportedLinkId]))
+    )
+    await cleanupStep('People', () =>
+      db
+        .delete(people)
+        .where(inArray(people.id, [targetPersonA, targetPersonB, unsupportedPersonId]))
+    )
+    await cleanupStep('Accounts', () =>
+      db.delete(accounts).where(inArray(accounts.id, [targetAccountId, unsupportedAccountId]))
+    )
+    await cleanupStep('database execution pools', () => closeDatabaseExecutionPoolsForProof())
+    await cleanupStep('migration client', () => db.$client.end({ timeout: 5 }))
+  }
+
+  if (proofFailure !== undefined) {
+    if (cleanupErrors.length > 0) {
+      throw new AggregateError(
+        [proofFailure, ...cleanupErrors],
+        'Identity revocation proof and cleanup both failed'
       )
-    await db
-      .delete(roleTemplateAssignments)
-      .where(inArray(roleTemplateAssignments.id, [targetRoleA, targetRoleB, targetRoleCrossTenant]))
-    await db
-      .delete(affiliations)
-      .where(
-        inArray(affiliations.id, [
-          targetAffiliationA,
-          targetAffiliationB,
-          targetAffiliationCrossTenant,
-        ])
-      )
-    await db.delete(accountLinks).where(inArray(accountLinks.id, [targetLinkA, targetLinkB]))
-    await db.delete(people).where(inArray(people.id, [targetPersonA, targetPersonB]))
-    await db.delete(accounts).where(eq(accounts.id, targetAccountId))
-    await closeDatabaseExecutionPoolsForProof()
-    await db.$client.end({ timeout: 5 })
+    }
+    throw proofFailure
+  }
+  if (cleanupErrors.length > 0) {
+    throw new AggregateError(cleanupErrors, 'Identity revocation proof cleanup was incomplete')
   }
 }
 

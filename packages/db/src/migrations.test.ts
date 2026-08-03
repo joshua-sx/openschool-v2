@@ -283,4 +283,32 @@ describe('database migration baseline', () => {
       false
     )
   })
+
+  it('installs durable provider MFA reconciliation without persisting provider subjects', () => {
+    const migration = readFileSync(
+      join(migrationsDirectory, '0024_perpetual_absorbing_man.sql'),
+      'utf8'
+    )
+    for (const expected of [
+      'CREATE TABLE "provider_security_reconciliation_outbox"',
+      'provider_security_reconciliation_effect_unique',
+      'FORCE ROW LEVEL SECURITY',
+      'provider_security_reconciliation_change_guard',
+      'apply_identity_revocation_with_reconciliation',
+      'resolve_provider_mfa_reconciliation',
+      'openschool_provider_security_resolver',
+      'PROVIDER_SECURITY_RECONCILIATION_UNAVAILABLE',
+      'REVOKE EXECUTE ON FUNCTION "openschool_private"."apply_identity_revocation"',
+      'GRANT SELECT, UPDATE ON TABLE public.provider_security_reconciliation_outbox',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+
+    const tableDefinition = migration.slice(
+      migration.indexOf('CREATE TABLE "provider_security_reconciliation_outbox"'),
+      migration.indexOf('ALTER TABLE "provider_security_reconciliation_outbox" ENABLE')
+    )
+    assert.equal(tableDefinition.includes('provider_subject'), false)
+    assert.equal(tableDefinition.includes('identity_provider'), false)
+  })
 })
