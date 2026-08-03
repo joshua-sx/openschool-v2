@@ -814,24 +814,24 @@ BEGIN
         '[)'
       ) @> v_effective_at
   ) THEN
-    UPDATE public.student_profiles
+    UPDATE public.student_profiles AS profile
     SET status = 'active', updated_at = v_now
-    WHERE tenant_id = v_tenant_id AND person_id = v_person_id;
+    WHERE profile.tenant_id = v_tenant_id AND profile.person_id = v_person_id;
     v_legacy_status := 'active';
   ELSIF v_transition_type = 'withdraw' THEN
-    UPDATE public.student_profiles
+    UPDATE public.student_profiles AS profile
     SET status = 'withdrawn', updated_at = v_now
-    WHERE tenant_id = v_tenant_id AND person_id = v_person_id;
+    WHERE profile.tenant_id = v_tenant_id AND profile.person_id = v_person_id;
     v_legacy_status := 'archived';
   ELSIF v_transition_type = 'graduate' THEN
-    UPDATE public.student_profiles
+    UPDATE public.student_profiles AS profile
     SET status = 'graduated', updated_at = v_now
-    WHERE tenant_id = v_tenant_id AND person_id = v_person_id;
+    WHERE profile.tenant_id = v_tenant_id AND profile.person_id = v_person_id;
     v_legacy_status := 'archived';
   ELSIF v_transition_type IN ('transfer', 'reenroll') THEN
-    UPDATE public.student_profiles
+    UPDATE public.student_profiles AS profile
     SET status = 'active', updated_at = v_now
-    WHERE tenant_id = v_tenant_id AND person_id = v_person_id;
+    WHERE profile.tenant_id = v_tenant_id AND profile.person_id = v_person_id;
     v_legacy_status := 'active';
   END IF;
 
