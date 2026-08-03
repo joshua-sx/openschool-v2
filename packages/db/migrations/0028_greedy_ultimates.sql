@@ -980,14 +980,14 @@ BEGIN
       USING ERRCODE = 'P0002';
   END IF;
 
-  UPDATE public.student_profiles
+  UPDATE public.student_profiles AS profile
   SET
     student_number = p_student_number,
     updated_at = v_updated_at
-  WHERE tenant_id = v_tenant_id
-    AND person_id = p_person_id
-    AND legacy_student_id = v_legacy_student_id
-    AND status = 'active';
+  WHERE profile.tenant_id = v_tenant_id
+    AND profile.person_id = p_person_id
+    AND profile.legacy_student_id = v_legacy_student_id
+    AND profile.status = 'active';
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'CANONICAL_STUDENT_PROFILE_UNAVAILABLE'
