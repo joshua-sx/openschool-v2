@@ -947,8 +947,7 @@ BEGIN
     CASE WHEN enrollment.enrollment_type = 'primary' THEN 0 ELSE 1 END,
     enrollment.valid_from DESC,
     enrollment.id
-  LIMIT 1
-  FOR UPDATE;
+  LIMIT 1;
 
   IF v_school_enrollment_id IS NULL
     OR v_legacy_student_id IS NULL

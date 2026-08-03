@@ -22,7 +22,7 @@ Identity bootstrap uses one narrower seam before a Policy Decision exists. `bind
 | `schools` | worker | current Tenant only | explicit deny | explicit deny | explicit deny |
 | `students` | runtime | approved capability and Student scope | explicit deny and no table grant | explicit deny and no table grant | explicit deny and no table grant |
 | `school_enrollments` | runtime | approved capability and canonical learner scope | explicit deny and no table grant | explicit deny and no table grant | explicit deny and no table grant |
-| `school_enrollments` | `openschool_student_admitter` | exact create/update scope inside private function | canonical admission only | reviewed lifecycle seam only | explicit deny |
+| `school_enrollments` | `openschool_student_admitter` | exact create/update scope inside private function | canonical admission only | explicit deny and no table grant | explicit deny |
 | `students` | worker | current Tenant only | explicit deny and no table grant | explicit deny and no table grant | explicit deny and no table grant |
 
 The runtime role has only the table privileges needed by current code and proof coverage. Neither execution role owns product tables, has `BYPASSRLS`, can create schema objects, can truncate Students, or can assume migration, backup, emergency, or the other execution role.
