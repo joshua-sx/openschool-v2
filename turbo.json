@@ -173,6 +173,19 @@
         "DATABASE_CONTROL_PLANE_ROLE"
       ]
     },
+    "db:support-access-poc": {
+      "cache": false,
+      "env": [
+        "ALLOW_DATABASE_EXECUTION_POC",
+        "ALLOW_SUPPORT_ACCESS_POC",
+        "DATABASE_MIGRATION_URL",
+        "DATABASE_MIGRATION_ROLE",
+        "DATABASE_RUNTIME_URL",
+        "DATABASE_WORKER_URL",
+        "DATABASE_CONTROL_PLANE_URL",
+        "DATABASE_CONTROL_PLANE_ROLE"
+      ]
+    },
     "db:prepare-upgrade-fixture": {
       "cache": false,
       "env": ["ALLOW_TENANT_FOUNDATION_POC", "DATABASE_MIGRATION_URL", "DATABASE_MIGRATION_ROLE"]
