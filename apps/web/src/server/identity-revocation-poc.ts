@@ -275,6 +275,37 @@ async function run(): Promise<void> {
     )
     assert.equal(revokedOne.effects[0]?.affectedSessionCount, 1)
 
+    const raceSessionId = crypto.randomUUID()
+    await db.insert(accountSessions).values({
+      id: raceSessionId,
+      accountId: targetAccountId,
+      providerSessionId: targetSession('race'),
+      assuranceLevel: 'aal1',
+      securityVersion: 1,
+      authenticatedAt: new Date(NOW.getTime() - 60_000),
+      expiresAt: new Date(NOW.getTime() + 60 * 60_000),
+    })
+    const raceResults = await Promise.allSettled([
+      revokeIdentityAccess(requestContext(adminContext, 'race-a'), policyContext, decision, {
+        action: 'account_session_revoke',
+        targetId: raceSessionId,
+        reason: 'Concurrent revocation proof A',
+      }),
+      revokeIdentityAccess(requestContext(adminContext, 'race-b'), policyContext, decision, {
+        action: 'account_session_revoke',
+        targetId: raceSessionId,
+        reason: 'Concurrent revocation proof B',
+      }),
+    ])
+    const raceSuccesses = raceResults.filter((result) => result.status === 'fulfilled')
+    const raceFailures = raceResults.filter((result) => result.status === 'rejected')
+    assert.equal(raceSuccesses.length, 1)
+    assert.equal(raceFailures.length, 1)
+    assert.ok(
+      raceFailures[0]?.reason instanceof TRPCError &&
+        raceFailures[0].reason.message === 'SECURITY_TARGET_UNAVAILABLE'
+    )
+
     const allSessionIds = [crypto.randomUUID(), crypto.randomUUID()]
     await db.insert(accountSessions).values(
       allSessionIds.map((id, index) => ({
@@ -463,7 +494,7 @@ async function run(): Promise<void> {
     assert.ok(securityOutboxRows.length >= 6)
 
     console.log(
-      'Identity revocation proof passed: MFA and recent-login obligations, rollback on missing evidence, one/all session revocation, MFA reset, membership invalidation, stale-context denial, cross-Tenant denial, Account disablement, and durable invalidation outbox evidence.'
+      'Identity revocation proof passed: MFA and recent-login obligations, rollback on missing evidence, serialized revocation races, one/all session revocation, MFA reset, membership invalidation, stale-context denial, cross-Tenant denial, Account disablement, and durable invalidation outbox evidence.'
     )
   } finally {
     await db
@@ -472,6 +503,7 @@ async function run(): Promise<void> {
         inArray(accountSessions.providerSessionId, [
           adminIdentity.sessionId,
           targetSession('rollback'),
+          targetSession('race'),
           targetSession('all-0'),
           targetSession('all-1'),
           targetSession('mfa'),
