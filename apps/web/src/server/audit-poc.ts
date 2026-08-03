@@ -449,7 +449,8 @@ async function runProof(): Promise<void> {
     const [hashEvidence] = await admin.execute<{ matches: boolean }>(sql`
       select public.openschool_audit_event_hash_matches(event) as "matches"
       from audit_events as event
-      where event.occurred_at = ${createEvent.occurredAt} and event.id = ${createEvent.id}
+      where event.occurred_at = ${createEvent.occurredAt.toISOString()}::timestamptz
+        and event.id = ${createEvent.id}
     `)
     assert.equal(hashEvidence?.matches, true)
 
