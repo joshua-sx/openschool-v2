@@ -89,7 +89,7 @@ describe('database migration baseline', () => {
       'CREATE TABLE "academic_compatibility_evidence"',
       'academic_years_no_overlapping_lifecycle_dates',
       'academic_terms_no_overlapping_dates',
-      'lag(end_date) OVER (ORDER BY ordinal)',
+      'lag(created_term.end_date) OVER (ORDER BY created_term.ordinal)',
       'ALTER TABLE "academic_years" FORCE ROW LEVEL SECURITY',
       'guard_academic_year_lifecycle',
       'guard_academic_compatibility_evidence',

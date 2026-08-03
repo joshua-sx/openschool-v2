@@ -620,21 +620,25 @@ BEGIN
   );
 
   SELECT count(*) INTO v_term_count
-  FROM public.academic_terms
-  WHERE tenant_id = v_tenant_id AND academic_year_id = p_academic_year_id;
+  FROM public.academic_terms AS created_term
+  WHERE created_term.tenant_id = v_tenant_id
+    AND created_term.academic_year_id = p_academic_year_id;
   IF v_term_count <> jsonb_array_length(p_terms)
     OR NOT EXISTS (
       SELECT 1
-      FROM public.academic_terms
-      WHERE tenant_id = v_tenant_id AND academic_year_id = p_academic_year_id
-      HAVING min(ordinal) = 1 AND max(ordinal) = count(*)
+      FROM public.academic_terms AS created_term
+      WHERE created_term.tenant_id = v_tenant_id
+        AND created_term.academic_year_id = p_academic_year_id
+      HAVING min(created_term.ordinal) = 1 AND max(created_term.ordinal) = count(*)
     )
     OR EXISTS (
       SELECT 1
       FROM (
-        SELECT start_date, lag(end_date) OVER (ORDER BY ordinal) AS previous_end_date
-        FROM public.academic_terms
-        WHERE tenant_id = v_tenant_id AND academic_year_id = p_academic_year_id
+        SELECT created_term.start_date,
+          lag(created_term.end_date) OVER (ORDER BY created_term.ordinal) AS previous_end_date
+        FROM public.academic_terms AS created_term
+        WHERE created_term.tenant_id = v_tenant_id
+          AND created_term.academic_year_id = p_academic_year_id
       ) AS ordered_terms
       WHERE previous_end_date IS NOT NULL AND start_date <= previous_end_date
     )
@@ -661,14 +665,16 @@ BEGIN
   );
 
   SELECT count(*) INTO v_level_count
-  FROM public.learner_levels
-  WHERE tenant_id = v_tenant_id AND academic_year_id = p_academic_year_id;
+  FROM public.learner_levels AS created_level
+  WHERE created_level.tenant_id = v_tenant_id
+    AND created_level.academic_year_id = p_academic_year_id;
   IF v_level_count <> jsonb_array_length(p_levels)
     OR NOT EXISTS (
       SELECT 1
-      FROM public.learner_levels
-      WHERE tenant_id = v_tenant_id AND academic_year_id = p_academic_year_id
-      HAVING min(ordinal) = 1 AND max(ordinal) = count(*)
+      FROM public.learner_levels AS created_level
+      WHERE created_level.tenant_id = v_tenant_id
+        AND created_level.academic_year_id = p_academic_year_id
+      HAVING min(created_level.ordinal) = 1 AND max(created_level.ordinal) = count(*)
     )
   THEN
     RAISE EXCEPTION 'LEARNER_LEVELS_ORDER_INVALID' USING ERRCODE = '23514';
@@ -706,13 +712,13 @@ BEGIN
     RAISE EXCEPTION 'ACADEMIC_YEAR_REVIEW_CONTEXT_INVALID' USING ERRCODE = '22023';
   END IF;
 
-  UPDATE public.academic_years
+  UPDATE public.academic_years AS target_year
   SET migration_review_status = 'approved', updated_at = v_occurred_at
-  WHERE tenant_id = v_tenant_id
-    AND id = p_academic_year_id
-    AND status = 'draft'
-    AND source = 'legacy_backfill'
-    AND migration_review_status = 'needs_review';
+  WHERE target_year.tenant_id = v_tenant_id
+    AND target_year.id = p_academic_year_id
+    AND target_year.status = 'draft'
+    AND target_year.source = 'legacy_backfill'
+    AND target_year.migration_review_status = 'needs_review';
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'ACADEMIC_YEAR_REVIEW_STATE_INVALID' USING ERRCODE = '55000';
@@ -751,9 +757,9 @@ BEGIN
     RAISE EXCEPTION 'ACADEMIC_YEAR_PUBLISH_CONTEXT_INVALID' USING ERRCODE = '22023';
   END IF;
 
-  SELECT * INTO v_year
-  FROM public.academic_years
-  WHERE tenant_id = v_tenant_id AND id = p_academic_year_id
+  SELECT target_year.* INTO v_year
+  FROM public.academic_years AS target_year
+  WHERE target_year.tenant_id = v_tenant_id AND target_year.id = p_academic_year_id
   FOR UPDATE;
 
   IF NOT FOUND
@@ -769,19 +775,23 @@ BEGIN
   );
 
   IF NOT EXISTS (
-    SELECT 1 FROM public.academic_terms
-    WHERE tenant_id = v_tenant_id AND academic_year_id = p_academic_year_id
+    SELECT 1 FROM public.academic_terms AS year_term
+    WHERE year_term.tenant_id = v_tenant_id
+      AND year_term.academic_year_id = p_academic_year_id
   ) OR NOT EXISTS (
-    SELECT 1 FROM public.learner_levels
-    WHERE tenant_id = v_tenant_id AND academic_year_id = p_academic_year_id
+    SELECT 1 FROM public.learner_levels AS year_level
+    WHERE year_level.tenant_id = v_tenant_id
+      AND year_level.academic_year_id = p_academic_year_id
   ) THEN
     RAISE EXCEPTION 'ACADEMIC_YEAR_STRUCTURE_INCOMPLETE' USING ERRCODE = '23514';
   END IF;
 
-  UPDATE public.academic_years
+  UPDATE public.academic_years AS target_year
   SET status = 'published', published_at = v_occurred_at,
     published_by_account_id = v_account_id, updated_at = v_occurred_at
-  WHERE tenant_id = v_tenant_id AND id = p_academic_year_id AND status = 'draft';
+  WHERE target_year.tenant_id = v_tenant_id
+    AND target_year.id = p_academic_year_id
+    AND target_year.status = 'draft';
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'ACADEMIC_YEAR_PUBLISH_CONFLICT' USING ERRCODE = '40001';
@@ -822,9 +832,9 @@ BEGIN
     RAISE EXCEPTION 'ACADEMIC_YEAR_CLOSE_CONTEXT_INVALID' USING ERRCODE = '22023';
   END IF;
 
-  SELECT * INTO v_year
-  FROM public.academic_years
-  WHERE tenant_id = v_tenant_id AND id = p_academic_year_id
+  SELECT target_year.* INTO v_year
+  FROM public.academic_years AS target_year
+  WHERE target_year.tenant_id = v_tenant_id AND target_year.id = p_academic_year_id
   FOR UPDATE;
 
   IF NOT FOUND
@@ -834,11 +844,13 @@ BEGIN
     RAISE EXCEPTION 'ACADEMIC_YEAR_CLOSE_STATE_INVALID' USING ERRCODE = '55000';
   END IF;
 
-  UPDATE public.academic_years
+  UPDATE public.academic_years AS target_year
   SET status = 'closed', closed_at = v_occurred_at,
     closed_by_account_id = v_account_id, closure_reason = btrim(p_reason),
     updated_at = v_occurred_at
-  WHERE tenant_id = v_tenant_id AND id = p_academic_year_id AND status = 'published';
+  WHERE target_year.tenant_id = v_tenant_id
+    AND target_year.id = p_academic_year_id
+    AND target_year.status = 'published';
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'ACADEMIC_YEAR_CLOSE_CONFLICT' USING ERRCODE = '40001';
