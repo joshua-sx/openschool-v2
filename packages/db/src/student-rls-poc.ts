@@ -109,8 +109,11 @@ async function visibleStudentIds(transaction: DatabaseTransaction): Promise<stri
   )
 }
 
-async function visibleStudentCount(transaction: DatabaseTransaction): Promise<number> {
-  const [row] = await transaction.select({ count: sql<number>`count(*)::int` }).from(students)
+async function visibleProofStudentCount(transaction: DatabaseTransaction): Promise<number> {
+  const [row] = await transaction
+    .select({ count: sql<number>`count(*)::int` })
+    .from(students)
+    .where(eq(students.email, PROOF_EMAIL))
   return row?.count ?? 0
 }
 
@@ -332,7 +335,16 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
     assert.equal(organizationIds.includes(STUDENT_A_PRIMARY), true)
     assert.equal(organizationIds.includes(STUDENT_A_HIGH), true)
     assert.equal(organizationIds.includes(STUDENT_B), false)
-    assert.equal(organizationIds.length, 1102)
+    const organizationProofCount = await runtime.withPolicyTenantTransaction(
+      organizationAdmin,
+      policy('tenant.students.read', {
+        kind: 'organization_subtree',
+        tenantId: TENANT_A,
+        ancestorOrganizationId: TENANT_A,
+      }),
+      visibleProofStudentCount
+    )
+    assert.equal(organizationProofCount, 1100)
 
     const schoolPolicy = policy('tenant.students.read', {
       kind: 'school',
@@ -347,7 +359,12 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
     assert.equal(schoolIds.includes(STUDENT_A_PRIMARY), true)
     assert.equal(schoolIds.includes(STUDENT_A_HIGH), false)
     assert.equal(schoolIds.includes(STUDENT_B), false)
-    assert.equal(schoolIds.length, 101)
+    const schoolProofCount = await runtime.withPolicyTenantTransaction(
+      schoolAdmin,
+      schoolPolicy,
+      visibleProofStudentCount
+    )
+    assert.equal(schoolProofCount, 100)
 
     const teacherIds = await runtime.withPolicyTenantTransaction(
       teacher,
@@ -384,12 +401,12 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
     )
     assert.deepEqual(selfIds, [STUDENT_A_HIGH])
 
-    const tenantBCount = await runtime.withPolicyTenantTransaction(
+    const tenantBProofCount = await runtime.withPolicyTenantTransaction(
       tenantBAdmin,
       policy('tenant.students.read', { kind: 'tenant', tenantId: TENANT_B }),
-      visibleStudentCount
+      visibleProofStudentCount
     )
-    assert.equal(tenantBCount, 1001)
+    assert.equal(tenantBProofCount, 1000)
 
     const wrongTenantContext = { ...organizationAdmin, tenantId: TENANT_B }
     await assert.rejects(
@@ -414,7 +431,7 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
         .where(eq(students.id, UNKNOWN_ID))
         .limit(1)
       assert.deepEqual(knownSibling, unknown)
-      assert.equal(await visibleStudentCount(transaction), 101)
+      assert.equal(await visibleProofStudentCount(transaction), 100)
       const page = await transaction
         .select({ schoolId: students.schoolId, tenantId: students.tenantId })
         .from(students)
@@ -508,7 +525,10 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
       jobType: 'student_rls_proof',
       requestId: REQUEST_ID,
     }
-    assert.equal(await worker.withWorkerTenantTransaction(workerContext, visibleStudentCount), 1001)
+    assert.equal(
+      await worker.withWorkerTenantTransaction(workerContext, visibleProofStudentCount),
+      1000
+    )
     await expectSqlState(
       worker.withWorkerTenantTransaction(workerContext, (transaction) =>
         transaction.insert(students).values({
