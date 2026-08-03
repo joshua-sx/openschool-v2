@@ -14,6 +14,7 @@ import {
 import { accounts, affiliations, people } from './identity'
 import { schools } from './schools'
 import { students } from './student'
+import { STUDENT_ADMITTER_CAPABILITIES } from './student-policy-capabilities'
 import { tenants } from './tenancy'
 
 const STUDENT_READ_CAPABILITIES = sql`
@@ -153,7 +154,7 @@ export const schoolEnrollments = pgTable(
         AND current_user = 'openschool_student_admitter'
         AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
         AND nullif(current_setting('app.policy_capability', true), '')
-          IN ('tenant.students.create', 'tenant.students.update')
+          IN (${STUDENT_ADMITTER_CAPABILITIES})
         AND public.openschool_canonical_student_scope_allows(
           ${table.tenantId}, ${table.schoolId}, ${table.personId}
         )
@@ -321,7 +322,7 @@ export const studentCompatibilityEvidence = pgTable(
         AND current_user = 'openschool_student_admitter'
         AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
         AND nullif(current_setting('app.policy_capability', true), '')
-          IN ('tenant.students.create', 'tenant.students.update')
+          IN (${STUDENT_ADMITTER_CAPABILITIES})
         AND public.openschool_canonical_student_scope_allows(
           ${table.tenantId}, ${table.schoolId}, ${table.personId}
         )
@@ -335,7 +336,7 @@ export const studentCompatibilityEvidence = pgTable(
         AND current_user = 'openschool_student_admitter'
         AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
         AND nullif(current_setting('app.policy_capability', true), '')
-          IN ('tenant.students.create', 'tenant.students.update')
+          IN (${STUDENT_ADMITTER_CAPABILITIES})
         AND public.openschool_canonical_student_scope_allows(
           ${table.tenantId}, ${table.schoolId}, ${table.personId}
         )
