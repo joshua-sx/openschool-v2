@@ -1008,6 +1008,20 @@ function isSupportConstraint(
   )
 }
 
+function errorChainIncludes(error: unknown, expected: string): boolean {
+  let current = error
+  const visited = new Set<object>()
+  for (let depth = 0; depth < 8; depth += 1) {
+    if (typeof current === 'string') return current.includes(expected)
+    if (!current || typeof current !== 'object' || visited.has(current)) return false
+    visited.add(current)
+    const candidate = current as { cause?: unknown; message?: unknown }
+    if (typeof candidate.message === 'string' && candidate.message.includes(expected)) return true
+    current = candidate.cause
+  }
+  return false
+}
+
 async function resolveSupportAccessInTransaction(
   transaction: DatabaseTransaction,
   identity: SupportIdentityDatabaseContext,
@@ -1053,11 +1067,10 @@ async function resolveSupportAccessInTransaction(
       )
     `)
   } catch (cause) {
-    const message = cause instanceof Error ? cause.message : String(cause)
-    if (message.includes('SUPPORT_ACCESS_SESSION_REUSED')) {
+    if (errorChainIncludes(cause, 'SUPPORT_ACCESS_SESSION_REUSED')) {
       deny('DATABASE_CONTEXT_STALE', 'Support Grant is bound to a different session')
     }
-    if (message.includes('SUPPORT_ACCESS_DENIED')) {
+    if (errorChainIncludes(cause, 'SUPPORT_ACCESS_DENIED')) {
       deny('DATABASE_CONTEXT_STALE', 'Support Grant is unavailable or expired')
     }
     throw cause
