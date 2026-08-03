@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
   CURRENT_POLICY_BUNDLE,
+  POLICY_VERSION_ACADEMIC_STRUCTURE,
   POLICY_VERSION_CURRENT,
   POLICY_VERSION_LEGACY_PARITY,
   selectPolicyBundle,
@@ -541,6 +542,47 @@ describe('capability Policy Decisions', () => {
       'SCOPE_NOT_GRANTED'
     )
   })
+
+  it('limits enrollment lifecycle changes to MFA-protected administrators', () => {
+    const request = {
+      capability: CAPABILITIES.STUDENT_ENROLLMENTS_MANAGE,
+      requestedScope: 'school',
+      resource: {
+        kind: 'student_enrollment',
+        tenantId: 'tenant-1',
+        schoolId: 'school-1',
+      },
+      attributes: { now: NOW },
+    } as const
+
+    assert.equal(decision(request).reason, 'MFA_REQUIRED')
+    const allowed = decision({
+      ...request,
+      context: context({ assuranceLevel: 'aal2' }),
+    })
+    assert.equal(allowed.effect, 'allow')
+    assert.deepEqual(
+      allowed.obligations
+        .filter((obligation) => obligation.kind === 'audit')
+        .map(({ event }) => event),
+      ['student.enrollment.schedule', 'student.enrollment.apply', 'student.enrollment.cancel']
+    )
+    assert.equal(
+      decision({
+        ...request,
+        context: context({ roleTemplateKeys: ['teacher'], assuranceLevel: 'aal2' }),
+      }).reason,
+      'SCOPE_NOT_GRANTED'
+    )
+    assert.equal(
+      decision({
+        ...request,
+        bundle: selectPolicyBundle(POLICY_VERSION_ACADEMIC_STRUCTURE),
+        context: context({ assuranceLevel: 'aal2' }),
+      }).reason,
+      'SCOPE_NOT_GRANTED'
+    )
+  })
 })
 
 describe('versioned Role Template bundles', () => {
@@ -552,6 +594,8 @@ describe('versioned Role Template bundles', () => {
       ],
       [CAPABILITIES.ACADEMIC_STRUCTURE_READ, ['org_admin', 'org_viewer', 'school_admin']],
       [CAPABILITIES.ACADEMIC_STRUCTURE_MANAGE, ['org_admin', 'school_admin']],
+      [CAPABILITIES.STUDENT_ENROLLMENTS_READ, ['org_admin', 'org_viewer', 'school_admin']],
+      [CAPABILITIES.STUDENT_ENROLLMENTS_MANAGE, ['org_admin', 'school_admin']],
       [CAPABILITIES.STUDENTS_CREATE, ['org_admin', 'school_admin', 'staff']],
       [
         CAPABILITIES.STUDENTS_READ,
@@ -616,10 +660,25 @@ describe('versioned Role Template bundles', () => {
     assert.equal(selectPolicyBundle()?.version, POLICY_VERSION_CURRENT)
     assert.equal(selectPolicyBundle(POLICY_VERSION_CURRENT)?.version, POLICY_VERSION_CURRENT)
     assert.equal(
+      selectPolicyBundle(POLICY_VERSION_ACADEMIC_STRUCTURE)?.version,
+      POLICY_VERSION_ACADEMIC_STRUCTURE
+    )
+    assert.equal(
       selectPolicyBundle(POLICY_VERSION_LEGACY_PARITY)?.version,
       POLICY_VERSION_LEGACY_PARITY
     )
     assert.equal(selectPolicyBundle('unknown'), undefined)
+  })
+
+  it('preserves platform operators in the academic-structure rollback bundle', () => {
+    const rollback = selectPolicyBundle(POLICY_VERSION_ACADEMIC_STRUCTURE)
+    assert.ok(rollback)
+    assert.deepEqual(
+      ['super_admin', 'support_agent', 'break_glass_operator'].filter(
+        (role) => rollback.roleTemplates[role]
+      ),
+      ['super_admin', 'support_agent', 'break_glass_operator']
+    )
   })
 
   it('composes immutable custom roles from explicit grant bundles', () => {

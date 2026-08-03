@@ -22,7 +22,7 @@ import {
   type PolicyQueryConstraint,
 } from '@openschool/rbac'
 import { TRPCError } from '@trpc/server'
-import { and, eq, gt, isNull, lte, or, sql } from 'drizzle-orm'
+import { and, desc, eq, lte, or, sql } from 'drizzle-orm'
 import {
   assertDatabasePolicyContext,
   assertStudentSliceEnabled,
@@ -49,7 +49,8 @@ export interface CanonicalStudent {
   dateOfBirth: string | null
   studentNumber: string | null
   email: string | null
-  status: 'active'
+  status: 'active' | 'inactive' | 'graduated' | 'withdrawn'
+  isCurrentEnrollment: boolean
   source: 'canonical'
   parityStatus: 'matched' | 'mismatch'
   enrolledAt: Date
@@ -167,6 +168,7 @@ function canonicalStudentFromMutation(
     studentNumber: input.studentNumber,
     email: input.email,
     status: 'active',
+    isCurrentEnrollment: true,
     source: 'canonical',
     parityStatus: 'matched',
     enrolledAt: occurredAt,
@@ -273,17 +275,21 @@ async function loadAuthorizedStudents(
   const tenantId = context.tenantId
   if (!tenantId) policyScopeDenied()
   const at = new Date()
-  const filters = [
-    eq(schoolEnrollments.tenantId, tenantId),
-    eq(schoolEnrollments.status, 'enrolled'),
-    lte(schoolEnrollments.validFrom, at),
-    or(isNull(schoolEnrollments.validUntil), gt(schoolEnrollments.validUntil, at)),
-    eq(people.status, 'active'),
-    eq(studentProfiles.status, 'active'),
-    eq(affiliations.status, 'active'),
-    lte(affiliations.validFrom, at),
-    or(isNull(affiliations.validUntil), gt(affiliations.validUntil, at)),
-  ]
+  const atIso = at.toISOString()
+  const includeHistorical = Boolean(
+    lookup.studentId && expectedCapability === CAPABILITIES.STUDENTS_READ
+  )
+  const filters = [eq(schoolEnrollments.tenantId, tenantId), eq(people.status, 'active')]
+  if (!includeHistorical) {
+    filters.push(
+      eq(schoolEnrollments.status, 'enrolled'),
+      lte(schoolEnrollments.validFrom, at),
+      sql`(${schoolEnrollments.validUntil} IS NULL OR ${schoolEnrollments.validUntil} > ${atIso}::timestamptz)`,
+      eq(affiliations.status, 'active'),
+      lte(affiliations.validFrom, at),
+      sql`(${affiliations.validUntil} IS NULL OR ${affiliations.validUntil} > ${atIso}::timestamptz)`
+    )
+  }
   if (lookup.schoolId) filters.push(eq(schoolEnrollments.schoolId, lookup.schoolId))
   if (lookup.studentId) {
     const identifierFilter = or(
@@ -297,7 +303,10 @@ async function loadAuthorizedStudents(
     .select({
       id: people.id,
       personId: people.id,
-      legacyStudentId: students.id,
+      legacyStudentId: sql<string>`coalesce(
+        ${studentProfiles.legacyStudentId},
+        ${schoolEnrollments.legacyStudentId}
+      )`,
       schoolEnrollmentId: schoolEnrollments.id,
       studentAffiliationId: schoolEnrollments.studentAffiliationId,
       tenantId: schoolEnrollments.tenantId,
@@ -308,7 +317,24 @@ async function loadAuthorizedStudents(
       dateOfBirth: people.dateOfBirth,
       studentNumber: studentProfiles.studentNumber,
       email: people.email,
-      status: sql<'active'>`'active'::text`,
+      status: sql<CanonicalStudent['status']>`CASE
+        WHEN ${schoolEnrollments.status} = 'enrolled'
+          AND ${schoolEnrollments.validFrom} <= ${atIso}::timestamptz
+          AND (
+            ${schoolEnrollments.validUntil} IS NULL
+            OR ${schoolEnrollments.validUntil} > ${atIso}::timestamptz
+          )
+        THEN 'active'
+        ELSE ${studentProfiles.status}
+      END`,
+      isCurrentEnrollment: sql<boolean>`
+        ${schoolEnrollments.status} = 'enrolled'
+        AND ${schoolEnrollments.validFrom} <= ${atIso}::timestamptz
+        AND (
+          ${schoolEnrollments.validUntil} IS NULL
+          OR ${schoolEnrollments.validUntil} > ${atIso}::timestamptz
+        )
+      `,
       source: sql<'canonical'>`'canonical'::text`,
       parityStatus: sql<'matched' | 'mismatch'>`
         CASE
@@ -364,7 +390,7 @@ async function loadAuthorizedStudents(
         eq(affiliations.schoolId, schoolEnrollments.schoolId)
       )
     )
-    .innerJoin(
+    .leftJoin(
       students,
       and(
         eq(students.tenantId, schoolEnrollments.tenantId),
@@ -372,7 +398,24 @@ async function loadAuthorizedStudents(
       )
     )
     .where(and(...filters))
-    .orderBy(people.normalizedDisplayName, people.id)
+    .orderBy(
+      ...(lookup.studentId
+        ? [
+            sql<number>`CASE
+              WHEN ${schoolEnrollments.status} = 'enrolled'
+                AND ${schoolEnrollments.validFrom} <= ${atIso}::timestamptz
+                AND (
+                  ${schoolEnrollments.validUntil} IS NULL
+                  OR ${schoolEnrollments.validUntil} > ${atIso}::timestamptz
+                )
+              THEN 0 ELSE 1
+            END`,
+            sql<number>`CASE WHEN ${schoolEnrollments.enrollmentType} = 'primary' THEN 0 ELSE 1 END`,
+            desc(schoolEnrollments.validFrom),
+            desc(schoolEnrollments.id),
+          ]
+        : [people.normalizedDisplayName, people.id])
+    )
     .limit(lookup.studentId ? 1 : MAX_STUDENT_ROWS)
 
   return rows.map((row) =>

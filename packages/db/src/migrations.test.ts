@@ -106,6 +106,62 @@ describe('database migration baseline', () => {
     }
   })
 
+  it('installs an append-only learner enrollment transition authority', () => {
+    const migration = readFileSync(join(migrationsDirectory, '0030_milky_lord_tyger.sql'), 'utf8')
+    for (const expected of [
+      'CREATE TABLE "school_enrollment_transition_events"',
+      'ALTER TABLE "school_enrollment_transition_events" FORCE ROW LEVEL SECURITY',
+      'school_enrollments_period_guard',
+      'school_enrollment_transition_events_append_only',
+      'openschool_enrollment_transition_scope_allows',
+      'openschool_private"."schedule_school_enrollment_transition',
+      'openschool_private"."apply_school_enrollment_transition',
+      'openschool_private"."cancel_school_enrollment_transition',
+      'pg_advisory_xact_lock',
+      'membership_version = account.membership_version + 1',
+      'ENROLLMENT_TRANSITION_STALE',
+      'ENROLLMENT_TRANSITION_UNAVAILABLE',
+      'OWNER TO "openschool_student_admitter"',
+      'REVOKE INSERT, UPDATE, DELETE ON "school_enrollment_transition_events"',
+      'GRANT INSERT ON "school_enrollment_transition_events"',
+      'GRANT UPDATE ("school_id", "status", "updated_at")',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+  })
+
+  it('hardens lifecycle references, event shapes, and hierarchy evidence', () => {
+    const migration = readFileSync(
+      join(migrationsDirectory, '0031_curved_rumiko_fujikawa.sql'),
+      'utf8'
+    )
+    for (const expected of [
+      'school_enrollments_transition_reference_unique',
+      'school_enrollment_transition_events_tenant_from_fk',
+      'school_enrollment_transition_events_tenant_to_fk',
+      'school_enrollment_transition_events_shape_check',
+      'school_enrollments_native_tree_version_check',
+      'openschool_private"."assign_school_enrollment_tree_version',
+      'school_enrollments_assign_tree_version',
+      "= 'tenant.student_enrollments.manage'",
+      'SCHOOL_ENROLLMENT_TREE_CONTEXT_STALE',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+  })
+
+  it('allows student capabilities to resolve schools for canonical learner reads', () => {
+    const migration = readFileSync(join(migrationsDirectory, '0032_flaky_speedball.sql'), 'utf8')
+    for (const expected of [
+      'ALTER POLICY "schools_runtime_select"',
+      "'tenant.students.create', 'tenant.students.read'",
+      "'tenant.students.update', 'tenant.students.delete'",
+      'public.openschool_school_scope_allows',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+  })
+
   it('installs a partitioned append-only Audit Ledger and guarded outbox', () => {
     const migration = readFileSync(
       join(migrationsDirectory, '0015_atomic_audit_outbox.sql'),

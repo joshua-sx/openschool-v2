@@ -22,7 +22,9 @@ Identity bootstrap uses one narrower seam before a Policy Decision exists. `bind
 | `schools` | worker | current Tenant only | explicit deny | explicit deny | explicit deny |
 | `students` | runtime | approved capability and Student scope | explicit deny and no table grant | explicit deny and no table grant | explicit deny and no table grant |
 | `school_enrollments` | runtime | approved capability and canonical learner scope | explicit deny and no table grant | explicit deny and no table grant | explicit deny and no table grant |
-| `school_enrollments` | `openschool_student_admitter` | exact create/update scope inside private function | canonical admission only | explicit deny and no table grant | explicit deny |
+| `school_enrollments` | `openschool_student_admitter` | exact admission/update/lifecycle scope inside private functions | canonical admission or authorized lifecycle transition only | one guarded close with version/evidence; history is immutable | trigger and policy deny |
+| `school_enrollment_transition_events` | runtime | authorized enrollment-history scope | explicit deny and no table grant | explicit deny and no table grant | explicit deny and no table grant |
+| `school_enrollment_transition_events` | `openschool_student_admitter` | exact lifecycle scope inside private functions | immutable schedule/apply/cancel event only | trigger and policy deny | trigger and policy deny |
 | `students` | worker | current Tenant only | explicit deny and no table grant | explicit deny and no table grant | explicit deny and no table grant |
 
 The runtime role has only the table privileges needed by current code and proof coverage. Neither execution role owns product tables, has `BYPASSRLS`, can create schema objects, can truncate Students, or can assume migration, backup, emergency, or the other execution role.
@@ -54,4 +56,4 @@ Set `OPENSCHOOL_STUDENT_SLICE_MODE=forced_rls` to expose the slice. `disabled` i
 - positive runtime `SELECT`, direct runtime write denial, private canonical mutation evidence, and worker read/write limits;
 - representative data volume, use of `students_tenant_school_idx`, and a 1,000 ms CI execution-time budget (53.224 ms in the acceptance run).
 
-The service-level `policy:query-poc` separately proves that application predicates agree with database scope. [`canonical:student-admission-poc`](./CANONICAL_STUDENT_ADMISSION.md) proves the only supported create/update boundary. The automated Isolation Matrix composes these proofs with the API, identity, audit, privileged-operation, backup, and release-evidence boundaries for every implemented path.
+The service-level `policy:query-poc` separately proves that application predicates agree with database scope. [`canonical:student-admission-poc`](./CANONICAL_STUDENT_ADMISSION.md) proves the supported learner create/update boundary, and [`student:enrollment-lifecycle-poc`](./STUDENT_ENROLLMENT_LIFECYCLE.md) proves the supported placement-history boundary. The automated Isolation Matrix composes these proofs with the API, identity, audit, privileged-operation, backup, and release-evidence boundaries for every implemented path.

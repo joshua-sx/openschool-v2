@@ -1,5 +1,6 @@
 'use client'
 
+import { StudentEnrollmentLifecycle } from '@/components/students/student-enrollment-lifecycle'
 import {
   type StudentFormData,
   type StudentFormErrors,
@@ -173,10 +174,19 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
             <h1 className="text-2xl font-bold text-gray-900">
               {student.firstName} {student.lastName}
             </h1>
-            <p className="mt-1 text-sm text-gray-500">{student.schoolName} · Current enrollment</p>
+            <p className="mt-1 text-sm text-gray-500">
+              {student.schoolName} ·{' '}
+              {student.isCurrentEnrollment
+                ? 'Current enrollment'
+                : student.status === 'graduated'
+                  ? 'Graduated learner'
+                  : student.status === 'withdrawn'
+                    ? 'Withdrawn learner'
+                    : 'Historical enrollment'}
+            </p>
           </div>
         </div>
-        {!isEditing && (
+        {!isEditing && student.isCurrentEnrollment && (
           <button
             type="button"
             onClick={() => setIsEditing(true)}
@@ -412,6 +422,8 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
           )}
         </div>
       </form>
+
+      <StudentEnrollmentLifecycle personId={student.personId} studentLookupId={id} />
 
       <div className="mt-6 border-t border-gray-200 pt-4 text-xs text-gray-500">
         <p>
