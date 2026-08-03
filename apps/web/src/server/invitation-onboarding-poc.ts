@@ -488,7 +488,7 @@ async function runProof(): Promise<void> {
         createdAt: now,
         updatedAt: now,
       }),
-      /invitation_delivery_encryption_check/
+      (error: unknown) => hasPostgresConstraint(error, 'invitation_delivery_encryption_check')
     )
     await admin.insert(invitationDeliveryOutbox).values({
       id: poisonDeliveryId,
