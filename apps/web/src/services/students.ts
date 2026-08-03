@@ -284,11 +284,11 @@ async function loadAuthorizedStudents(
     filters.push(
       eq(schoolEnrollments.status, 'enrolled'),
       lte(schoolEnrollments.validFrom, at),
-      sql`${schoolEnrollments.validUntil} IS NULL OR ${schoolEnrollments.validUntil} > ${atIso}::timestamptz`,
+      sql`(${schoolEnrollments.validUntil} IS NULL OR ${schoolEnrollments.validUntil} > ${atIso}::timestamptz)`,
       eq(studentProfiles.status, 'active'),
       eq(affiliations.status, 'active'),
       lte(affiliations.validFrom, at),
-      sql`${affiliations.validUntil} IS NULL OR ${affiliations.validUntil} > ${atIso}::timestamptz`
+      sql`(${affiliations.validUntil} IS NULL OR ${affiliations.validUntil} > ${atIso}::timestamptz)`
     )
   }
   if (lookup.schoolId) filters.push(eq(schoolEnrollments.schoolId, lookup.schoolId))
