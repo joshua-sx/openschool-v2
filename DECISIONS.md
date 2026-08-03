@@ -102,9 +102,9 @@ Education systems require compliance. "Who changed that grade?" is a common ques
 
 **Decision:**
 Build `packages/audit` with:
-- Audit table schema
-- `logAuditEvent()` function
-- tRPC middleware for automatic logging
+- a versioned, Tenant-scoped, partitioned Audit Ledger
+- transaction-scoped append and a durable outbox
+- default-deny classification/redaction and audited reader/export interfaces
 
 **Alternatives Considered:**
 - Add audit logging later — painful to retrofit
@@ -113,7 +113,8 @@ Build `packages/audit` with:
 **Consequences:**
 - Storage overhead
 - Required for compliance
-- Every mutation logs before/after values
+- Protected mutations fail closed unless their redacted evidence commits atomically
+- Full records, sensitive values, and credentials are prohibited from generic change payloads
 
 **Revisit When:**
 - Never — this is a compliance requirement

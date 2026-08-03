@@ -101,7 +101,19 @@ throw new TRPCError({ code: 'FORBIDDEN' })
 
 const result = await db.insert(...)
 
-await logAuditEvent(ctx, { action, resource, resourceId })
+await appendAuditEventInTransaction(db, databaseContext, policyContext, policyDecision, {
+
+eventType: 'resource.create',
+
+outcome: 'succeeded',
+
+targetType: 'resource',
+
+targetId: result.id,
+
+dataClasses: ['internal']
+
+})
 
 ---
 
@@ -230,21 +242,27 @@ throw new TRPCError({ code: 'FORBIDDEN' })
 
 await db.update(grades).set({ score: 95 }).where(...)
 
-// ✅ GOOD: With audit logging
+// ✅ GOOD: Mutation and redacted evidence share one transaction
 
-const oldGrade = await getGrade(id)
+await withPolicyTenantTransaction(databaseContext, databasePolicy, async (db) => {
 
 await db.update(grades).set({ score: 95 }).where(...)
 
-await logAuditEvent(ctx, {
+await appendAuditEventInTransaction(db, databaseContext, policyContext, policyDecision, {
 
-action: 'update',
+eventType: 'grade.update',
 
-resource: 'grade',
+outcome: 'succeeded',
 
-oldValues: oldGrade,
+targetType: 'grade',
 
-newValues: { score: 95 }
+targetId: id,
+
+dataClasses: ['student_personal'],
+
+change: { changedFields: ['score'] }
+
+})
 
 })
 

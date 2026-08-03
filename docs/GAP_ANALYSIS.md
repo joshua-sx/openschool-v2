@@ -39,7 +39,7 @@ This document provides a comprehensive gap analysis between what's currently imp
 | Teachers_on_Class | ✅ Done | `packages/db/src/schema/memberships.ts` | Many-to-many relationship |
 | Enrollments Table | ✅ Done | `packages/db/src/schema/enrollments.ts` | Student-class with status |
 | Audit Logs Table | ✅ Done | `packages/db/src/schema/audit.ts` | Comprehensive audit schema |
-| Audit Logger | ✅ Done | `packages/audit/src/logger.ts` | logAuditEvent() function |
+| Audit Ledger | ✅ Foundation | `packages/audit/` | Atomic versioned events, redaction, audited reads/exports, immutable outbox; remaining mutation integrations and deployed archive/signing are required |
 
 ### ⚠️ Needs Verification/Enhancement
 

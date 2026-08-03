@@ -1,7 +1,7 @@
 # M1 tenant isolation matrix
 
 - Owner: Security Engineering
-- Status: Required test contract; first School/Student forced-RLS slice implemented, full cross-path enforcement pending
+- Status: Required test contract; first School/Student forced-RLS and atomic Audit Ledger slices implemented, full cross-path enforcement pending
 - Governing ADRs: [0001](../adr/0001-tenant-isolation-and-placement.md), [0004](../adr/0004-request-context-and-session-verification.md), [0005](../adr/0005-capability-authorization.md), [0006](../adr/0006-database-execution-and-rls.md)
 
 Each implementation issue converts the relevant rows below into automated tests. Positive tests are necessary but never sufficient: every path requires same-Tenant allow and cross-scope deny evidence.
@@ -36,7 +36,7 @@ Each implementation issue converts the relevant rows below into automated tests.
 | Import | staged Tenant A rows and references apply atomically | Tenant B IDs, duplicate IDs, formula payloads, oversized files denied | preview, rollback, and error report scoped | bulk import |
 | Export/report | approved fields and scope produce Tenant A file | cross-Tenant filters, hidden columns, stale support grant denied | step-up auth, expiry, download and deletion audited | reporting |
 | Analytics | approved aggregate respects Tenant/data product | row-level cross-Tenant drill-through denied | lineage, purpose, retention recorded | cross-tenant analytics |
-| Audit | mutation and event commit together | audit failure rolls back required mutation; app cannot edit/delete event | reader access and export audited | privileged mutations |
+| Audit | `audit:poc` proves Student/Account Link mutation evidence, audited reads/exports, and outbox retry | fault-injected audit failure rolls back mutation; Tenant/sibling visibility is scoped; runtime and owner tampering fail | hashes, partitions, redaction, denied/failed/support evidence, correlation, and idempotent publish are asserted; remaining mutations move through #89/#90 | privileged mutations |
 | Backup/restore | full isolated restore matches counts/checksums | wrong-Tenant restore target and RLS-filtered backup fail | scheduled drill records RPO/RTO evidence | production |
 | Placement routing | Tenant maps to correct pooled adapter | unknown/tampered placement fails closed | move supports verification and rollback | bridge/silo |
 
