@@ -116,7 +116,7 @@ export function SecuritySettingsPanel() {
     try {
       const result = await supabase.auth.mfa.enroll({
         factorType: 'totp',
-        friendlyName: 'OpenSchool authenticator',
+        friendlyName: `OpenSchool authenticator ${Date.now().toString(36)}`,
       })
       if (result.error) throw result.error
       if (!result.data || result.data.type !== 'totp')
@@ -189,6 +189,15 @@ export function SecuritySettingsPanel() {
       const result = await supabase.auth.mfa.unenroll({ factorId })
       if (result.error) throw result.error
       setRemovingFactorId(null)
+      const refreshed = await supabase.auth.refreshSession()
+      if (refreshed.error) {
+        await loadSecurityState()
+        setStatusMessage(
+          'Authenticator removed, but this session could not be refreshed. Sign out and back in before continuing.'
+        )
+        router.refresh()
+        return
+      }
       await loadSecurityState()
       setStatusMessage('Authenticator removed. Administrative changes will require MFA enrollment.')
       router.refresh()
@@ -269,6 +278,26 @@ export function SecuritySettingsPanel() {
         messageFor(error, 'Unable to verify this code. Enter a new code and try again.')
       )
       reauthenticationCodeRef.current?.focus()
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  const cancelReauthentication = async () => {
+    setBusyAction('cancel-reauthentication')
+    setReauthenticationStep('password')
+    setReauthenticationFactorId(null)
+    setReauthenticationCode('')
+    setReauthenticationError(null)
+    try {
+      await loadSecurityState()
+      setStatusMessage(
+        'Verification stopped. This session remains password-only until you complete the authenticator step.'
+      )
+      router.refresh()
+      queueMicrotask(() => passwordRef.current?.focus())
+    } catch (error) {
+      setStatusMessage(messageFor(error, 'Unable to refresh security settings. Try again.'))
     } finally {
       setBusyAction(null)
     }
@@ -486,6 +515,8 @@ export function SecuritySettingsPanel() {
               </h2>
               <p className="mt-2 text-sm leading-6 text-gray-600">
                 Verify your password and authenticator before changing accounts, roles, or sessions.
+                Verifying the password starts a fresh password-only session; complete the
+                authenticator step to restore MFA verification.
               </p>
             </div>
             <span className="inline-flex shrink-0 items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
@@ -563,13 +594,23 @@ export function SecuritySettingsPanel() {
                   {reauthenticationError}
                 </p>
               ) : null}
-              <button
-                type="submit"
-                disabled={busyAction !== null}
-                className="mt-4 min-h-11 rounded-lg bg-gray-950 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-wait disabled:opacity-60"
-              >
-                Verify authenticator
-              </button>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  type="submit"
+                  disabled={busyAction !== null}
+                  className="min-h-11 rounded-lg bg-gray-950 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-wait disabled:opacity-60"
+                >
+                  Verify authenticator
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelReauthentication}
+                  disabled={busyAction !== null}
+                  className="min-h-11 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-wait disabled:opacity-60"
+                >
+                  Stop verification
+                </button>
+              </div>
             </form>
           )}
         </section>
