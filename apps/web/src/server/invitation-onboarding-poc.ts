@@ -135,6 +135,20 @@ function emailFor(suffix: string): string {
   return `invitation-poc-${RUN_SLUG}-${suffix}@example.test`
 }
 
+function hasPostgresConstraint(error: unknown, constraintName: string): boolean {
+  const seen = new Set<object>()
+  let current = error
+
+  while (typeof current === 'object' && current !== null && !seen.has(current)) {
+    seen.add(current)
+    const record = current as Record<string, unknown>
+    if (record.constraint_name === constraintName) return true
+    current = record.cause
+  }
+
+  return false
+}
+
 async function expectAcceptanceReason(
   operation: Promise<unknown>,
   reason: InvitationAcceptanceError['reason']
@@ -249,7 +263,7 @@ async function runProof(): Promise<void> {
         createdAt: now,
         updatedAt: now,
       }),
-      /account_invitations_roles_check/
+      (error: unknown) => hasPostgresConstraint(error, 'account_invitations_roles_check')
     )
 
     const approvalDeniedRequestId = `invitation-poc-${RUN_ID}-approval-denied`
