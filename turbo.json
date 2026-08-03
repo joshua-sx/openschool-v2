@@ -153,6 +153,7 @@
     "db:platform-tenant-lifecycle-poc": {
       "cache": false,
       "env": [
+        "ALLOW_DATABASE_EXECUTION_POC",
         "ALLOW_PLATFORM_TENANT_LIFECYCLE_POC",
         "DATABASE_MIGRATION_URL",
         "DATABASE_MIGRATION_ROLE",
