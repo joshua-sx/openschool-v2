@@ -83,7 +83,7 @@ function adminPolicyContext(now: Date): PolicyContext {
   })
 }
 
-function adminDatabaseContext(requestId: string): TenantDatabaseContext {
+function adminDatabaseContext(requestId: string, reauthenticatedAt: string): TenantDatabaseContext {
   return Object.freeze({
     accountId: ADMIN_ACCOUNT,
     personId: ADMIN_PERSON,
@@ -91,6 +91,7 @@ function adminDatabaseContext(requestId: string): TenantDatabaseContext {
     sessionId: ADMIN_SESSION,
     requestId,
     assuranceLevel: 'aal2',
+    reauthenticatedAt,
     membershipVersion: 1,
     securityVersion: 1,
     contextPolicyVersion: 1,
@@ -232,6 +233,7 @@ async function runProof(): Promise<void> {
       assuranceLevel: 'aal2',
       securityVersion: 1,
       authenticatedAt: now,
+      reauthenticatedAt: now,
       expiresAt,
     })
     await admin.insert(people).values(
@@ -269,7 +271,7 @@ async function runProof(): Promise<void> {
     const approvalDeniedRequestId = `invitation-poc-${RUN_ID}-approval-denied`
     await assert.rejects(
       issueAccountInvitation(
-        adminDatabaseContext(approvalDeniedRequestId),
+        adminDatabaseContext(approvalDeniedRequestId, now.toISOString()),
         policyContext,
         inviteDecision,
         {
@@ -294,7 +296,7 @@ async function runProof(): Promise<void> {
     assert.ok(approvalDenialAudit?.targetId)
 
     const success = await issueAccountInvitation(
-      adminDatabaseContext(`invitation-poc-${RUN_ID}-issue-success`),
+      adminDatabaseContext(`invitation-poc-${RUN_ID}-issue-success`, now.toISOString()),
       policyContext,
       inviteDecision,
       {
@@ -444,7 +446,7 @@ async function runProof(): Promise<void> {
     )
 
     const validIsolationDelivery = await issueAccountInvitation(
-      adminDatabaseContext(`invitation-poc-${RUN_ID}-issue-delivery-valid`),
+      adminDatabaseContext(`invitation-poc-${RUN_ID}-issue-delivery-valid`, now.toISOString()),
       policyContext,
       inviteDecision,
       {
@@ -548,7 +550,7 @@ async function runProof(): Promise<void> {
     assert.equal(validTerminalDelivery?.tokenCiphertext, null)
 
     const stolen = await issueAccountInvitation(
-      adminDatabaseContext(`invitation-poc-${RUN_ID}-issue-stolen`),
+      adminDatabaseContext(`invitation-poc-${RUN_ID}-issue-stolen`, now.toISOString()),
       policyContext,
       inviteDecision,
       {
@@ -583,7 +585,7 @@ async function runProof(): Promise<void> {
     )
 
     const cancelled = await issueAccountInvitation(
-      adminDatabaseContext(`invitation-poc-${RUN_ID}-issue-cancelled`),
+      adminDatabaseContext(`invitation-poc-${RUN_ID}-issue-cancelled`, now.toISOString()),
       policyContext,
       inviteDecision,
       {
@@ -602,7 +604,7 @@ async function runProof(): Promise<void> {
       cancelled.deliveryId
     )
     await cancelAccountInvitation(
-      adminDatabaseContext(`invitation-poc-${RUN_ID}-cancel`),
+      adminDatabaseContext(`invitation-poc-${RUN_ID}-cancel`, now.toISOString()),
       policyContext,
       manageDecision,
       cancelled.invitationId,
@@ -620,7 +622,7 @@ async function runProof(): Promise<void> {
     )
 
     await issueAccountInvitation(
-      adminDatabaseContext(`invitation-poc-${RUN_ID}-issue-duplicate-first`),
+      adminDatabaseContext(`invitation-poc-${RUN_ID}-issue-duplicate-first`, now.toISOString()),
       policyContext,
       inviteDecision,
       {
@@ -635,7 +637,7 @@ async function runProof(): Promise<void> {
     )
     await assert.rejects(
       issueAccountInvitation(
-        adminDatabaseContext(`invitation-poc-${RUN_ID}-issue-duplicate-second`),
+        adminDatabaseContext(`invitation-poc-${RUN_ID}-issue-duplicate-second`, now.toISOString()),
         policyContext,
         inviteDecision,
         {
@@ -652,7 +654,7 @@ async function runProof(): Promise<void> {
 
     await assert.rejects(
       issueAccountInvitation(
-        adminDatabaseContext(`invitation-poc-${RUN_ID}-cross-tenant`),
+        adminDatabaseContext(`invitation-poc-${RUN_ID}-cross-tenant`, now.toISOString()),
         policyContext,
         inviteDecision,
         {
