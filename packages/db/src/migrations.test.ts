@@ -97,6 +97,7 @@ describe('database migration baseline', () => {
       'openschool_private"."publish_academic_year',
       'openschool_private"."close_academic_year',
       'OWNER TO "openschool_academic_configurator"',
+      '"school_governance_assignments", "organization_tree_versions"',
       'ACADEMIC_YEAR_TIMEZONE_INVALID',
       'no dates were inferred',
       'REVOKE INSERT, UPDATE, DELETE ON TABLE "academic_years"',

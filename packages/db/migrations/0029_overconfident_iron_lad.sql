@@ -508,9 +508,14 @@ CREATE TRIGGER "academic_compatibility_evidence_append_only"
 
 GRANT USAGE ON SCHEMA "public", "openschool_private"
   TO "openschool_academic_configurator";--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION "openschool_policy_constraints"()
+  TO "openschool_academic_configurator";--> statement-breakpoint
 GRANT EXECUTE ON FUNCTION "openschool_school_scope_allows"(uuid, uuid)
   TO "openschool_academic_configurator";--> statement-breakpoint
-GRANT SELECT ON TABLE "schools", "academic_years", "academic_terms", "learner_levels"
+GRANT SELECT ON TABLE
+  "school_governance_assignments", "organization_tree_versions",
+  "organization_tree_closure", "schools", "academic_years", "academic_terms",
+  "learner_levels"
   TO "openschool_academic_configurator";--> statement-breakpoint
 GRANT INSERT, UPDATE ON TABLE "academic_years"
   TO "openschool_academic_configurator";--> statement-breakpoint
