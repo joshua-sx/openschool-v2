@@ -40,7 +40,7 @@ Raw SQL is limited to:
 - guarded local role provisioning in `provision-database-roles.ts`;
 - disposable `*-poc.ts` files that prove PostgreSQL behavior.
 
-The `db:boundary-check` CI gate scans tracked TypeScript under `apps`, `packages/auth`, `packages/audit`, and `packages/rbac`. It rejects owner/global clients, migration credentials, direct postgres-js access, and raw `.unsafe()` calls there. Infrastructure-only database files remain governed by the explicit allowlist above and migration-journal checks.
+The `db:boundary-check` CI gate scans tracked TypeScript under `apps`, `packages/auth`, `packages/audit`, and `packages/rbac`. It rejects owner/global clients, migration credentials, direct postgres-js access, raw `.unsafe()` calls, and use of the pre-policy binder outside the Tenant context resolver. Infrastructure-only database files remain governed by the explicit allowlist above and migration-journal checks.
 
 ## Evidence and rollback
 
