@@ -38,6 +38,8 @@ export interface TenantDatabaseContext {
   sessionId: string
   requestId: string
   assuranceLevel: DatabaseAssuranceLevel
+  /** Canonical provider-verified interactive authentication evidence. */
+  reauthenticatedAt?: string
   membershipVersion: number
   securityVersion: number
   contextPolicyVersion: number
@@ -152,6 +154,15 @@ export function validateTenantDatabaseContext(context: TenantDatabaseContext): v
   if (!new Set<DatabaseAssuranceLevel>(['aal1', 'aal2']).has(context.assuranceLevel)) {
     deny('DATABASE_CONTEXT_INVALID', 'assuranceLevel is invalid')
   }
+  if (context.reauthenticatedAt) {
+    const reauthenticatedAt = new Date(context.reauthenticatedAt)
+    if (
+      Number.isNaN(reauthenticatedAt.getTime()) ||
+      reauthenticatedAt.toISOString() !== context.reauthenticatedAt
+    ) {
+      deny('DATABASE_CONTEXT_INVALID', 'reauthenticatedAt must be a canonical ISO timestamp')
+    }
+  }
   for (const [name, value] of [
     ['membershipVersion', context.membershipVersion],
     ['securityVersion', context.securityVersion],
@@ -260,11 +271,13 @@ interface RuntimeRoleEvidence extends Record<string, unknown> {
   canUseInvitationSchema: boolean
   canCreateInInvitationSchema: boolean
   canExecuteInvitationAcceptance: boolean
+  canExecuteIdentityRevocation: boolean
   canAssumeMigrationRole: boolean
   canAssumeOtherExecutionRole: boolean
   canAssumeBackupRole: boolean
   canAssumeEmergencyRole: boolean
   canAssumeInvitationAcceptor: boolean
+  canAssumeIdentityRevoker: boolean
   operationalRolesExist: boolean
   hasUnsafeMembership: boolean
 }
@@ -333,6 +346,14 @@ async function assertSafeExecutionRole(
           and procedure.proname = 'accept_account_invitation'
           and procedure.proargtypes = '25 1184 1184'::oidvector
       ), false) as "canExecuteInvitationAcceptance",
+      coalesce((
+        select has_function_privilege(current_user, procedure.oid, 'EXECUTE')
+        from pg_proc procedure
+        inner join pg_namespace namespace on namespace.oid = procedure.pronamespace
+        where namespace.nspname = 'openschool_private'
+          and procedure.proname = 'apply_identity_revocation'
+          and procedure.proargtypes = '25 2950 25'::oidvector
+      ), false) as "canExecuteIdentityRevocation",
       exists (
         select 1 from pg_roles candidate
         where candidate.rolname = ${migrationUsername}
@@ -358,6 +379,11 @@ async function assertSafeExecutionRole(
         where candidate.rolname = 'openschool_invitation_acceptor'
           and pg_has_role(current_user, candidate.oid, 'member')
       ) as "canAssumeInvitationAcceptor",
+      exists (
+        select 1 from pg_roles candidate
+        where candidate.rolname = 'openschool_identity_revoker'
+          and pg_has_role(current_user, candidate.oid, 'member')
+      ) as "canAssumeIdentityRevoker",
       (
         select count(*) = 2
         from pg_roles candidate
@@ -404,11 +430,13 @@ async function assertSafeExecutionRole(
     evidence.canUseInvitationSchema !== !canProcessAuditOutbox ||
     evidence.canCreateInInvitationSchema ||
     evidence.canExecuteInvitationAcceptance !== !canProcessAuditOutbox ||
+    evidence.canExecuteIdentityRevocation !== !canProcessAuditOutbox ||
     evidence.canAssumeMigrationRole ||
     evidence.canAssumeOtherExecutionRole ||
     evidence.canAssumeBackupRole ||
     evidence.canAssumeEmergencyRole ||
     evidence.canAssumeInvitationAcceptor ||
+    evidence.canAssumeIdentityRevoker ||
     !evidence.operationalRolesExist ||
     evidence.hasUnsafeMembership
   ) {
@@ -606,6 +634,9 @@ async function assertCurrentTenantContext(
         eq(accountSessions.status, 'active'),
         eq(accountSessions.securityVersion, context.securityVersion),
         eq(accountSessions.assuranceLevel, context.assuranceLevel),
+        context.reauthenticatedAt
+          ? eq(accountSessions.reauthenticatedAt, new Date(context.reauthenticatedAt))
+          : undefined,
         gt(accountSessions.expiresAt, databaseNow)
       )
     )
@@ -673,6 +704,7 @@ async function withTenantUsing<T>(
       'app.session_id': context.sessionId,
       'app.request_id': context.requestId,
       'app.assurance_level': context.assuranceLevel,
+      'app.reauthenticated_at': context.reauthenticatedAt,
       'app.membership_version': String(context.membershipVersion),
       'app.security_version': String(context.securityVersion),
       'app.context_policy_version': String(context.contextPolicyVersion),
