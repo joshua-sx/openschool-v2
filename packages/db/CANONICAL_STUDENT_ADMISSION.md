@@ -22,6 +22,15 @@ The model supports primary and high Schools without separate learner tables. Lat
 Enrollment transition and academic-structure slices add lifecycle and placement detail to the
 same records.
 
+## Current class-scope limitation
+
+Admission establishes School membership; it does not infer a class or section placement. The
+current class-scope check still resolves an explicit roster through the compatibility
+`enrollments` table. A newly admitted learner therefore remains visible to authorized School and
+organization administrators but does not become visible to a class-scoped teacher until the
+section/roster workflow creates that placement. The admission migration deliberately does not
+invent a class or write a synthetic roster row.
+
 ## Mutation boundary
 
 The web runtime has no direct `INSERT`, `UPDATE`, or `DELETE` privilege on the legacy Student or
@@ -75,3 +84,9 @@ PostgreSQL and proves:
 
 The proof is part of the automated Tenant Isolation Matrix. Passing it authorizes continued
 pre-production feature development only; it does not approve real school data or production use.
+
+Successful proof runs retain their canonical, compatibility, Audit Ledger, and outbox rows in the
+guarded loopback-only database because those evidence streams are append-only. Only the transient
+proof session is removed. CI provisions a fresh database for every run; local operators should
+recreate their disposable proof database when they need a clean slate and must never point the
+proof at a shared or production database.
