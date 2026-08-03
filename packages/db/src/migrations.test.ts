@@ -54,4 +54,28 @@ describe('database migration baseline', () => {
       assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
     }
   })
+
+  it('installs a partitioned append-only Audit Ledger and guarded outbox', () => {
+    const migration = readFileSync(
+      join(migrationsDirectory, '0015_atomic_audit_outbox.sql'),
+      'utf8'
+    )
+    for (const expected of [
+      'PARTITION BY RANGE ("occurred_at")',
+      'CREATE TABLE "audit_events_default" PARTITION OF "audit_events" DEFAULT',
+      'ALTER TABLE "audit_events" FORCE ROW LEVEL SECURITY',
+      'ALTER TABLE "audit_outbox" FORCE ROW LEVEL SECURITY',
+      'CREATE POLICY "audit_events_runtime_insert"',
+      'CREATE POLICY "audit_events_runtime_update_deny"',
+      'CREATE POLICY "audit_events_runtime_delete_deny"',
+      'CREATE POLICY "audit_outbox_worker_update"',
+      'openschool_hash_audit_event_on_insert',
+      'openschool_guard_audit_event_insert',
+      'openschool_guard_audit_outbox_change',
+      'audit_archive_manifest_delete_rejected',
+      'REVOKE ALL ON FUNCTION "openschool_audit_scope_allows"',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+  })
 })

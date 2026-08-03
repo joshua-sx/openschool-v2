@@ -147,6 +147,10 @@ async function run(): Promise<void> {
             organizationId: string
             canUpdateStudents: boolean
             canDeleteStudents: boolean
+            canUpdateAuditEvents: boolean
+            canDeleteAuditEvents: boolean
+            canUpdateAuditOutbox: boolean
+            canDeleteAuditOutbox: boolean
           }
         >(sql`
           select
@@ -157,7 +161,11 @@ async function run(): Promise<void> {
             current_setting('app.school_id') as "schoolId",
             current_setting('app.education_organization_id') as "organizationId",
             has_table_privilege(current_user, 'public.students', 'UPDATE') as "canUpdateStudents",
-            has_table_privilege(current_user, 'public.students', 'DELETE') as "canDeleteStudents"
+            has_table_privilege(current_user, 'public.students', 'DELETE') as "canDeleteStudents",
+            has_table_privilege(current_user, 'public.audit_events', 'UPDATE') as "canUpdateAuditEvents",
+            has_table_privilege(current_user, 'public.audit_events', 'DELETE') as "canDeleteAuditEvents",
+            has_table_privilege(current_user, 'public.audit_outbox', 'UPDATE') as "canUpdateAuditOutbox",
+            has_table_privilege(current_user, 'public.audit_outbox', 'DELETE') as "canDeleteAuditOutbox"
         `)
         const evidence = result[0]
         assert.ok(evidence)
@@ -168,6 +176,10 @@ async function run(): Promise<void> {
         assert.equal(evidence.organizationId, ORGANIZATION)
         assert.equal(evidence.canUpdateStudents, true)
         assert.equal(evidence.canDeleteStudents, true)
+        assert.equal(evidence.canUpdateAuditEvents, false)
+        assert.equal(evidence.canDeleteAuditEvents, false)
+        assert.equal(evidence.canUpdateAuditOutbox, false)
+        assert.equal(evidence.canDeleteAuditOutbox, false)
         return evidence.backendPid
       }
     )
@@ -255,6 +267,10 @@ async function run(): Promise<void> {
             tenantId: string
             jobId: string
             canUpdateStudents: boolean
+            canUpdateAuditEvents: boolean
+            canDeleteAuditEvents: boolean
+            canUpdateAuditOutbox: boolean
+            canDeleteAuditOutbox: boolean
           }
         >(sql`
           select
@@ -262,7 +278,11 @@ async function run(): Promise<void> {
             current_user as "currentUser",
             current_setting('app.tenant_id') as "tenantId",
             current_setting('app.job_id') as "jobId",
-            has_table_privilege(current_user, 'public.students', 'UPDATE') as "canUpdateStudents"
+            has_table_privilege(current_user, 'public.students', 'UPDATE') as "canUpdateStudents",
+            has_table_privilege(current_user, 'public.audit_events', 'UPDATE') as "canUpdateAuditEvents",
+            has_table_privilege(current_user, 'public.audit_events', 'DELETE') as "canDeleteAuditEvents",
+            has_table_privilege(current_user, 'public.audit_outbox', 'UPDATE') as "canUpdateAuditOutbox",
+            has_table_privilege(current_user, 'public.audit_outbox', 'DELETE') as "canDeleteAuditOutbox"
         `)
         const evidence = result[0]
         assert.ok(evidence)
@@ -270,6 +290,10 @@ async function run(): Promise<void> {
         assert.equal(evidence.tenantId, TENANT_A)
         assert.equal(evidence.jobId, JOB)
         assert.equal(evidence.canUpdateStudents, false)
+        assert.equal(evidence.canUpdateAuditEvents, false)
+        assert.equal(evidence.canDeleteAuditEvents, false)
+        assert.equal(evidence.canUpdateAuditOutbox, true)
+        assert.equal(evidence.canDeleteAuditOutbox, false)
         return evidence.backendPid
       }
     )
