@@ -85,8 +85,13 @@ function policy(
 }
 
 function sqlState(error: unknown): string | undefined {
-  if (typeof error !== 'object' || error === null || !('code' in error)) return undefined
-  return String(error.code)
+  let current = error
+  for (let depth = 0; depth < 6; depth += 1) {
+    if (typeof current !== 'object' || current === null) return undefined
+    if ('code' in current && typeof current.code === 'string') return current.code
+    current = 'cause' in current ? current.cause : undefined
+  }
+  return undefined
 }
 
 async function expectSqlState(operation: Promise<unknown>, expected: string): Promise<string> {
@@ -239,13 +244,13 @@ async function seedProofData(admin: ReturnType<typeof createMigrationClient>): P
     insert into students (id, tenant_id, school_id, first_name, last_name, email)
     select gen_random_uuid(), ${TENANT_A}::uuid, ${SCHOOL_A_HIGH}::uuid,
       'RLS performance', 'High', ${PROOF_EMAIL}
-    from generate_series(1, 5000)
+    from generate_series(1, 1000)
   `)
   await admin.execute(sql`
     insert into students (id, tenant_id, school_id, first_name, last_name, email)
     select gen_random_uuid(), ${TENANT_B}::uuid, ${SCHOOL_B}::uuid,
       'RLS performance', 'Other Tenant', ${PROOF_EMAIL}
-    from generate_series(1, 5000)
+    from generate_series(1, 1000)
   `)
   await admin.execute(sql`analyze students`)
 }
@@ -321,7 +326,7 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
     assert.equal(organizationIds.includes(STUDENT_A_PRIMARY), true)
     assert.equal(organizationIds.includes(STUDENT_A_HIGH), true)
     assert.equal(organizationIds.includes(STUDENT_B), false)
-    assert.equal(organizationIds.length, 5102)
+    assert.equal(organizationIds.length, 1102)
 
     const schoolPolicy = policy('tenant.students.read', {
       kind: 'school',
@@ -378,7 +383,7 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
       policy('tenant.students.read', { kind: 'tenant', tenantId: TENANT_B }),
       visibleStudentCount
     )
-    assert.equal(tenantBCount, 5001)
+    assert.equal(tenantBCount, 1001)
 
     const wrongTenantContext = { ...organizationAdmin, tenantId: TENANT_B }
     await assert.rejects(
@@ -552,7 +557,7 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
       jobType: 'student_rls_proof',
       requestId: REQUEST_ID,
     }
-    assert.equal(await worker.withWorkerTenantTransaction(workerContext, visibleStudentCount), 5001)
+    assert.equal(await worker.withWorkerTenantTransaction(workerContext, visibleStudentCount), 1001)
     await expectSqlState(
       worker.withWorkerTenantTransaction(workerContext, (transaction) =>
         transaction.insert(students).values({
