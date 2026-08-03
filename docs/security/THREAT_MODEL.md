@@ -88,6 +88,7 @@ Every arrow is a validation seam. Browser selectors, JWT payloads before verific
 | T24 | School transfer changes historical record visibility | integrity/disclosure | effective-dated governance and record context, privileged migration | historical access tests |
 | T25 | Platform role becomes an implicit Tenant data bypass | national-scale disclosure | global grant store, Person-free policy context, no-table control-plane login, separate support grants | role and real-login negative tests |
 | T26 | Tenant suspension races an admitted request or worker | post-suspension access | private least-privilege Tenant admission resolver; shared Tenant row lock; conflicting lifecycle update; current status check | concurrent runtime/worker proof |
+| T27 | Provider MFA deletion fails and the retained factor starts a new session | Account recovery bypass | atomic dedicated queue; latest-reset readiness denial before session registration; leased idempotent retry; dead-letter alert | provider outage, retry, lease, and new-login denial proof |
 
 ## Known residual risks
 
