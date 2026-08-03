@@ -9,6 +9,7 @@ import {
   type TenantDatabaseContext,
   accounts,
   applyIdentityRevocation,
+  identityRevocationOccurredAt,
   withPolicyTenantTransaction,
 } from '@openschool/db'
 import { type AllowedPolicyDecision, CAPABILITIES, type PolicyContext } from '@openschool/rbac'
@@ -53,6 +54,25 @@ const AUDIT_DESCRIPTOR: Readonly<Record<IdentityRevocationAction, RevocationAudi
     changedFields: ['membershipVersion', 'status'],
     purpose: 'membership_revocation',
   },
+}
+
+const PROVIDER_MFA_RESET_TIMEOUT_MS = 5_000
+
+async function withProviderTimeout<T>(operation: Promise<T>): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error('MFA_PROVIDER_RESET_TIMEOUT')),
+          PROVIDER_MFA_RESET_TIMEOUT_MS
+        )
+      }),
+    ])
+  } finally {
+    if (timeout) clearTimeout(timeout)
+  }
 }
 
 export interface IdentityRevocationRequest {
@@ -138,10 +158,14 @@ async function recordRevocationFailure(
       purpose: descriptor.purpose,
     })
   } catch (auditError) {
-    throw new AggregateError(
-      [mapped, auditError],
-      'Identity revocation failed and its failure evidence could not be recorded'
-    )
+    throw new TRPCError({
+      code: mapped.code,
+      message: mapped.message,
+      cause: new AggregateError(
+        [mapped.cause ?? error, auditError],
+        'Identity revocation failure evidence could not be recorded'
+      ),
+    })
   }
   throw mapped
 }
@@ -175,23 +199,25 @@ export async function revokeIdentityAccess(
       databaseContext,
       toDatabasePolicyContext(decision),
       async (tx) => {
+        const effects = await applyIdentityRevocation(tx, input)
         let providerSubject: string | null = null
         let identityProvider: string | null = null
         if (input.action === 'account_mfa_reset') {
+          const affectedAccountId = effects[0]?.affectedAccountId
+          if (!affectedAccountId) throw new Error('IDENTITY_REVOCATION_EFFECT_MISSING')
           const [target] = await tx
             .select({
               identityProvider: accounts.identityProvider,
               providerSubject: accounts.providerSubject,
             })
             .from(accounts)
-            .where(eq(accounts.id, input.targetId))
+            .where(eq(accounts.id, affectedAccountId))
             .limit(1)
           providerSubject = target?.providerSubject ?? null
           identityProvider = target?.identityProvider ?? null
         }
 
-        const effects = await applyIdentityRevocation(tx, input)
-        const occurredAt = effects[0]?.occurredAt ?? new Date()
+        const occurredAt = await identityRevocationOccurredAt(tx, effects)
         const audit = await appendAuditEventInTransaction(tx, databaseContext, context, decision, {
           eventType: 'account.manage',
           outcome: 'succeeded',
@@ -226,14 +252,21 @@ export async function revokeIdentityAccess(
     providerMfaReset = 'pending'
     if (committed.identityProvider === 'supabase' && committed.providerSubject) {
       try {
-        deletedMfaFactorCount = await (
-          mfaAdapter ?? createSupabaseMfaAdministrationAdapter()
-        ).resetFactors(committed.providerSubject)
+        deletedMfaFactorCount = await withProviderTimeout(
+          (mfaAdapter ?? createSupabaseMfaAdministrationAdapter()).resetFactors(
+            committed.providerSubject
+          )
+        )
         providerMfaReset = 'completed'
-      } catch {
+      } catch (providerError) {
         // Local securityVersion/session invalidation already committed. The
         // direct provider operation is safe to retry, and the durable security
         // outbox records that provider reconciliation remains required.
+        console.warn('identity.revocation.provider_mfa_reset_failed', {
+          requestId: databaseContext.requestId,
+          invalidationOutboxId: committed.invalidationOutboxId,
+          reason: providerError instanceof Error ? providerError.message : 'UNKNOWN_PROVIDER_ERROR',
+        })
       }
     }
   }

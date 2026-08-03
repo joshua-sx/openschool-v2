@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { applyIdentityRevocation } from './identity-revocation'
+import { applyIdentityRevocation, identityRevocationOccurredAt } from './identity-revocation'
 import type { DatabaseTransaction } from './tenant-transaction'
 
 const TARGET = '00000000-0000-4000-8000-000000000201'
@@ -62,6 +62,15 @@ describe('identity revocation database seam', () => {
 
     assert.deepEqual(result[0]?.occurredAt, occurredAt)
     assert.notEqual(result[0]?.occurredAt, occurredAt)
+  })
+
+  it('uses the database clock when a revocation affects no linked Account', async () => {
+    const occurredAt = await identityRevocationOccurredAt(
+      transactionReturning([{ occurredAt: '2026-08-02T12:00:01.000Z' }]),
+      []
+    )
+
+    assert.deepEqual(occurredAt, new Date('2026-08-02T12:00:01.000Z'))
   })
 
   it('rejects malformed targets, reasons, and database evidence', async () => {

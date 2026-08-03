@@ -107,3 +107,16 @@ export async function applyIdentityRevocation(
     })
   )
 }
+
+/** Uses mutation evidence when present and otherwise reads the transaction's database clock. */
+export async function identityRevocationOccurredAt(
+  tx: DatabaseTransaction,
+  effects: readonly IdentityRevocationEffect[]
+): Promise<Date> {
+  const mutationTime = effects[0]?.occurredAt
+  if (mutationTime) return new Date(mutationTime.getTime())
+  const [clock] = await tx.execute<Record<string, unknown> & { occurredAt: Date | string }>(sql`
+    select statement_timestamp() as "occurredAt"
+  `)
+  return revocationTime(clock?.occurredAt)
+}
