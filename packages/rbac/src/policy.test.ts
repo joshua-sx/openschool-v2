@@ -472,6 +472,68 @@ describe('capability Policy Decisions', () => {
       'REAUTHENTICATION_REQUIRED'
     )
   })
+
+  it('limits academic structure changes to MFA-protected School and Organization administrators', () => {
+    const request = {
+      capability: CAPABILITIES.ACADEMIC_STRUCTURE_MANAGE,
+      requestedScope: 'school',
+      resource: {
+        kind: 'academic_structure',
+        tenantId: 'tenant-1',
+        schoolId: 'school-1',
+      },
+      attributes: { now: NOW },
+    } as const
+
+    assert.equal(decision(request).reason, 'MFA_REQUIRED')
+
+    const schoolAdmin = decision({
+      ...request,
+      context: context({ assuranceLevel: 'aal2' }),
+    })
+    assert.equal(schoolAdmin.effect, 'allow')
+    assert.equal(schoolAdmin.queryConstraints[0]?.kind, 'school')
+    assert.deepEqual(
+      schoolAdmin.obligations.map(({ kind }) => kind),
+      ['mfa', 'audit']
+    )
+
+    assert.equal(
+      decision({
+        ...request,
+        context: context({ roleTemplateKeys: ['teacher'], assuranceLevel: 'aal2' }),
+      }).reason,
+      'SCOPE_NOT_GRANTED'
+    )
+
+    const organizationAdmin = decision({
+      ...request,
+      context: context({
+        roleTemplateKeys: ['org_admin'],
+        assuranceLevel: 'aal2',
+        activeSchoolId: undefined,
+        activeEducationOrganizationId: 'org-root',
+      }),
+      resource: {
+        kind: 'academic_structure',
+        tenantId: 'tenant-1',
+        organizationId: 'org-child',
+        organizationAncestorIds: ['org-root'],
+        schoolId: 'school-1',
+      },
+    })
+    assert.equal(organizationAdmin.effect, 'allow')
+    assert.equal(organizationAdmin.queryConstraints[0]?.kind, 'organization_subtree')
+
+    assert.equal(
+      decision({
+        ...request,
+        bundle: selectPolicyBundle(POLICY_VERSION_LEGACY_PARITY),
+        context: context({ assuranceLevel: 'aal2' }),
+      }).reason,
+      'SCOPE_NOT_GRANTED'
+    )
+  })
 })
 
 describe('versioned Role Template bundles', () => {
@@ -481,6 +543,8 @@ describe('versioned Role Template bundles', () => {
         CAPABILITIES.SCHOOLS_READ,
         ['org_admin', 'org_viewer', 'school_admin', 'staff', 'teacher', 'parent', 'student'],
       ],
+      [CAPABILITIES.ACADEMIC_STRUCTURE_READ, ['org_admin', 'org_viewer', 'school_admin']],
+      [CAPABILITIES.ACADEMIC_STRUCTURE_MANAGE, ['org_admin', 'school_admin']],
       [CAPABILITIES.STUDENTS_CREATE, ['org_admin', 'school_admin', 'staff']],
       [
         CAPABILITIES.STUDENTS_READ,

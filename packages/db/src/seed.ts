@@ -1,9 +1,11 @@
 import { getMigrationEnv } from '@openschool/config/server'
-import { inArray } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 import * as schema from './schema'
 import {
+  academicTerms,
+  academicYears,
   accountLinks,
   accounts,
   affiliations,
@@ -14,6 +16,7 @@ import {
   grades,
   guardianProfiles,
   identityMigrationEvents,
+  learnerLevels,
   organizationTreeVersions,
   organizations,
   parentStudent,
@@ -477,6 +480,86 @@ const seed = {
       primaryEmail: 'org.admin@island.test',
     },
   ] satisfies Array<typeof accounts.$inferInsert>,
+  academicYears: [
+    {
+      id: '00000000-0000-4000-8000-000000001201',
+      tenantId: HORIZON_TENANT_ID,
+      schoolId: '00000000-0000-4000-8000-000000000101',
+      code: '2026-2027',
+      name: '2026–2027 Academic Year',
+      timeZone: 'America/Lower_Princes',
+      startDate: '2026-08-17',
+      endDate: '2027-06-30',
+      createdByAccountId: '00000000-0000-4000-8000-000000000202',
+    },
+    {
+      id: '00000000-0000-4000-8000-000000001202',
+      tenantId: HORIZON_TENANT_ID,
+      schoolId: '00000000-0000-4000-8000-000000000102',
+      code: '2026-2027',
+      name: '2026–2027 Academic Year',
+      timeZone: 'America/Lower_Princes',
+      startDate: '2026-08-17',
+      endDate: '2027-06-30',
+      createdByAccountId: '00000000-0000-4000-8000-000000000201',
+    },
+    {
+      id: '00000000-0000-4000-8000-000000001203',
+      tenantId: ISLAND_TENANT_ID,
+      schoolId: '00000000-0000-4000-8000-000000000103',
+      code: '2026-2027',
+      name: '2026–2027 Academic Year',
+      timeZone: 'America/Lower_Princes',
+      startDate: '2026-08-17',
+      endDate: '2027-06-30',
+      createdByAccountId: '00000000-0000-4000-8000-000000000207',
+    },
+  ] satisfies Array<typeof academicYears.$inferInsert>,
+  academicTerms: (
+    [
+      ['1211', HORIZON_TENANT_ID, '101', '1201', 'T1', 'Term 1', 1, '2026-08-17', '2026-12-18'],
+      ['1212', HORIZON_TENANT_ID, '101', '1201', 'T2', 'Term 2', 2, '2027-01-04', '2027-03-26'],
+      ['1213', HORIZON_TENANT_ID, '101', '1201', 'T3', 'Term 3', 3, '2027-04-05', '2027-06-30'],
+      ['1221', HORIZON_TENANT_ID, '102', '1202', 'S1', 'Semester 1', 1, '2026-08-17', '2026-12-18'],
+      ['1222', HORIZON_TENANT_ID, '102', '1202', 'S2', 'Semester 2', 2, '2027-01-04', '2027-06-30'],
+      ['1231', ISLAND_TENANT_ID, '103', '1203', 'T1', 'Term 1', 1, '2026-08-17', '2026-12-18'],
+      ['1232', ISLAND_TENANT_ID, '103', '1203', 'T2', 'Term 2', 2, '2027-01-04', '2027-03-26'],
+      ['1233', ISLAND_TENANT_ID, '103', '1203', 'T3', 'Term 3', 3, '2027-04-05', '2027-06-30'],
+    ] as const
+  ).map(
+    ([suffix, tenantId, schoolSuffix, yearSuffix, code, name, ordinal, startDate, endDate]) => ({
+      id: `00000000-0000-4000-8000-00000000${suffix}`,
+      tenantId,
+      schoolId: `00000000-0000-4000-8000-000000000${schoolSuffix}`,
+      academicYearId: `00000000-0000-4000-8000-00000000${yearSuffix}`,
+      code,
+      name,
+      ordinal: Number(ordinal),
+      startDate,
+      endDate,
+    })
+  ) satisfies Array<typeof academicTerms.$inferInsert>,
+  learnerLevels: (
+    [
+      ['1311', HORIZON_TENANT_ID, '101', '1201', 'G4', 'Grade 4', 1, 'Primary'],
+      ['1312', HORIZON_TENANT_ID, '101', '1201', 'G5', 'Grade 5', 2, 'Primary'],
+      ['1313', HORIZON_TENANT_ID, '101', '1201', 'G6', 'Grade 6', 3, 'Primary'],
+      ['1321', HORIZON_TENANT_ID, '102', '1202', 'F3', 'Form 3', 1, 'Lower secondary'],
+      ['1322', HORIZON_TENANT_ID, '102', '1202', 'F4', 'Form 4', 2, 'Upper secondary'],
+      ['1323', HORIZON_TENANT_ID, '102', '1202', 'F5', 'Form 5', 3, 'Upper secondary'],
+      ['1331', ISLAND_TENANT_ID, '103', '1203', 'Y1', 'Year 1', 1, 'Primary'],
+      ['1332', ISLAND_TENANT_ID, '103', '1203', 'Y7', 'Year 7', 2, 'Secondary'],
+    ] as const
+  ).map(([suffix, tenantId, schoolSuffix, yearSuffix, code, name, ordinal, educationStage]) => ({
+    id: `00000000-0000-4000-8000-00000000${suffix}`,
+    tenantId,
+    schoolId: `00000000-0000-4000-8000-000000000${schoolSuffix}`,
+    academicYearId: `00000000-0000-4000-8000-00000000${yearSuffix}`,
+    code,
+    name,
+    ordinal: Number(ordinal),
+    educationStage,
+  })) satisfies Array<typeof learnerLevels.$inferInsert>,
   people: [
     {
       id: '00000000-0000-4000-8000-000000000901',
@@ -950,6 +1033,43 @@ try {
         .values(row)
         .onConflictDoUpdate({ target: accounts.id, set: valuesWithoutId(row) })
     }
+    for (const row of seed.academicYears) {
+      await tx.insert(academicYears).values(row).onConflictDoNothing()
+    }
+    const draftSeedYears = await tx
+      .select({ id: academicYears.id })
+      .from(academicYears)
+      .where(
+        and(
+          inArray(
+            academicYears.id,
+            seed.academicYears.map(({ id }) => id)
+          ),
+          eq(academicYears.status, 'draft')
+        )
+      )
+    const draftSeedYearIds = new Set(draftSeedYears.map(({ id }) => id))
+    for (const row of seed.academicTerms.filter(({ academicYearId }) =>
+      draftSeedYearIds.has(academicYearId)
+    )) {
+      await tx.insert(academicTerms).values(row).onConflictDoNothing()
+    }
+    for (const row of seed.learnerLevels.filter(({ academicYearId }) =>
+      draftSeedYearIds.has(academicYearId)
+    )) {
+      await tx.insert(learnerLevels).values(row).onConflictDoNothing()
+    }
+    for (const row of seed.academicYears) {
+      await tx
+        .update(academicYears)
+        .set({
+          status: 'published',
+          publishedAt: new Date('2026-08-01T12:00:00Z'),
+          publishedByAccountId: row.createdByAccountId,
+          updatedAt: new Date('2026-08-01T12:00:00Z'),
+        })
+        .where(and(eq(academicYears.id, row.id), eq(academicYears.status, 'draft')))
+    }
     for (const row of seed.people) {
       await tx
         .insert(people)
@@ -1122,6 +1242,33 @@ try {
         seed.accounts.map(({ id }) => id)
       )
     )
+  const seededAcademicYears = await db
+    .select({ id: academicYears.id })
+    .from(academicYears)
+    .where(
+      inArray(
+        academicYears.id,
+        seed.academicYears.map(({ id }) => id)
+      )
+    )
+  const seededAcademicTerms = await db
+    .select({ id: academicTerms.id })
+    .from(academicTerms)
+    .where(
+      inArray(
+        academicTerms.id,
+        seed.academicTerms.map(({ id }) => id)
+      )
+    )
+  const seededLearnerLevels = await db
+    .select({ id: learnerLevels.id })
+    .from(learnerLevels)
+    .where(
+      inArray(
+        learnerLevels.id,
+        seed.learnerLevels.map(({ id }) => id)
+      )
+    )
   const seededPeople = await db
     .select({ id: people.id })
     .from(people)
@@ -1205,6 +1352,9 @@ try {
   assertCount('organization roles', seededOrgRoles.length, seed.usersOnOrg.length)
   assertCount('school roles', seededSchoolRoles.length, seed.usersOnSchool.length)
   assertCount('accounts', seededAccounts.length, seed.accounts.length)
+  assertCount('Academic Years', seededAcademicYears.length, seed.academicYears.length)
+  assertCount('Academic Terms', seededAcademicTerms.length, seed.academicTerms.length)
+  assertCount('Learner Levels', seededLearnerLevels.length, seed.learnerLevels.length)
   assertCount('people', seededPeople.length, seed.people.length)
   assertCount('Account Links', seededAccountLinks.length, seed.accountLinks.length)
   assertCount('affiliations', seededAffiliations.length, seed.affiliations.length)
@@ -1227,6 +1377,7 @@ try {
       `${seededSchools.length} schools, ` +
       `${seededUsers.length} accounts, ${seededPeople.length} people, ` +
       `${seededStudents.length} students without required login, ` +
+      `${seededAcademicYears.length} canonical Academic Years, ` +
       `${seededAffiliations.length} effective affiliations, ` +
       `${seededSchoolEnrollments.length} canonical School enrollments.`
   )

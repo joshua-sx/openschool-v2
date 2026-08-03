@@ -44,6 +44,8 @@ async function run(): Promise<void> {
         relationships: number
         schoolEnrollments: number
         compatibilityEvidence: number
+        academicCompatibilityEvidence: number
+        academicYears: number
       }>
     >`
       select
@@ -80,10 +82,14 @@ async function run(): Promise<void> {
         (select count(*)::int from role_template_assignments) as "roleAssignments",
         (select count(*)::int from person_relationships) as relationships,
         (select count(*)::int from school_enrollments) as "schoolEnrollments",
-        (select count(*)::int from student_compatibility_evidence) as "compatibilityEvidence"
+        (select count(*)::int from student_compatibility_evidence) as "compatibilityEvidence",
+        (select count(*)::int from academic_compatibility_evidence) as "academicCompatibilityEvidence",
+        (select count(*)::int from academic_years) as "academicYears"
     `
     assert.deepEqual(counts, {
       assignments: 3,
+      academicCompatibilityEvidence: 5,
+      academicYears: 0,
       accountLinks: 2,
       accounts: 2,
       affiliations: 6,
@@ -155,7 +161,7 @@ async function run(): Promise<void> {
     )
 
     console.log(
-      'Upgrade verification passed: canonical People, Student Profiles, School enrollments, and compatibility evidence preserve legacy parity while cross-Tenant identity links remain rejected.'
+      'Upgrade verification passed: canonical People, Student Profiles, School enrollments, and compatibility evidence preserve legacy parity; legacy academic labels remain explicit unmapped evidence without invented dates; cross-Tenant identity links remain rejected.'
     )
   } finally {
     await client.end()

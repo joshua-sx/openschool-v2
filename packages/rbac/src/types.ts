@@ -15,6 +15,7 @@ export type ResourceKind =
   | 'tenant'
   | 'education_organization'
   | 'school'
+  | 'academic_structure'
   | 'class'
   | 'student'
   | 'grade'

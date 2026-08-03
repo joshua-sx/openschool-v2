@@ -33,6 +33,13 @@ This glossary defines the names used in architecture, code, product requirements
 - **Isolation Matrix** — positive and negative tests proving every data path respects Tenant, Organization Tree, School, assignment, and self/relationship scopes.
 - **Production Gate** — the evidence checklist that must be approved before real school data or users are onboarded. Engineering evidence and jurisdiction-specific legal/privacy approval remain separate.
 
+## Academic structure
+
+- **Academic Year** — a versioned School-local instructional date boundary with a stable code, display name, time zone, and draft/published/closed lifecycle.
+- **Term** — an ordered, non-overlapping instructional date range contained within one Academic Year. A School may label it term, semester, trimester, quarter, or another local name.
+- **Learner Level** — an ordered School-local classification such as grade, year, form, or standard, with a stable code and optional education-stage metadata.
+- **Current Academic Year** — the single published Academic Year, if any, whose inclusive dates contain the current date in the School time zone. It is derived, never client asserted or stored as a mutable flag.
+
 ## Invariants
 
 1. Every school-owned record belongs to exactly one Tenant, even when its School can be derived through a join.

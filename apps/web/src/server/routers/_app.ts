@@ -1,4 +1,5 @@
 import { router } from '../trpc/context'
+import { academicStructureRouter } from './academic-structure'
 import { accountSecurityRouter } from './account-security'
 import { exampleRouter } from './example'
 import { invitationsRouter } from './invitations'
@@ -10,6 +11,7 @@ import { supportAccessRouter } from './support-access'
 export const appRouter = router({
   example: exampleRouter,
   accountSecurity: accountSecurityRouter,
+  academicStructure: academicStructureRouter,
   students: studentsRouter,
   schools: schoolsRouter,
   invitations: invitationsRouter,

@@ -3,6 +3,7 @@
 import {
   BarChart3,
   BookOpen,
+  CalendarRange,
   ClipboardList,
   GraduationCap,
   LayoutDashboard,
@@ -32,6 +33,7 @@ export function Sidebar({ roleTemplateKeys = [] }: { roleTemplateKeys?: readonly
   const visibleSecondaryNavigation = canManageSupport
     ? [
         ...secondaryNavigation,
+        { name: 'Academic structure', href: '/settings/academic', icon: CalendarRange },
         { name: 'Support access', href: '/settings/support-access', icon: ShieldCheck },
       ]
     : secondaryNavigation
