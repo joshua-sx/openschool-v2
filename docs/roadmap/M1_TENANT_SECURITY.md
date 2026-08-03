@@ -53,5 +53,5 @@ flowchart TD
 ## Phase 6 status
 
 - #100 invitation-only onboarding: implementation candidate complete; live PostgreSQL/CI and review evidence required before closure.
-- #101 privileged MFA and immediate revocation: Tenant administrator Account/session/MFA/Affiliation/role controls and isolated platform Tenant suspension/reactivation are implemented with recent-auth evidence and guarded live-role proofs; automated provider MFA reconciliation remains blocking.
+- #101 privileged MFA and immediate revocation: implementation candidate complete, including Tenant administrator Account/session/MFA/Affiliation/role controls, isolated platform Tenant suspension/reactivation, and durable provider MFA reconciliation; clean live PostgreSQL/CI and review evidence are required before closure.
 - #102 tenant-approved support and break-glass access: not started and remains blocking.

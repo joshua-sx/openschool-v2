@@ -15,8 +15,10 @@ const RESERVED_EXECUTION_ROLES = new Set([
   'openschool_emergency',
   'openschool_identity_revoker',
   'openschool_invitation_acceptor',
+  'openschool_tenant_admission_resolver',
   'openschool_platform_access_resolver',
   'openschool_tenant_lifecycle_manager',
+  'openschool_provider_security_resolver',
 ])
 const PROVISIONING_PHASES = new Set(['all', 'identities', 'grants'])
 
@@ -145,9 +147,10 @@ async function run(): Promise<void> {
     await ensureNoLoginRole(admin, 'openschool_tenant_admission_resolver')
     await ensureNoLoginRole(admin, 'openschool_platform_access_resolver')
     await ensureNoLoginRole(admin, 'openschool_tenant_lifecycle_manager')
+    await ensureNoLoginRole(admin, 'openschool_provider_security_resolver')
     if (migrationRole !== 'postgres') {
       await admin.unsafe(
-        `grant openschool_identity_revoker, openschool_invitation_acceptor, openschool_tenant_admission_resolver, openschool_platform_access_resolver, openschool_tenant_lifecycle_manager to ${migrationRole}`
+        `grant openschool_identity_revoker, openschool_invitation_acceptor, openschool_tenant_admission_resolver, openschool_platform_access_resolver, openschool_tenant_lifecycle_manager, openschool_provider_security_resolver to ${migrationRole}`
       )
     }
 
@@ -193,15 +196,16 @@ async function run(): Promise<void> {
     await admin.unsafe(`grant select, insert on audit_events, audit_outbox to ${runtimeRole}`)
 
     await admin.unsafe(
-      `grant select on tenants, tenant_placements, students, audit_outbox, account_invitations, invitation_delivery_outbox to ${workerRole}`
+      `grant select on tenants, tenant_placements, students, audit_outbox, account_invitations, invitation_delivery_outbox, provider_security_reconciliation_outbox to ${workerRole}`
     )
     await admin.unsafe(`grant select, insert on audit_events to ${workerRole}`)
     await admin.unsafe(`grant update on audit_outbox to ${workerRole}`)
     await admin.unsafe(`grant update on invitation_delivery_outbox to ${workerRole}`)
+    await admin.unsafe(`grant update on provider_security_reconciliation_outbox to ${workerRole}`)
 
     for (const executionRole of [runtimeRole, workerRole, controlPlaneRole]) {
       await admin.unsafe(
-        `revoke openschool_backup, openschool_emergency, openschool_identity_revoker, openschool_invitation_acceptor, openschool_tenant_admission_resolver, openschool_platform_access_resolver, openschool_tenant_lifecycle_manager from ${executionRole}`
+        `revoke openschool_backup, openschool_emergency, openschool_identity_revoker, openschool_invitation_acceptor, openschool_tenant_admission_resolver, openschool_platform_access_resolver, openschool_tenant_lifecycle_manager, openschool_provider_security_resolver from ${executionRole}`
       )
       if (migrationRole !== 'postgres') {
         await admin.unsafe(`revoke ${migrationRole} from ${executionRole}`)

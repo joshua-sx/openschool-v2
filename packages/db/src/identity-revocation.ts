@@ -79,7 +79,7 @@ export async function applyIdentityRevocation(
       security_version as "securityVersion",
       affected_session_count as "affectedSessionCount",
       occurred_at as "occurredAt"
-    from openschool_private.apply_identity_revocation(
+    from openschool_private.apply_identity_revocation_with_reconciliation(
       ${input.action}::text,
       ${input.targetId}::uuid,
       ${reason}::text

@@ -7,6 +7,7 @@ import {
   bindIdentityTenantResolutionContext,
   classes,
   educationOrganizations,
+  isProviderSecurityReady,
   organizationTreeClosure,
   organizationTreeVersions,
   parentStudent,
@@ -39,6 +40,7 @@ export type TenantContextDenialReason =
   | 'TOKEN_INVALID'
   | 'SESSION_REVOKED'
   | 'ACCOUNT_DISABLED'
+  | 'MFA_RECOVERY_PENDING'
   | 'CONTEXT_REQUIRED'
   | 'TENANT_DENIED'
   | 'ORG_DENIED'
@@ -187,6 +189,9 @@ async function resolveActiveAccount(
 
   if (!account) denial('TENANT_DENIED', 'Verified identity has no provisioned OpenSchool Account')
   if (account.status !== 'active') denial('ACCOUNT_DISABLED', 'OpenSchool Account is disabled')
+  if (!(await isProviderSecurityReady(db, account.id))) {
+    denial('MFA_RECOVERY_PENDING', 'Provider MFA recovery has not completed')
+  }
   return account
 }
 

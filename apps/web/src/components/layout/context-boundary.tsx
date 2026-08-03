@@ -59,6 +59,7 @@ export function ContextBoundary({ denialReason, options }: ContextBoundaryProps)
 
   const accountUnavailable = denialReason === 'ACCOUNT_DISABLED'
   const mfaRequired = denialReason === 'MFA_REQUIRED'
+  const mfaRecoveryPending = denialReason === 'MFA_RECOVERY_PENDING'
   return (
     <section className="max-w-xl mx-auto py-12" aria-labelledby="access-heading">
       <h1 id="access-heading" className="text-2xl font-semibold text-gray-950">
@@ -66,17 +67,21 @@ export function ContextBoundary({ denialReason, options }: ContextBoundaryProps)
           ? 'Your OpenSchool account is unavailable'
           : mfaRequired
             ? 'Additional verification is required'
-            : 'We couldn’t open this school context'}
+            : mfaRecoveryPending
+              ? 'Account recovery is still in progress'
+              : 'We couldn’t open this school context'}
       </h1>
       <p className="mt-3 text-sm leading-6 text-gray-600">
         {accountUnavailable
           ? 'Contact your school administrator if you believe your access should still be active.'
           : mfaRequired
             ? 'Sign in again with the verification method required for this action.'
-            : 'Your access may have changed. Choose another context or contact your school administrator.'}
+            : mfaRecoveryPending
+              ? 'Your existing sessions are disabled while OpenSchool removes the previous verification methods. Contact your school administrator if this continues.'
+              : 'Your access may have changed. Choose another context or contact your school administrator.'}
       </p>
       <div className="mt-6 flex flex-wrap gap-3">
-        {!accountUnavailable && !mfaRequired && (
+        {!accountUnavailable && !mfaRequired && !mfaRecoveryPending && (
           <form action="/context/clear" method="POST">
             <button
               type="submit"

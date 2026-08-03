@@ -35,8 +35,10 @@ The invitation slice is implemented by migration 0016, the invitation services/r
 
 Platform Tenant suspension is implemented by migration 0023, a global maximum-90-day access-grant store, a distinct no-table-access control-plane login, separate `NOLOGIN` access, admission, and lifecycle owners, a Person-free platform Policy Context, and an atomic Tenant/audit/invalidation transaction. Runtime and worker transactions call a fixed private admission function that locks and returns only the Tenant status, so they need no Tenant update authority; a suspension waits for admitted work and denies every later transaction. This authority does not provide support access to Tenant records.
 
+Provider MFA reset is implemented by migrations 0024–0025. The identity mutation, Audit/invalidation evidence, and a provider-security reconciliation row commit atomically. A forced-RLS queue holds no provider subject or factor identifier; a separately owned resolver releases the immutable provider identity only to an actively leased worker row. Failed work retries with bounded backoff and dead-letter evidence. Identity bootstrap uses another narrow resolver to deny new Account Sessions until the latest reset completes, closing the provider-outage login window without granting runtime queue access.
+
 ## Migration path and rollback
 
 Disable production open sign-up before onboarding real users. Add invitation and session-version records, migrate existing development Accounts as explicitly accepted fixtures, then enforce MFA by privilege tier. Rollback can pause new invitations but must preserve revocations and audit evidence.
 
-Operational configuration, delivery, key rotation, incident response, and rollback are defined in [Invitation-only account onboarding](../security/INVITATION_ONBOARDING.md). Completing this invitation slice does not satisfy the MFA/revocation or support/break-glass parts of this decision.
+Operational configuration, delivery, key rotation, incident response, and rollback are defined in [Invitation-only account onboarding](../security/INVITATION_ONBOARDING.md) and [Privileged MFA and identity revocation](../security/IDENTITY_REVOCATION.md). The implemented invitation and MFA/revocation slices do not satisfy the support/break-glass part of this decision or the production rehearsal gates.
