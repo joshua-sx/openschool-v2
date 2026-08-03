@@ -275,6 +275,7 @@ async function loadAuthorizedStudents(
   const tenantId = context.tenantId
   if (!tenantId) policyScopeDenied()
   const at = new Date()
+  const atIso = at.toISOString()
   const includeHistorical = Boolean(
     lookup.studentId && expectedCapability === CAPABILITIES.STUDENTS_READ
   )
@@ -283,11 +284,11 @@ async function loadAuthorizedStudents(
     filters.push(
       eq(schoolEnrollments.status, 'enrolled'),
       lte(schoolEnrollments.validFrom, at),
-      sql`${schoolEnrollments.validUntil} IS NULL OR ${schoolEnrollments.validUntil} > ${at}`,
+      sql`${schoolEnrollments.validUntil} IS NULL OR ${schoolEnrollments.validUntil} > ${atIso}::timestamptz`,
       eq(studentProfiles.status, 'active'),
       eq(affiliations.status, 'active'),
       lte(affiliations.validFrom, at),
-      sql`${affiliations.validUntil} IS NULL OR ${affiliations.validUntil} > ${at}`
+      sql`${affiliations.validUntil} IS NULL OR ${affiliations.validUntil} > ${atIso}::timestamptz`
     )
   }
   if (lookup.schoolId) filters.push(eq(schoolEnrollments.schoolId, lookup.schoolId))
@@ -317,8 +318,11 @@ async function loadAuthorizedStudents(
       status: studentProfiles.status,
       isCurrentEnrollment: sql<boolean>`
         ${schoolEnrollments.status} = 'enrolled'
-        AND ${schoolEnrollments.validFrom} <= ${at}
-        AND (${schoolEnrollments.validUntil} IS NULL OR ${schoolEnrollments.validUntil} > ${at})
+        AND ${schoolEnrollments.validFrom} <= ${atIso}::timestamptz
+        AND (
+          ${schoolEnrollments.validUntil} IS NULL
+          OR ${schoolEnrollments.validUntil} > ${atIso}::timestamptz
+        )
       `,
       source: sql<'canonical'>`'canonical'::text`,
       parityStatus: sql<'matched' | 'mismatch'>`
