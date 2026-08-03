@@ -1869,7 +1869,7 @@ GRANT SELECT ON TABLE
 -- policies exist on these authority tables, so data mutation remains denied.
 GRANT UPDATE ON TABLE
   public.accounts, public.account_sessions, public.account_links, public.people,
-  public.platform_access_grants
+  public.platform_access_grants, public.tenants
   TO "openschool_support_grant_manager";--> statement-breakpoint
 GRANT INSERT, UPDATE ON TABLE public.support_access_grants
   TO "openschool_support_grant_manager";--> statement-breakpoint

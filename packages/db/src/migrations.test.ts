@@ -370,6 +370,7 @@ describe('database migration baseline', () => {
       'account_sessions_support_resolver_select',
       'platform_access_grants_support_resolver_select',
       'schools_support_manager_select',
+      'public.platform_access_grants, public.tenants',
       'app.target_support_account_id',
       'app.target_platform_access_grant_id',
       'OWNER TO "openschool_support_grant_manager"',
