@@ -431,6 +431,144 @@ CREATE POLICY "audit_outbox_support_resolver_insert"
     AND "audit_outbox"."correlation_id" = nullif(current_setting('app.correlation_id', true), '')
   );--> statement-breakpoint
 
+-- Dedicated function owners receive only the canonical rows needed to prove
+-- Tenant administrator or support-session authority. Runtime-supplied settings
+-- are inert unless execution is already inside the matching SECURITY DEFINER role.
+CREATE POLICY "accounts_support_manager_select" ON "accounts"
+  AS PERMISSIVE FOR SELECT TO "openschool_support_grant_manager"
+  USING (
+    current_user = 'openschool_support_grant_manager'
+    AND session_user IN ('openschool_runtime', 'openschool_control_plane')
+    AND "accounts"."id" IN (
+      nullif(current_setting('app.account_id', true), '')::uuid,
+      nullif(current_setting('app.target_support_account_id', true), '')::uuid
+    )
+  );--> statement-breakpoint
+CREATE POLICY "accounts_support_resolver_select" ON "accounts"
+  AS PERMISSIVE FOR SELECT TO "openschool_support_access_resolver"
+  USING (
+    current_user = 'openschool_support_access_resolver'
+    AND session_user = 'openschool_runtime'
+    AND "accounts"."id" = nullif(current_setting('app.target_support_account_id', true), '')::uuid
+  );--> statement-breakpoint
+CREATE POLICY "account_sessions_support_manager_select" ON "account_sessions"
+  AS PERMISSIVE FOR SELECT TO "openschool_support_grant_manager"
+  USING (
+    current_user = 'openschool_support_grant_manager'
+    AND session_user IN ('openschool_runtime', 'openschool_control_plane')
+    AND "account_sessions"."account_id" = nullif(current_setting('app.account_id', true), '')::uuid
+    AND "account_sessions"."provider_session_id" = nullif(current_setting('app.session_id', true), '')
+  );--> statement-breakpoint
+CREATE POLICY "account_sessions_support_resolver_select" ON "account_sessions"
+  AS PERMISSIVE FOR SELECT TO "openschool_support_access_resolver"
+  USING (
+    current_user = 'openschool_support_access_resolver'
+    AND session_user = 'openschool_runtime'
+    AND "account_sessions"."account_id" = nullif(current_setting('app.target_support_account_id', true), '')::uuid
+    AND "account_sessions"."provider_session_id" = nullif(current_setting('app.provider_session_id', true), '')
+  );--> statement-breakpoint
+CREATE POLICY "account_links_support_manager_select" ON "account_links"
+  AS PERMISSIVE FOR SELECT TO "openschool_support_grant_manager"
+  USING (
+    current_user = 'openschool_support_grant_manager'
+    AND session_user = 'openschool_runtime'
+    AND "account_links"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid
+    AND "account_links"."account_id" = nullif(current_setting('app.account_id', true), '')::uuid
+    AND "account_links"."person_id" = nullif(current_setting('app.person_id', true), '')::uuid
+  );--> statement-breakpoint
+CREATE POLICY "people_support_manager_select" ON "people"
+  AS PERMISSIVE FOR SELECT TO "openschool_support_grant_manager"
+  USING (
+    current_user = 'openschool_support_grant_manager'
+    AND session_user = 'openschool_runtime'
+    AND "people"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid
+    AND "people"."id" = nullif(current_setting('app.person_id', true), '')::uuid
+  );--> statement-breakpoint
+CREATE POLICY "affiliations_support_manager_select" ON "affiliations"
+  AS PERMISSIVE FOR SELECT TO "openschool_support_grant_manager"
+  USING (
+    current_user = 'openschool_support_grant_manager'
+    AND session_user = 'openschool_runtime'
+    AND "affiliations"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid
+    AND "affiliations"."person_id" = nullif(current_setting('app.person_id', true), '')::uuid
+  );--> statement-breakpoint
+CREATE POLICY "role_template_assignments_support_manager_select" ON "role_template_assignments"
+  AS PERMISSIVE FOR SELECT TO "openschool_support_grant_manager"
+  USING (
+    current_user = 'openschool_support_grant_manager'
+    AND session_user = 'openschool_runtime'
+    AND "role_template_assignments"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid
+  );--> statement-breakpoint
+CREATE POLICY "tenants_support_manager_select" ON "tenants"
+  AS PERMISSIVE FOR SELECT TO "openschool_support_grant_manager"
+  USING (
+    current_user = 'openschool_support_grant_manager'
+    AND session_user IN ('openschool_runtime', 'openschool_control_plane')
+    AND "tenants"."id" = nullif(current_setting('app.tenant_id', true), '')::uuid
+  );--> statement-breakpoint
+CREATE POLICY "tenants_support_resolver_select" ON "tenants"
+  AS PERMISSIVE FOR SELECT TO "openschool_support_access_resolver"
+  USING (
+    current_user = 'openschool_support_access_resolver'
+    AND session_user = 'openschool_runtime'
+    AND "tenants"."id" = nullif(current_setting('app.tenant_id', true), '')::uuid
+  );--> statement-breakpoint
+CREATE POLICY "platform_access_grants_support_manager_select" ON "platform_access_grants"
+  AS PERMISSIVE FOR SELECT TO "openschool_support_grant_manager"
+  USING (
+    current_user = 'openschool_support_grant_manager'
+    AND session_user IN ('openschool_runtime', 'openschool_control_plane')
+    AND (
+      "platform_access_grants"."account_id" = nullif(current_setting('app.target_support_account_id', true), '')::uuid
+      OR (
+        "platform_access_grants"."account_id" = nullif(current_setting('app.account_id', true), '')::uuid
+        AND "platform_access_grants"."id" = nullif(current_setting('app.platform_access_grant_id', true), '')::uuid
+      )
+    )
+  );--> statement-breakpoint
+CREATE POLICY "platform_access_grants_support_resolver_select" ON "platform_access_grants"
+  AS PERMISSIVE FOR SELECT TO "openschool_support_access_resolver"
+  USING (
+    current_user = 'openschool_support_access_resolver'
+    AND session_user = 'openschool_runtime'
+    AND "platform_access_grants"."id" = nullif(current_setting('app.target_platform_access_grant_id', true), '')::uuid
+  );--> statement-breakpoint
+CREATE POLICY "education_organizations_support_manager_select" ON "education_organizations"
+  AS PERMISSIVE FOR SELECT TO "openschool_support_grant_manager"
+  USING (
+    current_user = 'openschool_support_grant_manager'
+    AND session_user = 'openschool_runtime'
+    AND "education_organizations"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid
+  );--> statement-breakpoint
+CREATE POLICY "organization_tree_versions_support_manager_select" ON "organization_tree_versions"
+  AS PERMISSIVE FOR SELECT TO "openschool_support_grant_manager"
+  USING (
+    current_user = 'openschool_support_grant_manager'
+    AND session_user = 'openschool_runtime'
+    AND "organization_tree_versions"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid
+  );--> statement-breakpoint
+CREATE POLICY "organization_tree_closure_support_manager_select" ON "organization_tree_closure"
+  AS PERMISSIVE FOR SELECT TO "openschool_support_grant_manager"
+  USING (
+    current_user = 'openschool_support_grant_manager'
+    AND session_user = 'openschool_runtime'
+    AND "organization_tree_closure"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid
+  );--> statement-breakpoint
+CREATE POLICY "school_governance_assignments_support_manager_select" ON "school_governance_assignments"
+  AS PERMISSIVE FOR SELECT TO "openschool_support_grant_manager"
+  USING (
+    current_user = 'openschool_support_grant_manager'
+    AND session_user = 'openschool_runtime'
+    AND "school_governance_assignments"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid
+  );--> statement-breakpoint
+CREATE POLICY "schools_support_manager_select" ON "schools"
+  AS PERMISSIVE FOR SELECT TO "openschool_support_grant_manager"
+  USING (
+    current_user = 'openschool_support_grant_manager'
+    AND session_user = 'openschool_runtime'
+    AND "schools"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid
+  );--> statement-breakpoint
+
 CREATE FUNCTION "openschool_private"."tenant_admin_can_manage_support"(
   p_tenant_id uuid,
   p_person_id uuid,
@@ -609,6 +747,8 @@ BEGIN
   THEN
     RAISE EXCEPTION 'SUPPORT_GRANT_CONTEXT_INVALID' USING ERRCODE = '22023';
   END IF;
+
+  PERFORM set_config('app.target_support_account_id', p_support_account_id::text, true);
 
   PERFORM 1
   FROM public.accounts AS account
@@ -1251,6 +1391,8 @@ DECLARE
   context_policy_version text := nullif(current_setting('app.policy_version', true), '');
   context_reauthenticated_at timestamp with time zone;
   resolved_at timestamp with time zone := statement_timestamp();
+  target_support_account_id uuid;
+  target_platform_access_grant_id uuid;
   resolved record;
   expected_role text;
   exact_constraints jsonb;
@@ -1283,6 +1425,15 @@ BEGIN
 
   PERFORM set_config('app.tenant_id', p_tenant_id::text, true);
   PERFORM set_config('app.support_grant_id', p_support_grant_id::text, true);
+  SELECT support_account_id, platform_access_grant_id
+  INTO target_support_account_id, target_platform_access_grant_id
+  FROM public.support_access_grants
+  WHERE tenant_id = p_tenant_id AND id = p_support_grant_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'SUPPORT_ACCESS_DENIED' USING ERRCODE = '42501';
+  END IF;
+  PERFORM set_config('app.target_support_account_id', target_support_account_id::text, true);
+  PERFORM set_config('app.target_platform_access_grant_id', target_platform_access_grant_id::text, true);
 
   SELECT
     account.id AS account_id,
@@ -1460,6 +1611,8 @@ DECLARE
   context_policy_version text := nullif(current_setting('app.policy_version', true), '');
   context_reauthenticated_at timestamp with time zone;
   changed_at timestamp with time zone := statement_timestamp();
+  target_support_account_id uuid;
+  target_platform_access_grant_id uuid;
   resolved record;
   operation_id uuid := gen_random_uuid();
   pending_notification_id uuid;
@@ -1489,6 +1642,15 @@ BEGIN
 
   PERFORM set_config('app.tenant_id', p_tenant_id::text, true);
   PERFORM set_config('app.support_grant_id', p_support_grant_id::text, true);
+  SELECT support_account_id, platform_access_grant_id
+  INTO target_support_account_id, target_platform_access_grant_id
+  FROM public.support_access_grants
+  WHERE tenant_id = p_tenant_id AND id = p_support_grant_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'SUPPORT_ACCESS_DENIED' USING ERRCODE = '42501';
+  END IF;
+  PERFORM set_config('app.target_support_account_id', target_support_account_id::text, true);
+  PERFORM set_config('app.target_platform_access_grant_id', target_platform_access_grant_id::text, true);
   SELECT
     account.id AS account_id,
     support_grant.education_organization_id AS support_organization_id,
@@ -1702,6 +1864,12 @@ GRANT SELECT ON TABLE
   public.tenants, public.education_organizations, public.organization_tree_versions,
   public.organization_tree_closure, public.school_governance_assignments, public.schools,
   public.support_access_grants
+  TO "openschool_support_grant_manager";--> statement-breakpoint
+-- UPDATE privilege is required by PostgreSQL row-locking SELECTs. No UPDATE
+-- policies exist on these authority tables, so data mutation remains denied.
+GRANT UPDATE ON TABLE
+  public.accounts, public.account_sessions, public.account_links, public.people,
+  public.platform_access_grants
   TO "openschool_support_grant_manager";--> statement-breakpoint
 GRANT INSERT, UPDATE ON TABLE public.support_access_grants
   TO "openschool_support_grant_manager";--> statement-breakpoint
