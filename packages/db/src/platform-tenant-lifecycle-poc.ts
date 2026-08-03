@@ -356,10 +356,11 @@ async function run(): Promise<void> {
       suspensionSettled = true
     })
     await new Promise((resolve) => setTimeout(resolve, 100))
-    assert.equal(suspensionSettled, false)
+    const suspensionSettledBeforeRelease = suspensionSettled
     releaseInFlight()
     await inFlight
     const suspended = await suspension
+    assert.equal(suspensionSettledBeforeRelease, false)
     assert.equal(suspended.tenantStatus, 'suspended')
 
     await assert.rejects(
