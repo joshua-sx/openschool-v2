@@ -117,4 +117,18 @@ describe('database migration baseline', () => {
       assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
     }
   })
+
+  it('allows invitation capabilities to resolve Schools through the existing scope guard', () => {
+    const migration = readFileSync(
+      join(migrationsDirectory, '0017_outstanding_cerebro.sql'),
+      'utf8'
+    )
+    for (const expected of [
+      'ALTER POLICY "schools_runtime_select"',
+      "'tenant.accounts.invite', 'tenant.accounts.manage'",
+      'public.openschool_school_scope_allows',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+  })
 })
