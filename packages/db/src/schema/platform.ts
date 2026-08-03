@@ -2,7 +2,11 @@ import { sql } from 'drizzle-orm'
 import { check, index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { accounts } from './identity'
 
-export const PLATFORM_ROLE_TEMPLATE_KEYS = ['super_admin', 'support_agent'] as const
+export const PLATFORM_ROLE_TEMPLATE_KEYS = [
+  'super_admin',
+  'support_agent',
+  'break_glass_operator',
+] as const
 export const PLATFORM_ACCESS_GRANT_STATUSES = ['active', 'revoked'] as const
 export const PLATFORM_ACCESS_ISSUANCE_SOURCES = ['bootstrap', 'platform'] as const
 
@@ -52,7 +56,7 @@ export const platformAccessGrants = pgTable(
     ),
     check(
       'platform_access_grants_role_check',
-      sql`${table.roleTemplateKey} IN ('super_admin', 'support_agent')`
+      sql`${table.roleTemplateKey} IN ('super_admin', 'support_agent', 'break_glass_operator')`
     ),
     check('platform_access_grants_status_check', sql`${table.status} IN ('active', 'revoked')`),
     check(

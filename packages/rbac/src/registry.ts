@@ -30,7 +30,11 @@ export const RESOURCE_KINDS = Object.freeze({
 export const CAPABILITIES = Object.freeze({
   PLATFORM_TENANTS_READ: 'platform.tenants.read',
   PLATFORM_TENANTS_MANAGE: 'platform.tenants.manage',
+  PLATFORM_BREAK_GLASS_OPEN: 'platform.break_glass.open',
+  SUPPORT_GRANTS_MANAGE: 'tenant.support.grants.manage',
   SUPPORT_SESSIONS_USE: 'support.sessions.use',
+  SUPPORT_SCHOOLS_READ: 'support.schools.read',
+  SUPPORT_STUDENTS_READ: 'support.students.read',
   SCHOOLS_READ: 'tenant.schools.read',
   STUDENTS_CREATE: 'tenant.students.create',
   STUDENTS_READ: 'tenant.students.read',
@@ -81,9 +85,25 @@ export const CAPABILITY_REGISTRY = Object.freeze({
     resourceKinds: [RESOURCE_KINDS.PLATFORM, RESOURCE_KINDS.TENANT],
     scopes: [SCOPES.PLATFORM],
   },
+  [CAPABILITIES.PLATFORM_BREAK_GLASS_OPEN]: {
+    resourceKinds: [RESOURCE_KINDS.PLATFORM, RESOURCE_KINDS.SUPPORT_SESSION, RESOURCE_KINDS.TENANT],
+    scopes: [SCOPES.PLATFORM],
+  },
+  [CAPABILITIES.SUPPORT_GRANTS_MANAGE]: {
+    resourceKinds: [RESOURCE_KINDS.SUPPORT_SESSION],
+    scopes: tenantBroadScopes,
+  },
   [CAPABILITIES.SUPPORT_SESSIONS_USE]: {
     resourceKinds: [RESOURCE_KINDS.SUPPORT_SESSION],
     scopes: [SCOPES.PLATFORM],
+  },
+  [CAPABILITIES.SUPPORT_SCHOOLS_READ]: {
+    resourceKinds: [RESOURCE_KINDS.SCHOOL],
+    scopes: tenantBroadScopes,
+  },
+  [CAPABILITIES.SUPPORT_STUDENTS_READ]: {
+    resourceKinds: [RESOURCE_KINDS.STUDENT],
+    scopes: tenantBroadScopes,
   },
   [CAPABILITIES.SCHOOLS_READ]: {
     resourceKinds: [RESOURCE_KINDS.SCHOOL],

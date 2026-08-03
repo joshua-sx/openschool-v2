@@ -300,6 +300,137 @@ describe('capability Policy Decisions', () => {
     )
   })
 
+  it('requires a current Support Grant and narrows diagnostics to its exact scope', () => {
+    const support = context({
+      personId: undefined,
+      tenantId: 'tenant-1',
+      activeSchoolId: undefined,
+      roleTemplateKeys: ['support_agent'],
+      assuranceLevel: 'aal2',
+      authenticatedAt: '2026-08-02T11:55:00.000Z',
+    })
+    const request = {
+      context: support,
+      capability: CAPABILITIES.SUPPORT_STUDENTS_READ,
+      resource: { kind: 'student', tenantId: 'tenant-1', schoolId: 'school-1' },
+      requestedScope: 'school',
+      attributes: { now: NOW, purpose: 'customer_support' },
+    } as const
+
+    assert.equal(
+      decision({
+        ...request,
+        context: {
+          ...support,
+          tenantId: undefined,
+          platformAccess: true,
+        },
+      }).reason,
+      'SUPPORT_ACCESS_REQUIRED'
+    )
+
+    const granted = {
+      ...support,
+      supportAccess: {
+        grantId: 'grant-1',
+        kind: 'support' as const,
+        purpose: 'customer_support' as const,
+        allowedCapabilities: [CAPABILITIES.SUPPORT_STUDENTS_READ],
+        queryConstraint: { kind: 'school' as const, tenantId: 'tenant-1', schoolId: 'school-1' },
+        expiresAt: '2026-08-02T13:00:00.000Z',
+      },
+    }
+    const allowed = decision({ ...request, context: granted })
+    const broader = decision({ ...request, context: granted, requestedScope: 'tenant' })
+    const sibling = decision({
+      ...request,
+      context: granted,
+      resource: { kind: 'student', tenantId: 'tenant-1', schoolId: 'school-2' },
+    })
+    const ungrantedCapability = decision({
+      ...request,
+      context: granted,
+      capability: CAPABILITIES.SUPPORT_SCHOOLS_READ,
+      resource: { kind: 'school', tenantId: 'tenant-1', schoolId: 'school-1' },
+    })
+
+    assert.equal(allowed.effect, 'allow')
+    assert.deepEqual(allowed.queryConstraints, [
+      { kind: 'school', tenantId: 'tenant-1', schoolId: 'school-1' },
+    ])
+    assert.equal(broader.reason, 'RESOURCE_SCOPE_MISMATCH')
+    assert.equal(sibling.reason, 'RESOURCE_SCOPE_MISMATCH')
+    assert.equal(ungrantedCapability.reason, 'SUPPORT_CAPABILITY_DENIED')
+  })
+
+  it('limits grant management to MFA-authenticated, recently verified Tenant administrators', () => {
+    const request = {
+      capability: CAPABILITIES.SUPPORT_GRANTS_MANAGE,
+      requestedScope: 'school',
+      resource: { kind: 'support_session', tenantId: 'tenant-1', schoolId: 'school-1' },
+      attributes: { now: NOW },
+    } as const
+
+    assert.equal(decision(request).reason, 'MFA_REQUIRED')
+    assert.equal(
+      decision({ ...request, context: context({ assuranceLevel: 'aal2' }) }).reason,
+      'REAUTHENTICATION_REQUIRED'
+    )
+    assert.equal(
+      decision({
+        ...request,
+        context: context({
+          assuranceLevel: 'aal2',
+          authenticatedAt: '2026-08-02T11:55:00.000Z',
+        }),
+      }).effect,
+      'allow'
+    )
+    assert.equal(
+      decision({
+        ...request,
+        context: context({
+          roleTemplateKeys: ['staff'],
+          assuranceLevel: 'aal2',
+          authenticatedAt: '2026-08-02T11:55:00.000Z',
+        }),
+      }).reason,
+      'SCOPE_NOT_GRANTED'
+    )
+  })
+
+  it('keeps break-glass opening on the separate platform role and incident purpose', () => {
+    const breakGlass = context({
+      personId: undefined,
+      tenantId: undefined,
+      activeSchoolId: undefined,
+      platformAccess: true,
+      roleTemplateKeys: ['break_glass_operator'],
+      assuranceLevel: 'aal2',
+      authenticatedAt: '2026-08-02T11:55:00.000Z',
+    })
+    const request = {
+      context: breakGlass,
+      capability: CAPABILITIES.PLATFORM_BREAK_GLASS_OPEN,
+      resource: { kind: 'support_session' },
+      attributes: { now: NOW, purpose: 'incident_response' },
+    } as const
+
+    assert.equal(decision(request).effect, 'allow')
+    assert.equal(
+      decision({
+        ...request,
+        attributes: { now: NOW, purpose: 'customer_support' },
+      }).reason,
+      'PURPOSE_REQUIRED'
+    )
+    assert.equal(
+      decision({ ...request, context: { ...breakGlass, roleTemplateKeys: ['super_admin'] } })
+        .reason,
+      'SCOPE_NOT_GRANTED'
+    )
+  })
+
   it('requires MFA and recent reauthentication for safeguarded Account administration', () => {
     const request = {
       capability: CAPABILITIES.ACCOUNTS_MANAGE,

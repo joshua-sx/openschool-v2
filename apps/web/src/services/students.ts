@@ -299,6 +299,16 @@ async function loadAuthorizedStudents(
   return [...unique.values()].slice(0, lookup.studentId ? 1 : MAX_STUDENT_ROWS)
 }
 
+export async function getStudentsInTransaction(
+  db: DatabaseTransaction,
+  context: PolicyContext,
+  decision: AllowedPolicyDecision,
+  expectedCapability: Capability,
+  lookup: Readonly<{ schoolId?: string; studentId?: string }>
+): Promise<Student[]> {
+  return loadAuthorizedStudents(db, context, decision, expectedCapability, lookup)
+}
+
 export async function getStudentsBySchool(
   databaseContext: TenantDatabaseContext,
   context: PolicyContext,

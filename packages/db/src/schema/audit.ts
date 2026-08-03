@@ -189,7 +189,7 @@ export const auditEvents = pgTable(
     ),
     check(
       'audit_events_account_actor_check',
-      sql`(${table.actorType} NOT IN ('account', 'support', 'platform')) OR (${table.actorAccountId} IS NOT NULL AND (${table.actorType} = 'platform' OR ${table.actorPersonId} IS NOT NULL))`
+      sql`(${table.actorType} NOT IN ('account', 'support', 'platform')) OR (${table.actorAccountId} IS NOT NULL AND (${table.actorType} IN ('support', 'platform') OR ${table.actorPersonId} IS NOT NULL))`
     ),
     check(
       'audit_events_support_context_check',
@@ -214,7 +214,7 @@ export const auditEvents = pgTable(
         ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
         AND ${table.actorType} IN ('account', 'support')
         AND ${table.actorAccountId} = nullif(current_setting('app.account_id', true), '')::uuid
-        AND ${table.actorPersonId} = nullif(current_setting('app.person_id', true), '')::uuid
+        AND ${table.actorPersonId} IS NOT DISTINCT FROM nullif(current_setting('app.person_id', true), '')::uuid
         AND ${table.requestId} = nullif(current_setting('app.request_id', true), '')
         AND ${table.educationOrganizationId} IS NOT DISTINCT FROM nullif(current_setting('app.education_organization_id', true), '')::uuid
         AND ${table.schoolId} IS NOT DISTINCT FROM nullif(current_setting('app.school_id', true), '')::uuid

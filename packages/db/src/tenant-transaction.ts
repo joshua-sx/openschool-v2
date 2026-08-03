@@ -47,6 +47,44 @@ export interface TenantDatabaseContext {
   activeSchoolId?: string
 }
 
+export interface SupportIdentityDatabaseContext extends IdentityDatabaseContext {
+  reauthenticatedAt: string
+}
+
+export interface SupportDatabaseContext {
+  accountId: string
+  accountSessionId: string
+  providerSessionId: string
+  tenantId: string
+  platformAccessGrantId: string
+  roleTemplateKey: 'support_agent' | 'break_glass_operator'
+  supportGrantId: string
+  supportKind: 'support' | 'break_glass'
+  purpose: 'customer_support' | 'incident_response'
+  allowedCapabilities: readonly ('support.schools.read' | 'support.students.read')[]
+  queryConstraints: readonly [
+    Extract<DatabasePolicyQueryConstraint, { kind: 'tenant' | 'organization_subtree' | 'school' }>,
+  ]
+  assuranceLevel: 'aal2'
+  reauthenticatedAt: string
+  securityVersion: number
+  requestId: string
+  expiresAt: string
+  operationId: string
+}
+
+export interface SupportDatabasePolicyContext {
+  capability: 'support.schools.read' | 'support.students.read'
+  policyVersion: string
+  correlationId: string
+}
+
+export interface SupportClosureDatabasePolicyContext {
+  capability: 'support.sessions.use'
+  policyVersion: string
+  correlationId: string
+}
+
 export interface WorkerDatabaseContext {
   tenantId: string
   jobId: string
@@ -83,6 +121,7 @@ export interface DatabasePolicyContext {
   capability: string
   policyVersion: string
   queryConstraints: readonly DatabasePolicyQueryConstraint[]
+  correlationId?: string
 }
 
 export interface IdentityTenantResolutionContext {
@@ -140,6 +179,28 @@ export function validateIdentityDatabaseContext(context: IdentityDatabaseContext
   if (!new Set<DatabaseAssuranceLevel>(['aal1', 'aal2']).has(context.assuranceLevel)) {
     deny('DATABASE_CONTEXT_INVALID', 'assuranceLevel is invalid')
   }
+}
+
+export function validateSupportIdentityDatabaseContext(
+  context: SupportIdentityDatabaseContext
+): void {
+  validateIdentityDatabaseContext(context)
+  const reauthenticatedAt = new Date(context.reauthenticatedAt)
+  if (
+    Number.isNaN(reauthenticatedAt.getTime()) ||
+    reauthenticatedAt.toISOString() !== context.reauthenticatedAt
+  ) {
+    deny('DATABASE_CONTEXT_INVALID', 'reauthenticatedAt must be a canonical ISO timestamp')
+  }
+}
+
+function validateSupportPolicyContext(
+  policy: SupportDatabasePolicyContext | SupportClosureDatabasePolicyContext
+): void {
+  requireSafeValue('capability', policy.capability)
+  requireSafeValue('policyVersion', policy.policyVersion)
+  if (policy.correlationId) requireSafeValue('correlationId', policy.correlationId)
+  requireSafeValue('correlationId', policy.correlationId)
 }
 
 export function validateTenantDatabaseContext(context: TenantDatabaseContext): void {
@@ -273,6 +334,13 @@ interface RuntimeRoleEvidence extends Record<string, unknown> {
   canInsertProviderSecurityReconciliation: boolean
   canUpdateProviderSecurityReconciliation: boolean
   canDeleteProviderSecurityReconciliation: boolean
+  canSelectSupportGrants: boolean
+  canUpdateSupportGrants: boolean
+  canSelectSupportNotifications: boolean
+  canInsertSupportNotifications: boolean
+  canSelectSupportNotificationOutbox: boolean
+  canInsertSupportNotificationOutbox: boolean
+  canUpdateSupportNotificationOutbox: boolean
   canUsePrivateSchema: boolean
   canCreateInInvitationSchema: boolean
   canExecuteInvitationAcceptance: boolean
@@ -281,6 +349,12 @@ interface RuntimeRoleEvidence extends Record<string, unknown> {
   canExecuteProviderSecurityResolver: boolean
   canExecuteProviderSecurityReadiness: boolean
   canExecuteTenantAdmission: boolean
+  canIssueSupportGrant: boolean
+  canRevokeSupportGrant: boolean
+  canReviewSupportGrant: boolean
+  canResolveSupportAccess: boolean
+  canCloseSupportAccess: boolean
+  canExpireSupportAccess: boolean
   canAssumeMigrationRole: boolean
   canAssumeOtherExecutionRole: boolean
   canAssumeBackupRole: boolean
@@ -289,6 +363,8 @@ interface RuntimeRoleEvidence extends Record<string, unknown> {
   canAssumeIdentityRevoker: boolean
   canAssumeTenantAdmissionResolver: boolean
   canAssumeProviderSecurityResolver: boolean
+  canAssumeSupportGrantManager: boolean
+  canAssumeSupportAccessResolver: boolean
   operationalRolesExist: boolean
   hasUnsafeMembership: boolean
 }
@@ -352,6 +428,20 @@ async function assertSafeExecutionRole(
         as "canUpdateProviderSecurityReconciliation",
       has_table_privilege(current_user, 'public.provider_security_reconciliation_outbox', 'DELETE')
         as "canDeleteProviderSecurityReconciliation",
+      has_table_privilege(current_user, 'public.support_access_grants', 'SELECT')
+        as "canSelectSupportGrants",
+      has_table_privilege(current_user, 'public.support_access_grants', 'UPDATE')
+        as "canUpdateSupportGrants",
+      has_table_privilege(current_user, 'public.support_access_notifications', 'SELECT')
+        as "canSelectSupportNotifications",
+      has_table_privilege(current_user, 'public.support_access_notifications', 'INSERT')
+        as "canInsertSupportNotifications",
+      has_table_privilege(current_user, 'public.support_notification_outbox', 'SELECT')
+        as "canSelectSupportNotificationOutbox",
+      has_table_privilege(current_user, 'public.support_notification_outbox', 'INSERT')
+        as "canInsertSupportNotificationOutbox",
+      has_table_privilege(current_user, 'public.support_notification_outbox', 'UPDATE')
+        as "canUpdateSupportNotificationOutbox",
       has_schema_privilege(current_user, 'openschool_private', 'USAGE')
         as "canUsePrivateSchema",
       has_schema_privilege(current_user, 'openschool_private', 'CREATE')
@@ -405,6 +495,48 @@ async function assertSafeExecutionRole(
           and procedure.proname = 'resolve_tenant_admission_status'
           and procedure.proargtypes = '2950'::oidvector
       ), false) as "canExecuteTenantAdmission",
+      coalesce((
+        select has_function_privilege(current_user, procedure.oid, 'EXECUTE')
+        from pg_proc procedure
+        inner join pg_namespace namespace on namespace.oid = procedure.pronamespace
+        where namespace.nspname = 'openschool_private'
+          and procedure.proname = 'issue_support_access_grant'
+      ), false) as "canIssueSupportGrant",
+      coalesce((
+        select has_function_privilege(current_user, procedure.oid, 'EXECUTE')
+        from pg_proc procedure
+        inner join pg_namespace namespace on namespace.oid = procedure.pronamespace
+        where namespace.nspname = 'openschool_private'
+          and procedure.proname = 'revoke_support_access_grant'
+      ), false) as "canRevokeSupportGrant",
+      coalesce((
+        select has_function_privilege(current_user, procedure.oid, 'EXECUTE')
+        from pg_proc procedure
+        inner join pg_namespace namespace on namespace.oid = procedure.pronamespace
+        where namespace.nspname = 'openschool_private'
+          and procedure.proname = 'review_support_access_grant'
+      ), false) as "canReviewSupportGrant",
+      coalesce((
+        select has_function_privilege(current_user, procedure.oid, 'EXECUTE')
+        from pg_proc procedure
+        inner join pg_namespace namespace on namespace.oid = procedure.pronamespace
+        where namespace.nspname = 'openschool_private'
+          and procedure.proname = 'resolve_support_access'
+      ), false) as "canResolveSupportAccess",
+      coalesce((
+        select has_function_privilege(current_user, procedure.oid, 'EXECUTE')
+        from pg_proc procedure
+        inner join pg_namespace namespace on namespace.oid = procedure.pronamespace
+        where namespace.nspname = 'openschool_private'
+          and procedure.proname = 'close_support_access'
+      ), false) as "canCloseSupportAccess",
+      coalesce((
+        select has_function_privilege(current_user, procedure.oid, 'EXECUTE')
+        from pg_proc procedure
+        inner join pg_namespace namespace on namespace.oid = procedure.pronamespace
+        where namespace.nspname = 'openschool_private'
+          and procedure.proname = 'expire_support_access_grant'
+      ), false) as "canExpireSupportAccess",
       exists (
         select 1 from pg_roles candidate
         where candidate.rolname = ${migrationUsername}
@@ -445,6 +577,16 @@ async function assertSafeExecutionRole(
         where candidate.rolname = 'openschool_provider_security_resolver'
           and pg_has_role(current_user, candidate.oid, 'member')
       ) as "canAssumeProviderSecurityResolver",
+      exists (
+        select 1 from pg_roles candidate
+        where candidate.rolname = 'openschool_support_grant_manager'
+          and pg_has_role(current_user, candidate.oid, 'member')
+      ) as "canAssumeSupportGrantManager",
+      exists (
+        select 1 from pg_roles candidate
+        where candidate.rolname = 'openschool_support_access_resolver'
+          and pg_has_role(current_user, candidate.oid, 'member')
+      ) as "canAssumeSupportAccessResolver",
       (
         select count(*) = 2
         from pg_roles candidate
@@ -492,6 +634,13 @@ async function assertSafeExecutionRole(
     evidence.canInsertProviderSecurityReconciliation ||
     evidence.canUpdateProviderSecurityReconciliation !== canProcessAuditOutbox ||
     evidence.canDeleteProviderSecurityReconciliation ||
+    evidence.canSelectSupportGrants !== canProcessAuditOutbox ||
+    evidence.canUpdateSupportGrants !== canProcessAuditOutbox ||
+    !evidence.canSelectSupportNotifications ||
+    evidence.canInsertSupportNotifications !== canProcessAuditOutbox ||
+    evidence.canSelectSupportNotificationOutbox !== canProcessAuditOutbox ||
+    evidence.canInsertSupportNotificationOutbox !== canProcessAuditOutbox ||
+    evidence.canUpdateSupportNotificationOutbox !== canProcessAuditOutbox ||
     !evidence.canUsePrivateSchema ||
     evidence.canCreateInInvitationSchema ||
     evidence.canExecuteInvitationAcceptance !== !canProcessAuditOutbox ||
@@ -500,6 +649,12 @@ async function assertSafeExecutionRole(
     evidence.canExecuteProviderSecurityResolver !== canProcessAuditOutbox ||
     evidence.canExecuteProviderSecurityReadiness !== !canProcessAuditOutbox ||
     !evidence.canExecuteTenantAdmission ||
+    evidence.canIssueSupportGrant !== !canProcessAuditOutbox ||
+    evidence.canRevokeSupportGrant !== !canProcessAuditOutbox ||
+    evidence.canReviewSupportGrant !== !canProcessAuditOutbox ||
+    evidence.canResolveSupportAccess !== !canProcessAuditOutbox ||
+    evidence.canCloseSupportAccess !== !canProcessAuditOutbox ||
+    evidence.canExpireSupportAccess !== canProcessAuditOutbox ||
     evidence.canAssumeMigrationRole ||
     evidence.canAssumeOtherExecutionRole ||
     evidence.canAssumeBackupRole ||
@@ -508,6 +663,8 @@ async function assertSafeExecutionRole(
     evidence.canAssumeIdentityRevoker ||
     evidence.canAssumeTenantAdmissionResolver ||
     evidence.canAssumeProviderSecurityResolver ||
+    evidence.canAssumeSupportGrantManager ||
+    evidence.canAssumeSupportAccessResolver ||
     !evidence.operationalRolesExist ||
     evidence.hasUnsafeMembership
   ) {
@@ -794,12 +951,249 @@ async function withTenantUsing<T>(
       'app.school_id': context.activeSchoolId,
       'app.policy_capability': policyContext?.capability,
       'app.policy_version': policyContext?.policyVersion,
+      'app.correlation_id': policyContext?.correlationId ?? context.requestId,
       'app.policy_constraints': policyContext
         ? JSON.stringify(policyContext.queryConstraints)
         : undefined,
     })
     await assertActivePooledPlacement(transaction, context.tenantId)
     await assertCurrentTenantContext(transaction, context)
+    return operation(transaction)
+  })
+}
+
+interface SupportAccessRow extends Record<string, unknown> {
+  accountId: string
+  accountSessionId: string
+  securityVersion: string
+  platformAccessGrantId: string
+  roleTemplateKey: string
+  supportGrantId: string
+  supportKind: string
+  purpose: string
+  allowedCapabilities: unknown
+  queryConstraints: unknown
+  assuranceLevel: string
+  reauthenticatedAt: Date | string
+  expiresAt: Date | string
+  operationId: string
+}
+
+function canonicalResolverInstant(value: Date | string): string | null {
+  const parsed = value instanceof Date ? new Date(value.getTime()) : new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString()
+}
+
+function isSupportCapability(
+  value: unknown
+): value is 'support.schools.read' | 'support.students.read' {
+  return value === 'support.schools.read' || value === 'support.students.read'
+}
+
+function isSupportConstraint(
+  value: unknown,
+  tenantId: string
+): value is SupportDatabaseContext['queryConstraints'][number] {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as Record<string, unknown>
+  if (candidate.tenantId !== tenantId) return false
+  if (candidate.kind === 'tenant') return true
+  if (candidate.kind === 'school') {
+    return typeof candidate.schoolId === 'string' && UUID_PATTERN.test(candidate.schoolId)
+  }
+  return (
+    candidate.kind === 'organization_subtree' &&
+    typeof candidate.ancestorOrganizationId === 'string' &&
+    UUID_PATTERN.test(candidate.ancestorOrganizationId)
+  )
+}
+
+function errorChainIncludes(error: unknown, expected: string): boolean {
+  let current = error
+  const visited = new Set<object>()
+  for (let depth = 0; depth < 8; depth += 1) {
+    if (typeof current === 'string') return current.includes(expected)
+    if (!current || typeof current !== 'object' || visited.has(current)) return false
+    visited.add(current)
+    const candidate = current as { cause?: unknown; message?: unknown }
+    if (typeof candidate.message === 'string' && candidate.message.includes(expected)) return true
+    current = candidate.cause
+  }
+  return false
+}
+
+async function resolveSupportAccessInTransaction(
+  transaction: DatabaseTransaction,
+  identity: SupportIdentityDatabaseContext,
+  tenantId: string,
+  supportGrantId: string,
+  policy: SupportDatabasePolicyContext
+): Promise<SupportDatabaseContext> {
+  await setContext(transaction, {
+    'app.identity_provider': identity.identityProvider,
+    'app.provider_subject': identity.providerSubject,
+    'app.provider_session_id': identity.providerSessionId,
+    'app.request_id': identity.requestId,
+    'app.assurance_level': identity.assuranceLevel,
+    'app.reauthenticated_at': identity.reauthenticatedAt,
+    'app.tenant_id': tenantId,
+    'app.support_grant_id': supportGrantId,
+    'app.policy_capability': policy.capability,
+    'app.policy_version': policy.policyVersion,
+    'app.correlation_id': policy.correlationId,
+  })
+  let rows: SupportAccessRow[]
+  try {
+    rows = await transaction.execute<SupportAccessRow>(sql`
+      select
+        account_id as "accountId",
+        account_session_id as "accountSessionId",
+        security_version as "securityVersion",
+        platform_access_grant_id as "platformAccessGrantId",
+        role_template_key as "roleTemplateKey",
+        support_grant_id as "supportGrantId",
+        support_kind as "supportKind",
+        purpose,
+        allowed_capabilities as "allowedCapabilities",
+        query_constraints as "queryConstraints",
+        assurance_level as "assuranceLevel",
+        reauthenticated_at as "reauthenticatedAt",
+        expires_at as "expiresAt",
+        operation_id as "operationId"
+      from openschool_private.resolve_support_access(
+        ${tenantId}::uuid,
+        ${supportGrantId}::uuid,
+        ${policy.capability}
+      )
+    `)
+  } catch (cause) {
+    if (errorChainIncludes(cause, 'SUPPORT_ACCESS_SESSION_REUSED')) {
+      deny('DATABASE_CONTEXT_STALE', 'Support Grant is bound to a different session')
+    }
+    if (errorChainIncludes(cause, 'SUPPORT_ACCESS_DENIED')) {
+      deny('DATABASE_CONTEXT_STALE', 'Support Grant is unavailable or expired')
+    }
+    throw cause
+  }
+  const row = rows[0]
+  const allowedCapabilities = row?.allowedCapabilities
+  const queryConstraints = row?.queryConstraints
+  const reauthenticatedAt = row ? canonicalResolverInstant(row.reauthenticatedAt) : null
+  const expiresAt = row ? canonicalResolverInstant(row.expiresAt) : null
+  const constraint = Array.isArray(queryConstraints) ? queryConstraints[0] : undefined
+  if (
+    rows.length !== 1 ||
+    !row ||
+    !UUID_PATTERN.test(row.accountId) ||
+    !UUID_PATTERN.test(row.accountSessionId) ||
+    !UUID_PATTERN.test(row.platformAccessGrantId) ||
+    !UUID_PATTERN.test(row.supportGrantId) ||
+    !UUID_PATTERN.test(row.operationId) ||
+    row.supportGrantId !== supportGrantId ||
+    !['support_agent', 'break_glass_operator'].includes(row.roleTemplateKey) ||
+    !['support', 'break_glass'].includes(row.supportKind) ||
+    !['customer_support', 'incident_response'].includes(row.purpose) ||
+    !Array.isArray(allowedCapabilities) ||
+    allowedCapabilities.length < 1 ||
+    !allowedCapabilities.every(isSupportCapability) ||
+    !Array.isArray(queryConstraints) ||
+    queryConstraints.length !== 1 ||
+    !isSupportConstraint(constraint, tenantId) ||
+    row.assuranceLevel !== 'aal2' ||
+    !reauthenticatedAt ||
+    !expiresAt ||
+    !Number.isSafeInteger(Number(row.securityVersion))
+  ) {
+    deny('DATABASE_CONTEXT_STALE', 'Support Access resolver returned invalid evidence')
+  }
+  const context: SupportDatabaseContext = {
+    accountId: row.accountId,
+    accountSessionId: row.accountSessionId,
+    providerSessionId: identity.providerSessionId,
+    tenantId,
+    platformAccessGrantId: row.platformAccessGrantId,
+    roleTemplateKey: row.roleTemplateKey as SupportDatabaseContext['roleTemplateKey'],
+    supportGrantId: row.supportGrantId,
+    supportKind: row.supportKind as SupportDatabaseContext['supportKind'],
+    purpose: row.purpose as SupportDatabaseContext['purpose'],
+    allowedCapabilities: Object.freeze([...allowedCapabilities]),
+    queryConstraints: Object.freeze([constraint]),
+    assuranceLevel: 'aal2',
+    reauthenticatedAt,
+    securityVersion: Number(row.securityVersion),
+    requestId: identity.requestId,
+    expiresAt,
+    operationId: row.operationId,
+  }
+  await setContext(transaction, {
+    'app.account_id': context.accountId,
+    'app.person_id': undefined,
+    'app.session_id': context.providerSessionId,
+    'app.security_version': String(context.securityVersion),
+    'app.platform_access_grant_id': context.platformAccessGrantId,
+    'app.platform_role_template_key': context.roleTemplateKey,
+    'app.support_kind': context.supportKind,
+    'app.support_purpose': context.purpose,
+    'app.policy_constraints': JSON.stringify(context.queryConstraints),
+  })
+  return Object.freeze(context)
+}
+
+async function withSupportPolicyUsing<T>(
+  database: RuntimeDatabase,
+  securityAssertion: () => Promise<void>,
+  identity: SupportIdentityDatabaseContext,
+  tenantId: string,
+  supportGrantId: string,
+  policy: SupportDatabasePolicyContext,
+  operation: (transaction: DatabaseTransaction, context: SupportDatabaseContext) => Promise<T>
+): Promise<T> {
+  validateSupportIdentityDatabaseContext(identity)
+  requireUuid('tenantId', tenantId)
+  requireUuid('supportGrantId', supportGrantId)
+  validateSupportPolicyContext(policy)
+  await securityAssertion()
+  return database.transaction(async (transaction) => {
+    const context = await resolveSupportAccessInTransaction(
+      transaction,
+      identity,
+      tenantId,
+      supportGrantId,
+      policy
+    )
+    await assertActivePooledPlacement(transaction, tenantId)
+    return operation(transaction, context)
+  })
+}
+
+async function withSupportClosureUsing<T>(
+  database: RuntimeDatabase,
+  securityAssertion: () => Promise<void>,
+  identity: SupportIdentityDatabaseContext,
+  tenantId: string,
+  supportGrantId: string,
+  policy: SupportClosureDatabasePolicyContext,
+  operation: DatabaseOperation<T>
+): Promise<T> {
+  validateSupportIdentityDatabaseContext(identity)
+  requireUuid('tenantId', tenantId)
+  requireUuid('supportGrantId', supportGrantId)
+  validateSupportPolicyContext(policy)
+  await securityAssertion()
+  return database.transaction(async (transaction) => {
+    await setContext(transaction, {
+      'app.identity_provider': identity.identityProvider,
+      'app.provider_subject': identity.providerSubject,
+      'app.provider_session_id': identity.providerSessionId,
+      'app.request_id': identity.requestId,
+      'app.assurance_level': identity.assuranceLevel,
+      'app.reauthenticated_at': identity.reauthenticatedAt,
+      'app.tenant_id': tenantId,
+      'app.support_grant_id': supportGrantId,
+      'app.policy_capability': policy.capability,
+      'app.policy_version': policy.policyVersion,
+      'app.correlation_id': policy.correlationId,
+    })
     return operation(transaction)
   })
 }
@@ -854,6 +1248,44 @@ export async function withPolicyTenantTransaction<T>(
   validateTenantDatabaseContext(context)
   validateDatabasePolicyContext(policyContext, context)
   return withTenantUsing(runtime(), assertRuntimeSecurity, context, operation, policyContext)
+}
+
+/** Revalidates one Tenant-approved Support Grant and records every diagnostic operation. */
+export async function withSupportPolicyTenantTransaction<T>(
+  identity: SupportIdentityDatabaseContext,
+  tenantId: string,
+  supportGrantId: string,
+  policy: SupportDatabasePolicyContext,
+  operation: (transaction: DatabaseTransaction, context: SupportDatabaseContext) => Promise<T>
+): Promise<T> {
+  return withSupportPolicyUsing(
+    runtime(),
+    assertRuntimeSecurity,
+    identity,
+    tenantId,
+    supportGrantId,
+    policy,
+    operation
+  )
+}
+
+/** Opens a narrowly scoped transaction for the grant holder to close the bound session. */
+export async function withSupportAccessClosureTransaction<T>(
+  identity: SupportIdentityDatabaseContext,
+  tenantId: string,
+  supportGrantId: string,
+  policy: SupportClosureDatabasePolicyContext,
+  operation: DatabaseOperation<T>
+): Promise<T> {
+  return withSupportClosureUsing(
+    runtime(),
+    assertRuntimeSecurity,
+    identity,
+    tenantId,
+    supportGrantId,
+    policy,
+    operation
+  )
 }
 
 /** Runs a bounded background job through the separately credentialed worker role. */

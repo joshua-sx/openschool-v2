@@ -5,6 +5,7 @@ import { invitationsRouter } from './invitations'
 import { platformRouter } from './platform'
 import { schoolsRouter } from './schools'
 import { studentsRouter } from './students'
+import { supportAccessRouter } from './support-access'
 
 export const appRouter = router({
   example: exampleRouter,
@@ -13,6 +14,7 @@ export const appRouter = router({
   schools: schoolsRouter,
   invitations: invitationsRouter,
   platform: platformRouter,
+  supportAccess: supportAccessRouter,
 })
 
 export type AppRouter = typeof appRouter

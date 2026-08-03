@@ -19,6 +19,8 @@ const RESERVED_EXECUTION_ROLES = new Set([
   'openschool_platform_access_resolver',
   'openschool_tenant_lifecycle_manager',
   'openschool_provider_security_resolver',
+  'openschool_support_grant_manager',
+  'openschool_support_access_resolver',
 ])
 const PROVISIONING_PHASES = new Set(['all', 'identities', 'grants'])
 
@@ -148,9 +150,11 @@ async function run(): Promise<void> {
     await ensureNoLoginRole(admin, 'openschool_platform_access_resolver')
     await ensureNoLoginRole(admin, 'openschool_tenant_lifecycle_manager')
     await ensureNoLoginRole(admin, 'openschool_provider_security_resolver')
+    await ensureNoLoginRole(admin, 'openschool_support_grant_manager')
+    await ensureNoLoginRole(admin, 'openschool_support_access_resolver')
     if (migrationRole !== 'postgres') {
       await admin.unsafe(
-        `grant openschool_identity_revoker, openschool_invitation_acceptor, openschool_tenant_admission_resolver, openschool_platform_access_resolver, openschool_tenant_lifecycle_manager, openschool_provider_security_resolver to ${migrationRole}`
+        `grant openschool_identity_revoker, openschool_invitation_acceptor, openschool_tenant_admission_resolver, openschool_platform_access_resolver, openschool_tenant_lifecycle_manager, openschool_provider_security_resolver, openschool_support_grant_manager, openschool_support_access_resolver to ${migrationRole}`
       )
     }
 
@@ -186,7 +190,7 @@ async function run(): Promise<void> {
         student_profiles, education_organizations, organization_tree_versions,
         organization_tree_closure, school_governance_assignments, schools,
         classes, students, enrollments, users_on_org, users_on_school,
-        parent_student
+        parent_student, support_access_notifications
       to ${runtimeRole}
     `)
     await admin.unsafe(`grant select, insert, update on account_sessions to ${runtimeRole}`)
@@ -196,16 +200,21 @@ async function run(): Promise<void> {
     await admin.unsafe(`grant select, insert on audit_events, audit_outbox to ${runtimeRole}`)
 
     await admin.unsafe(
-      `grant select on tenants, tenant_placements, students, audit_outbox, account_invitations, invitation_delivery_outbox, provider_security_reconciliation_outbox to ${workerRole}`
+      `grant select on tenants, tenant_placements, students, audit_outbox, account_invitations, invitation_delivery_outbox, provider_security_reconciliation_outbox, support_access_grants, support_access_notifications, support_notification_outbox to ${workerRole}`
     )
     await admin.unsafe(`grant select, insert on audit_events to ${workerRole}`)
     await admin.unsafe(`grant update on audit_outbox to ${workerRole}`)
     await admin.unsafe(`grant update on invitation_delivery_outbox to ${workerRole}`)
     await admin.unsafe(`grant update on provider_security_reconciliation_outbox to ${workerRole}`)
+    await admin.unsafe(`grant update on support_access_grants to ${workerRole}`)
+    await admin.unsafe(`grant update on support_notification_outbox to ${workerRole}`)
+    await admin.unsafe(
+      `grant insert on support_access_notifications, support_notification_outbox to ${workerRole}`
+    )
 
     for (const executionRole of [runtimeRole, workerRole, controlPlaneRole]) {
       await admin.unsafe(
-        `revoke openschool_backup, openschool_emergency, openschool_identity_revoker, openschool_invitation_acceptor, openschool_tenant_admission_resolver, openschool_platform_access_resolver, openschool_tenant_lifecycle_manager, openschool_provider_security_resolver from ${executionRole}`
+        `revoke openschool_backup, openschool_emergency, openschool_identity_revoker, openschool_invitation_acceptor, openschool_tenant_admission_resolver, openschool_platform_access_resolver, openschool_tenant_lifecycle_manager, openschool_provider_security_resolver, openschool_support_grant_manager, openschool_support_access_resolver from ${executionRole}`
       )
       if (migrationRole !== 'postgres') {
         await admin.unsafe(`revoke ${migrationRole} from ${executionRole}`)

@@ -9,7 +9,7 @@ import type {
 } from './types'
 
 export const POLICY_VERSION_LEGACY_PARITY = '2026-08-02.legacy-parity'
-export const POLICY_VERSION_CURRENT = '2026-08-03.v2'
+export const POLICY_VERSION_CURRENT = '2026-08-03.v3'
 
 const audit = (event: string): PolicyObligation => ({ kind: 'audit', event })
 const mfa: PolicyObligation = { kind: 'mfa', assuranceLevel: 'aal2' }
@@ -30,7 +30,7 @@ function grants(
   }))
 }
 
-function tenantRoleTemplates(): RoleTemplateDefinition[] {
+function tenantRoleTemplates(options: { supportAccess: boolean }): RoleTemplateDefinition[] {
   const protectedAdmin = (event: string): readonly PolicyObligation[] => [mfa, audit(event)]
   const recorded = (event: string): readonly PolicyObligation[] => [audit(event)]
 
@@ -77,6 +77,15 @@ function tenantRoleTemplates(): RoleTemplateDefinition[] {
           [mfa, recentReauthentication, audit('account.manage')],
         ],
         [CAPABILITIES.AUDIT_READ, SCOPES.ORGANIZATION_SUBTREE, recorded('audit.read')],
+        ...(options.supportAccess
+          ? [
+              [
+                CAPABILITIES.SUPPORT_GRANTS_MANAGE,
+                SCOPES.ORGANIZATION_SUBTREE,
+                [mfa, recentReauthentication, audit('support.grant.manage')],
+              ] as const,
+            ]
+          : []),
       ]),
     },
     {
@@ -128,6 +137,15 @@ function tenantRoleTemplates(): RoleTemplateDefinition[] {
           [mfa, recentReauthentication, audit('account.manage')],
         ],
         [CAPABILITIES.AUDIT_READ, SCOPES.SCHOOL, recorded('audit.read')],
+        ...(options.supportAccess
+          ? [
+              [
+                CAPABILITIES.SUPPORT_GRANTS_MANAGE,
+                SCOPES.SCHOOL,
+                [mfa, recentReauthentication, audit('support.grant.manage')],
+              ] as const,
+            ]
+          : []),
       ]),
     },
     {
@@ -188,13 +206,13 @@ const legacyParityBundle = createPolicyBundle({
   version: POLICY_VERSION_LEGACY_PARITY,
   // The rollback bundle preserves the accepted Tenant grant surface but keeps
   // the same safeguarding obligations; rollback never weakens MFA or audit.
-  roleTemplates: tenantRoleTemplates(),
+  roleTemplates: tenantRoleTemplates({ supportAccess: false }),
 })
 
 const currentBundle = createPolicyBundle({
   version: POLICY_VERSION_CURRENT,
   roleTemplates: [
-    ...tenantRoleTemplates(),
+    ...tenantRoleTemplates({ supportAccess: true }),
     {
       key: 'super_admin',
       description: 'Operates the OpenSchool platform without implicit Tenant data access.',
@@ -220,6 +238,52 @@ const currentBundle = createPolicyBundle({
             { kind: 'purpose', allowed: ['incident_response', 'customer_support'] },
             audit('support.session.use'),
           ],
+        ],
+        [
+          CAPABILITIES.SUPPORT_SCHOOLS_READ,
+          SCOPES.TENANT,
+          [
+            mfa,
+            recentReauthentication,
+            { kind: 'purpose', allowed: ['incident_response', 'customer_support'] },
+            audit('support.school.read'),
+          ],
+        ],
+        [
+          CAPABILITIES.SUPPORT_STUDENTS_READ,
+          SCOPES.TENANT,
+          [
+            mfa,
+            recentReauthentication,
+            { kind: 'purpose', allowed: ['incident_response', 'customer_support'] },
+            audit('support.student.read'),
+          ],
+        ],
+      ]),
+    },
+    {
+      key: 'break_glass_operator',
+      description: 'Uses separately held emergency credentials under mandatory incident review.',
+      grants: grants('break_glass_operator', [
+        [
+          CAPABILITIES.PLATFORM_BREAK_GLASS_OPEN,
+          SCOPES.PLATFORM,
+          [
+            mfa,
+            recentReauthentication,
+            { kind: 'purpose', allowed: ['incident_response'] },
+            audit('support.break_glass.open'),
+          ],
+        ],
+        [
+          CAPABILITIES.SUPPORT_SCHOOLS_READ,
+          SCOPES.TENANT,
+          [mfa, recentReauthentication, audit('support.school.read')],
+        ],
+        [
+          CAPABILITIES.SUPPORT_STUDENTS_READ,
+          SCOPES.TENANT,
+          [mfa, recentReauthentication, audit('support.student.read')],
         ],
       ]),
     },

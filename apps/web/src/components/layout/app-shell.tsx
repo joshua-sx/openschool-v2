@@ -25,7 +25,7 @@ export function AppShell({ children, user, requestContext }: AppShellProps) {
       >
         Skip to main content
       </a>
-      <Sidebar />
+      <Sidebar roleTemplateKeys={requestContext?.roleTemplateKeys} />
       <div className="flex-1 flex flex-col">
         <Header user={user} requestContext={requestContext} />
         <main id="main-content" className="flex-1 p-6" tabIndex={-1}>
