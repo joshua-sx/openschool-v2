@@ -74,6 +74,9 @@ function assertContextCleared(
       membershipVersion: evidence.membershipVersion,
       securityVersion: evidence.securityVersion,
       contextPolicyVersion: evidence.contextPolicyVersion,
+      policyCapability: evidence.policyCapability,
+      policyVersion: evidence.policyVersion,
+      policyConstraints: evidence.policyConstraints,
     },
     {
       accountId: null,
@@ -88,6 +91,9 @@ function assertContextCleared(
       membershipVersion: null,
       securityVersion: null,
       contextPolicyVersion: null,
+      policyCapability: null,
+      policyVersion: null,
+      policyConstraints: null,
     }
   )
 }
@@ -161,7 +167,7 @@ async function run(): Promise<void> {
         assert.equal(evidence.schoolId, SCHOOL)
         assert.equal(evidence.organizationId, ORGANIZATION)
         assert.equal(evidence.canUpdateStudents, true)
-        assert.equal(evidence.canDeleteStudents, false)
+        assert.equal(evidence.canDeleteStudents, true)
         return evidence.backendPid
       }
     )

@@ -11,6 +11,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:provision-roles": "bun run src/provision-database-roles.ts",
     "db:execution-poc": "bun run src/database-execution-poc.ts",
+    "db:student-rls-poc": "bun run src/student-rls-poc.ts",
     "db:push": "drizzle-kit push",
     "db:security-poc": "bun run src/security-poc.ts",
     "db:tenant-foundation-poc": "bun run src/tenant-foundation-poc.ts",

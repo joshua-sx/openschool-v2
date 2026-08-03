@@ -6,7 +6,7 @@ import {
   organizationTreeVersions,
   schoolGovernanceAssignments,
   schools,
-  withTenantTransaction,
+  withPolicyTenantTransaction,
 } from '@openschool/db'
 import {
   type AllowedPolicyDecision,
@@ -17,7 +17,11 @@ import {
 } from '@openschool/rbac'
 import { TRPCError } from '@trpc/server'
 import { and, desc, eq, gt, isNull, lte, or } from 'drizzle-orm'
-import { assertDatabasePolicyContext } from './database-context'
+import {
+  assertDatabasePolicyContext,
+  assertStudentSliceEnabled,
+  toDatabasePolicyContext,
+} from './database-context'
 
 const MAX_ACCESSIBLE_SCHOOLS = 100
 const MAX_POLICY_CONSTRAINTS = 16
@@ -172,8 +176,9 @@ export async function getAccessibleSchools(
   context: PolicyContext,
   decision: AllowedPolicyDecision
 ): Promise<School[]> {
+  assertStudentSliceEnabled()
   assertDatabasePolicyContext(databaseContext, context)
-  return withTenantTransaction(databaseContext, (db) =>
+  return withPolicyTenantTransaction(databaseContext, toDatabasePolicyContext(decision), (db) =>
     loadAuthorizedSchools(db, context, decision, CAPABILITIES.SCHOOLS_READ)
   )
 }
@@ -186,9 +191,12 @@ export async function getSchoolById(
   schoolId: string,
   expectedCapability: Capability
 ): Promise<School | null> {
+  assertStudentSliceEnabled()
   assertDatabasePolicyContext(databaseContext, context)
-  const [school] = await withTenantTransaction(databaseContext, (db) =>
-    loadAuthorizedSchools(db, context, decision, expectedCapability, schoolId)
+  const [school] = await withPolicyTenantTransaction(
+    databaseContext,
+    toDatabasePolicyContext(decision),
+    (db) => loadAuthorizedSchools(db, context, decision, expectedCapability, schoolId)
   )
   return school ?? null
 }

@@ -4,6 +4,7 @@ import {
   foreignKey,
   index,
   jsonb,
+  pgPolicy,
   pgTable,
   text,
   timestamp,
@@ -58,8 +59,62 @@ export const schools = pgTable(
       'schools_profile_check',
       sql`${table.profile} IN ('primary', 'secondary', 'all_through', 'special', 'other')`
     ),
+    pgPolicy('schools_runtime_select', {
+      for: 'select',
+      to: 'openschool_runtime',
+      using: sql`
+        ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND (
+          ${table.id} = nullif(current_setting('app.school_id', true), '')::uuid
+          OR (
+            nullif(current_setting('app.policy_capability', true), '')
+              IN ('tenant.schools.read', 'tenant.students.create')
+            AND public.openschool_school_scope_allows(
+              ${table.tenantId}, ${table.id}
+            )
+          )
+        )
+      `,
+    }),
+    pgPolicy('schools_worker_select', {
+      for: 'select',
+      to: 'openschool_worker',
+      using: sql`${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid`,
+    }),
+    pgPolicy('schools_runtime_insert_deny', {
+      for: 'insert',
+      to: 'openschool_runtime',
+      withCheck: sql`false`,
+    }),
+    pgPolicy('schools_runtime_update_deny', {
+      for: 'update',
+      to: 'openschool_runtime',
+      using: sql`false`,
+      withCheck: sql`false`,
+    }),
+    pgPolicy('schools_runtime_delete_deny', {
+      for: 'delete',
+      to: 'openschool_runtime',
+      using: sql`false`,
+    }),
+    pgPolicy('schools_worker_insert_deny', {
+      for: 'insert',
+      to: 'openschool_worker',
+      withCheck: sql`false`,
+    }),
+    pgPolicy('schools_worker_update_deny', {
+      for: 'update',
+      to: 'openschool_worker',
+      using: sql`false`,
+      withCheck: sql`false`,
+    }),
+    pgPolicy('schools_worker_delete_deny', {
+      for: 'delete',
+      to: 'openschool_worker',
+      using: sql`false`,
+    }),
   ]
-)
+).enableRLS()
 
 export type School = typeof schools.$inferSelect
 export type NewSchool = typeof schools.$inferInsert

@@ -3,7 +3,12 @@
 import { copyFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parsePublicEnv } from '@openschool/config/public'
-import { parseMigrationEnv, parseServerEnv, parseWorkerEnv } from '@openschool/config/server'
+import {
+  parseMigrationEnv,
+  parseServerEnv,
+  parseStudentSliceEnv,
+  parseWorkerEnv,
+} from '@openschool/config/server'
 import { config } from 'dotenv'
 
 const root = process.cwd()
@@ -37,6 +42,7 @@ function check(): void {
   const serverEnv = parseServerEnv(process.env)
   const workerEnv = parseWorkerEnv(process.env)
   const migrationEnv = parseMigrationEnv(process.env)
+  const studentSliceEnv = parseStudentSliceEnv(process.env)
   const migrationUsername = decodeURIComponent(
     new URL(migrationEnv.DATABASE_MIGRATION_URL).username
   )
@@ -58,6 +64,7 @@ function check(): void {
   console.log(`- Migration database role: ${serverEnv.DATABASE_MIGRATION_ROLE}`)
   console.log(`- Runtime database role: ${serverEnv.DATABASE_RUNTIME_ROLE}`)
   console.log(`- Worker database role: ${workerEnv.DATABASE_WORKER_ROLE}`)
+  console.log(`- Student slice mode: ${studentSliceEnv.OPENSCHOOL_STUDENT_SLICE_MODE}`)
 }
 
 const command = process.argv[2]

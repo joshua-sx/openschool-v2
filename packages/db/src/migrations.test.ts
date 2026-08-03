@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
@@ -30,5 +30,28 @@ describe('database migration baseline', () => {
 
     assert.equal(policyDraft.endsWith('.sql.disabled'), true)
     assert.equal(draft.startsWith('-- UNAPPROVED SECURITY DESIGN - DO NOT APPLY'), true)
+  })
+
+  it('forces named-role RLS for the reviewed School and Student slice', () => {
+    const migration = readFileSync(
+      join(migrationsDirectory, '0014_student_school_forced_rls.sql'),
+      'utf8'
+    )
+    for (const expected of [
+      'ALTER TABLE "schools" FORCE ROW LEVEL SECURITY',
+      'ALTER TABLE "students" FORCE ROW LEVEL SECURITY',
+      'CREATE POLICY "schools_runtime_select"',
+      'CREATE POLICY "students_runtime_select"',
+      'CREATE POLICY "students_runtime_insert"',
+      'CREATE POLICY "students_runtime_update"',
+      'CREATE POLICY "students_runtime_delete"',
+      'TO "openschool_runtime"',
+      'TO "openschool_worker"',
+      'WITH CHECK',
+      'openschool_student_scope_allows',
+      'REVOKE ALL ON FUNCTION "openschool_policy_constraints"() FROM PUBLIC',
+    ]) {
+      assert.match(migration, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+    }
   })
 })

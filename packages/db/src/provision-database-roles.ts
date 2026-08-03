@@ -5,6 +5,7 @@ const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]'])
 const ROLE_NAME = /^[a-z_][a-z0-9_]{0,62}$/
 const LOCAL_PASSWORD = /^[A-Za-z0-9_-]{16,128}$/
 const RESERVED_EXECUTION_ROLES = new Set(['postgres', 'openschool_backup', 'openschool_emergency'])
+const PROVISIONING_PHASES = new Set(['all', 'identities', 'grants'])
 
 function databaseIdentity(url: URL): string {
   return `${url.hostname}:${url.port || '5432'}${url.pathname}`
@@ -99,12 +100,23 @@ async function run(): Promise<void> {
   }
   const databaseName = decodeURIComponent(migration.pathname.slice(1))
   const admin = postgres(migration.toString(), { max: 1, prepare: false })
+  const phase = process.env.ROLE_PROVISIONING_PHASE ?? 'all'
+  if (!PROVISIONING_PHASES.has(phase)) {
+    throw new Error('Role provisioning refused: phase must be all, identities, or grants.')
+  }
 
   try {
     await ensureExecutionRole(admin, runtimeRole, decodeURIComponent(runtime.password))
     await ensureExecutionRole(admin, workerRole, decodeURIComponent(worker.password))
     await ensureNoLoginRole(admin, 'openschool_backup')
     await ensureNoLoginRole(admin, 'openschool_emergency')
+
+    if (phase === 'identities') {
+      console.log(
+        `Provisioned PostgreSQL role identities before migration: runtime=${runtimeRole}, worker=${workerRole}.`
+      )
+      return
+    }
 
     await admin.unsafe('revoke create on schema public from public')
     for (const executionRole of [runtimeRole, workerRole]) {
@@ -131,7 +143,7 @@ async function run(): Promise<void> {
       to ${runtimeRole}
     `)
     await admin.unsafe(`grant select, insert, update on account_sessions to ${runtimeRole}`)
-    await admin.unsafe(`grant insert, update on students to ${runtimeRole}`)
+    await admin.unsafe(`grant insert, update, delete on students to ${runtimeRole}`)
     await admin.unsafe(`grant insert on audit_logs to ${runtimeRole}`)
 
     await admin.unsafe(`grant select on tenant_placements, students to ${workerRole}`)
@@ -148,7 +160,7 @@ async function run(): Promise<void> {
     }
 
     console.log(
-      `Provisioned local PostgreSQL roles: migration=${migrationRole}, runtime=${runtimeRole}, worker=${workerRole}.`
+      `Provisioned local PostgreSQL ${phase} phase: migration=${migrationRole}, runtime=${runtimeRole}, worker=${workerRole}.`
     )
   } finally {
     await admin.end()
