@@ -131,4 +131,14 @@ describe('database migration baseline', () => {
       assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
     }
   })
+
+  it('validates encrypted invitation payloads without unsupported regex bounds', () => {
+    const migration = readFileSync(
+      join(migrationsDirectory, '0018_outgoing_moon_knight.sql'),
+      'utf8'
+    )
+    assert.equal(migration.includes("token_ciphertext\" ~ '^[A-Za-z0-9_-]+$'"), true)
+    assert.equal(migration.includes('token_ciphertext") BETWEEN 16 AND 1024'), true)
+    assert.equal(migration.includes('{16,1024}'), false)
+  })
 })

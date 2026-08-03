@@ -310,7 +310,8 @@ export const invitationDeliveryOutbox = pgTable(
       sql`(
             ${table.status} IN ('pending', 'processing', 'failed')
             AND ${table.encryptionKeyId} ~ '^[A-Za-z0-9_.-]{1,64}$'
-            AND ${table.tokenCiphertext} ~ '^[A-Za-z0-9_-]{16,1024}$'
+            AND ${table.tokenCiphertext} ~ '^[A-Za-z0-9_-]+$'
+            AND char_length(${table.tokenCiphertext}) BETWEEN 16 AND 1024
             AND ${table.tokenIv} ~ '^[A-Za-z0-9_-]{16}$'
             AND ${table.tokenAuthTag} ~ '^[A-Za-z0-9_-]{22}$'
           ) OR (
