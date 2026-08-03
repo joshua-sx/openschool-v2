@@ -223,7 +223,7 @@ async function runProof(): Promise<void> {
           })
         }
       ),
-      /AUDIT_REDACTION_FIELD_NOT_ALLOWLISTED:email/
+      /AUDIT_REDACTION_BLOCKED_FIELD:email/
     )
     assert.equal(
       (
