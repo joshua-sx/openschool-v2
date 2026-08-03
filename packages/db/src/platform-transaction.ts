@@ -251,8 +251,14 @@ interface PlatformAccessRow extends Record<string, unknown> {
   platformAccessGrantId: string
   roleTemplateKey: string
   assuranceLevel: string
-  reauthenticatedAt: Date | null
-  expiresAt: Date
+  reauthenticatedAt: Date | string | null
+  expiresAt: Date | string
+}
+
+function resolverInstant(value: Date | string | null): Date | null {
+  if (value === null) return null
+  const parsed = value instanceof Date ? new Date(value.getTime()) : new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
 async function resolvePlatformAccessInTransaction(
@@ -291,6 +297,8 @@ async function resolvePlatformAccessInTransaction(
     throw cause
   }
   const row = rows[0]
+  const expiresAt = row ? resolverInstant(row.expiresAt) : null
+  const reauthenticatedAt = row ? resolverInstant(row.reauthenticatedAt) : null
   if (
     rows.length !== 1 ||
     !row ||
@@ -300,7 +308,8 @@ async function resolvePlatformAccessInTransaction(
     !Number.isSafeInteger(Number(row.securityVersion)) ||
     !['super_admin', 'support_agent'].includes(row.roleTemplateKey) ||
     !['aal1', 'aal2'].includes(row.assuranceLevel) ||
-    !(row.expiresAt instanceof Date)
+    !expiresAt ||
+    (row.reauthenticatedAt !== null && !reauthenticatedAt)
   ) {
     deny('PLATFORM_ACCESS_DENIED', 'Platform access resolver returned invalid evidence')
   }
@@ -313,8 +322,8 @@ async function resolvePlatformAccessInTransaction(
     platformAccessGrantId: row.platformAccessGrantId,
     roleTemplateKey: row.roleTemplateKey as PlatformDatabaseContext['roleTemplateKey'],
     assuranceLevel: row.assuranceLevel as DatabaseAssuranceLevel,
-    ...(row.reauthenticatedAt ? { reauthenticatedAt: row.reauthenticatedAt.toISOString() } : {}),
-    expiresAt: row.expiresAt.toISOString(),
+    ...(reauthenticatedAt ? { reauthenticatedAt: reauthenticatedAt.toISOString() } : {}),
+    expiresAt: expiresAt.toISOString(),
   })
 }
 
