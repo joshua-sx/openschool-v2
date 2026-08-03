@@ -158,4 +158,22 @@ describe('database migration baseline', () => {
     assert.equal(migration.includes('token_ciphertext") BETWEEN 16 AND 1024'), true)
     assert.equal(migration.includes('{16,1024}'), false)
   })
+
+  it('restricts invitation denial outbox returning to the current request', () => {
+    const migration = readFileSync(
+      join(migrationsDirectory, '0019_invitation_denial_outbox_returning.sql'),
+      'utf8'
+    )
+    for (const expected of [
+      'CREATE POLICY "audit_outbox_invitation_denial_select"',
+      'FOR SELECT TO "openschool_runtime"',
+      `"context" ->> 'requestId' = nullif(current_setting('app.request_id', true), '')`,
+      `"context" ->> 'actorAccountId' IS NULL`,
+      `"payload" ->> 'eventType' = 'account.invitation.accept'`,
+      `"payload" ->> 'outcome' = 'denied'`,
+      `'account.invitation.accept.denied:' || ("audit_outbox"."payload" ->> 'targetId')`,
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+  })
 })

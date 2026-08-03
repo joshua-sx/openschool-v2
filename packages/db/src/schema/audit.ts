@@ -354,6 +354,27 @@ export const auditOutbox = pgTable(
         AND ${table.context} ->> 'actorPersonId' = nullif(current_setting('app.person_id', true), '')
       `,
     }),
+    // PostgreSQL applies SELECT RLS to rows produced by INSERT ... RETURNING.
+    // Keep this as narrow as the matching denial insert policy so the runtime
+    // can receive only the outbox id created for the current verified request.
+    pgPolicy('audit_outbox_invitation_denial_select', {
+      for: 'select',
+      to: 'openschool_runtime',
+      using: sql`
+        ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND ${table.context} ->> 'requestId' = nullif(current_setting('app.request_id', true), '')
+        AND ${table.context} ->> 'actorAccountId' IS NULL
+        AND ${table.context} ->> 'actorPersonId' IS NULL
+        AND ${table.topic} = 'audit.event.committed'
+        AND ${table.payload} ->> 'eventType' = 'account.invitation.accept'
+        AND ${table.payload} ->> 'outcome' = 'denied'
+        AND ${table.payload} ->> 'targetType' = 'account.invitation'
+        AND nullif(${table.payload} ->> 'targetId', '') IS NOT NULL
+        AND ${table.deduplicationKey} =
+          'account.invitation.accept.denied:' || (${table.payload} ->> 'targetId') || ':' ||
+          nullif(current_setting('app.request_id', true), '')
+      `,
+    }),
     pgPolicy('audit_outbox_invitation_denial_insert', {
       for: 'insert',
       to: 'openschool_runtime',
