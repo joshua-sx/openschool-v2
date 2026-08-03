@@ -1,8 +1,6 @@
 ALTER TABLE "account_sessions" ADD COLUMN "reauthenticated_at" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "account_sessions" ADD CONSTRAINT "account_sessions_reauthentication_time_check" CHECK ("account_sessions"."reauthenticated_at" IS NULL OR "account_sessions"."reauthenticated_at" < "account_sessions"."expires_at") NOT VALID;--> statement-breakpoint
 ALTER TABLE "account_sessions" VALIDATE CONSTRAINT "account_sessions_reauthentication_time_check";--> statement-breakpoint
-CREATE UNIQUE INDEX "account_links_account_tenant_active_unique" ON "account_links" USING btree ("account_id","tenant_id") WHERE "account_links"."status" = 'active';--> statement-breakpoint
-
 CREATE OR REPLACE FUNCTION "openschool_guard_account_session_transition"()
 RETURNS trigger
 LANGUAGE plpgsql

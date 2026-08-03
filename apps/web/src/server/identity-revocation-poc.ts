@@ -153,10 +153,10 @@ async function run(): Promise<void> {
         personId: targetPersonA,
         status: 'active',
         validFrom: new Date(NOW.getTime() - 60_000),
-        issuanceReason: 'Duplicate active link denial proof',
+        issuanceReason: 'Overlapping active link denial proof',
         activatedAt: new Date(NOW.getTime() - 60_000),
       }),
-      (error: unknown) => hasPostgresCode(error, '23505')
+      (error: unknown) => hasPostgresCode(error, '23P01')
     )
     await db.insert(affiliations).values([
       {
