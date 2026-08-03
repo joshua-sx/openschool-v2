@@ -19,6 +19,8 @@
     "db:platform-tenant-lifecycle-poc": "bun run src/platform-tenant-lifecycle-poc.ts",
     "db:support-access-poc": "bun run src/support-access-poc.ts",
     "db:audit-partition-poc": "bun run src/audit-partition-lifecycle-poc.ts",
+    "db:backup-restore-isolation-poc": "bun run src/backup-restore-isolation-poc.ts",
+    "db:isolation-release-evidence-poc": "bun run src/isolation-release-evidence-poc.ts",
     "audit:partition-maintain": "bun run src/audit-partition-maintenance-job.ts",
     "db:prepare-upgrade-fixture": "bun run src/prepare-upgrade-fixture.ts",
     "db:verify-upgrade-fixture": "bun run src/verify-upgrade-fixture.ts",
@@ -27,6 +29,7 @@
   },
   "dependencies": {
     "@openschool/config": "workspace:*",
+    "@openschool/isolation": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "postgres": "^3.4.0"
   },

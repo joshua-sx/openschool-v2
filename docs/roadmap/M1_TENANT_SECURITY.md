@@ -64,3 +64,11 @@ flowchart TD
 - #99 Audit Ledger partition lifecycle: implementation includes a least-privilege daily maintenance
   seam, 45-day engineering gate, critical default-occupancy alert, and disposable recovery proof;
   target-environment scheduling, paging, and runbook exercise remain launch gates.
+
+## Phase 7 status
+
+- #90 full Isolation Matrix: the system-proof candidate orchestrates every implemented M1 boundary,
+  adds actual tRPC IDOR/error/batch-equivalent evidence, Tenant-bound cache/job/file contracts, a
+  wrong-Tenant/RLS-filtered backup detector, and release metadata capture. Its engineering decision
+  is scoped to implemented M1 surfaces; disabled product paths and named production approvals stay
+  NO-GO.

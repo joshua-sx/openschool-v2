@@ -123,10 +123,11 @@ bun run typecheck
 bun test
 bun run db:check
 bun run db:boundary-check
+bun run isolation:boundary-contract
 bun run build
 ```
 
-GitHub Actions additionally provisions a clean PostgreSQL service, creates named identities, applies all migrations, seeds it, repeats both operations, applies runtime/worker grants, and runs the guarded [database execution proof](./packages/db/DATABASE_EXECUTION.md), [transaction-scoped RLS proof](./packages/db/security-poc/README.md), [School/Student forced-RLS proof](./packages/db/STUDENT_RLS.md), [identity revocation/provider reconciliation proof](./docs/security/IDENTITY_REVOCATION.md), [Tenant-approved support/break-glass proof](./docs/security/SUPPORT_ACCESS.md), and [Audit Ledger partition lifecycle proof](./docs/operations/AUDIT_PARTITIONS.md). The proofs are destructive and intentionally refuse non-loopback database hosts.
+GitHub Actions additionally provisions a clean PostgreSQL service, creates named identities, applies all migrations, seeds it, repeats both operations, applies runtime/worker grants, and runs the guarded [Tenant Isolation Matrix gate](./docs/security/ISOLATION_GATE.md). The gate includes the database execution, real-role RLS, School/Student, API IDOR, identity/revocation, support, backup/restore, Audit Ledger, and partition proofs. It is destructive to proof fixtures and intentionally refuses non-loopback database hosts.
 
 CI also runs the guarded [Tenant and Education Organization proof](./packages/db/TENANT_HIERARCHY.md) and a separate upgrade job that starts with representative data at migration `0002`, applies the Tenant foundation twice, and verifies the backfill and constraints.
 

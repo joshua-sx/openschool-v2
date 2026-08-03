@@ -1,12 +1,28 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
+import { ISOLATION_FIXTURES } from '@openschool/isolation'
 import { TenantRequestContextCache, buildTenantContextCacheKey } from './context-cache'
+
+const IDS = ISOLATION_FIXTURES
+
+function cacheKey(sessionId: string) {
+  return buildTenantContextCacheKey({
+    accountId: IDS.organizationAdminAccount,
+    tenantId: IDS.tenantA,
+    sessionId,
+    membershipVersion: 3,
+    securityVersion: 4,
+    assuranceLevel: 'aal2',
+    policyVersion: 5,
+    comparisonMode: 'enforce',
+  })
+}
 
 describe('Tenant Request Context cache contract', () => {
   it('keys every security and selector input', () => {
     const key = buildTenantContextCacheKey({
-      accountId: 'account',
-      tenantId: 'tenant',
+      accountId: IDS.organizationAdminAccount,
+      tenantId: IDS.tenantA,
       sessionId: 'session',
       membershipVersion: 3,
       securityVersion: 4,
@@ -19,8 +35,8 @@ describe('Tenant Request Context cache contract', () => {
     })
 
     for (const value of [
-      'account=account',
-      'tenant=tenant',
+      `account=${IDS.organizationAdminAccount}`,
+      `tenant=${IDS.tenantA}`,
       'session=session',
       'membership=3',
       'security=4',
@@ -37,8 +53,8 @@ describe('Tenant Request Context cache contract', () => {
     assert.notEqual(
       key,
       buildTenantContextCacheKey({
-        accountId: 'account',
-        tenantId: 'tenant',
+        accountId: IDS.organizationAdminAccount,
+        tenantId: IDS.tenantA,
         sessionId: 'session',
         membershipVersion: 3,
         securityVersion: 4,
@@ -55,25 +71,59 @@ describe('Tenant Request Context cache contract', () => {
   it('expires entries and supports immediate Account and session invalidation', () => {
     const cache = new TenantRequestContextCache<{ id: string }>()
     const now = new Date('2026-08-02T12:00:00Z')
+    const one = cacheKey('s1')
+    const two = cacheKey('s2')
+    assert.throws(() =>
+      cache.set(
+        one,
+        { id: 'cross-tenant' },
+        {
+          accountId: IDS.organizationAdminAccount,
+          tenantId: IDS.tenantB,
+          sessionId: 's1',
+          expiresAt: new Date(now.getTime() + 1000),
+        }
+      )
+    )
     cache.set(
-      'one',
+      one,
       { id: 'one' },
-      { accountId: 'a', sessionId: 's1', expiresAt: new Date(now.getTime() + 1000) }
+      {
+        accountId: IDS.organizationAdminAccount,
+        tenantId: IDS.tenantA,
+        sessionId: 's1',
+        expiresAt: new Date(now.getTime() + 1000),
+      }
     )
     cache.set(
-      'two',
+      two,
       { id: 'two' },
-      { accountId: 'a', sessionId: 's2', expiresAt: new Date(now.getTime() + 1000) }
+      {
+        accountId: IDS.organizationAdminAccount,
+        tenantId: IDS.tenantA,
+        sessionId: 's2',
+        expiresAt: new Date(now.getTime() + 1000),
+      }
     )
 
-    assert.deepEqual(cache.get('one', now), { id: 'one' })
+    assert.deepEqual(cache.get(one, now), { id: 'one' })
     cache.invalidateSession('s1')
-    assert.equal(cache.get('one', now), null)
-    assert.deepEqual(cache.get('two', now), { id: 'two' })
-    cache.invalidateAccount('a')
-    assert.equal(cache.get('two', now), null)
+    assert.equal(cache.get(one, now), null)
+    assert.deepEqual(cache.get(two, now), { id: 'two' })
+    cache.invalidateAccount(IDS.organizationAdminAccount)
+    assert.equal(cache.get(two, now), null)
 
-    cache.set('expired', { id: 'expired' }, { accountId: 'b', sessionId: 's3', expiresAt: now })
-    assert.equal(cache.get('expired', now), null)
+    const expired = cacheKey('s3')
+    cache.set(
+      expired,
+      { id: 'expired' },
+      {
+        accountId: IDS.organizationAdminAccount,
+        tenantId: IDS.tenantA,
+        sessionId: 's3',
+        expiresAt: now,
+      }
+    )
+    assert.equal(cache.get(expired, now), null)
   })
 })

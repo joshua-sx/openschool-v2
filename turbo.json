@@ -151,6 +151,20 @@
         "OPENSCHOOL_POLICY_VERSION"
       ]
     },
+    "api:isolation-poc": {
+      "cache": false,
+      "env": [
+        "ALLOW_API_ISOLATION_POC",
+        "DATABASE_MIGRATION_URL",
+        "DATABASE_RUNTIME_URL",
+        "DATABASE_MIGRATION_ROLE",
+        "DATABASE_RUNTIME_ROLE",
+        "DATABASE_WORKER_ROLE",
+        "DATABASE_CONTROL_PLANE_ROLE",
+        "OPENSCHOOL_STUDENT_SLICE_MODE",
+        "OPENSCHOOL_POLICY_VERSION"
+      ]
+    },
     "provider:mfa-reconcile": {
       "cache": false,
       "env": [
@@ -194,6 +208,34 @@
         "DATABASE_MIGRATION_ROLE",
         "DATABASE_RUNTIME_URL",
         "DATABASE_WORKER_URL"
+      ]
+    },
+    "db:backup-restore-isolation-poc": {
+      "cache": false,
+      "env": [
+        "ALLOW_DATABASE_EXECUTION_POC",
+        "ALLOW_BACKUP_RESTORE_ISOLATION_POC",
+        "DATABASE_MIGRATION_URL",
+        "DATABASE_MIGRATION_ROLE",
+        "DATABASE_RUNTIME_URL",
+        "DATABASE_RUNTIME_ROLE",
+        "DATABASE_WORKER_ROLE",
+        "DATABASE_CONTROL_PLANE_ROLE"
+      ]
+    },
+    "db:isolation-release-evidence-poc": {
+      "cache": false,
+      "env": [
+        "ALLOW_DATABASE_EXECUTION_POC",
+        "ALLOW_ISOLATION_RELEASE_EVIDENCE_POC",
+        "DATABASE_MIGRATION_URL",
+        "DATABASE_MIGRATION_ROLE",
+        "DATABASE_RUNTIME_URL",
+        "DATABASE_RUNTIME_ROLE",
+        "DATABASE_WORKER_ROLE",
+        "DATABASE_CONTROL_PLANE_ROLE",
+        "GITHUB_SHA",
+        "GITHUB_RUN_ID"
       ]
     },
     "audit:partition-maintain": {
