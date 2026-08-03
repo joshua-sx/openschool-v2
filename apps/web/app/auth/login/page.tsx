@@ -53,10 +53,10 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <Link
             href="/"
-            className="inline-flex items-center space-x-2 mb-6 hover:opacity-80 transition-opacity"
+            className="mb-6 inline-flex items-center space-x-2 rounded-md transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-4"
           >
             <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center">
-              <BookOpen className="w-4 h-4 text-white" />
+              <BookOpen aria-hidden="true" className="w-4 h-4 text-white" />
             </div>
             <span className="text-lg font-bold tracking-tight">OpenSchool</span>
           </Link>
