@@ -85,7 +85,7 @@ bun run env:check
 
 The repository uses these variables. The web process receives only the public
 variables, `DATABASE_RUNTIME_URL`, the three non-secret role assertions, and
-`OPENSCHOOL_POLICY_VERSION`. Migration and worker credentials belong only to
+the slice/policy selectors. Migration and worker credentials belong only to
 their separately operated tasks/processes.
 
 - `NEXT_PUBLIC_SUPABASE_URL`
@@ -96,6 +96,7 @@ their separately operated tasks/processes.
 - `DATABASE_RUNTIME_ROLE` (non-secret runtime-role assertion)
 - `DATABASE_WORKER_URL` (non-owner background role; worker processes only)
 - `DATABASE_WORKER_ROLE` (non-secret worker-role assertion)
+- `OPENSCHOOL_STUDENT_SLICE_MODE` (`forced_rls` or fail-closed `disabled`)
 - `OPENSCHOOL_POLICY_VERSION` (optional server-only rollback selector)
 - `NEXT_PUBLIC_APP_URL`
 - `NEXT_PUBLIC_WWW_URL`
@@ -106,9 +107,10 @@ Do not commit credentials or use real school data. See [LOCAL_DEV.md](./LOCAL_DE
 # Start and prepare the development database
 bun run db:start
 bun run db:check
+ALLOW_ROLE_PROVISIONING=true ROLE_PROVISIONING_PHASE=identities bun run db:provision-roles
 bun run db:migrate
 bun run db:seed
-ALLOW_ROLE_PROVISIONING=true bun run db:provision-roles
+ALLOW_ROLE_PROVISIONING=true ROLE_PROVISIONING_PHASE=grants bun run db:provision-roles
 
 # Start development
 bun run dev
@@ -125,15 +127,15 @@ bun run db:boundary-check
 bun run build
 ```
 
-CI provisions clean PostgreSQL services, repeats migration plus seed operations, provisions separate non-owner roles, proves transaction context cleanup plus the Tenant/hierarchy, identity, verified-context, and capability query constraints, and upgrades representative migration-`0002` data twice. The unapproved legacy RLS proposal remains quarantined outside the executable migration path; forced RLS for the first vertical slice is tracked in #87.
+CI provisions clean PostgreSQL services, creates fixed non-owner identities before migration, repeats migration plus seed operations, applies reviewed grants, proves transaction cleanup plus Tenant/hierarchy, identity, verified-context, capability-query, and first-slice forced-RLS constraints, and upgrades representative migration-`0002` data twice. See [the School/Student RLS evidence](./packages/db/STUDENT_RLS.md).
 
 ## Security and privacy status
 
 Security-sensitive code exists, but the platform has not completed a production security or privacy review. In particular:
 
 - tenant isolation is not yet proven across all access paths;
-- hierarchy storage, Tenant-safe foreign keys, capability query constraints, and non-owner transaction-scoped execution have targeted negative tests, but forced RLS and full-path isolation are not yet implemented;
-- existing RLS policies are not an approved production boundary;
+- hierarchy storage, Tenant-safe foreign keys, capability query constraints, non-owner execution, and the first School/Student forced-RLS slice have targeted negative tests, but full-path isolation is not yet implemented;
+- first-slice RLS evidence is not approval of other tables, infrastructure, or a production boundary;
 - audit writes are not yet guaranteed to be atomic with mutations;
 - backup, restore, incident response, retention, and offboarding are not demonstrated;
 - no FERPA, GDPR, or jurisdiction-specific compliance claim is made.

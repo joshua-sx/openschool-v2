@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -10,7 +10,10 @@ interface Journal {
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url))
 const migrationsDirectory = resolve(currentDirectory, '../migrations')
-const policyDraft = resolve(currentDirectory, '../policy-drafts/0003_enable_rls.sql.disabled')
+const retiredPolicyDraft = resolve(
+  currentDirectory,
+  '../policy-drafts/0003_enable_rls.sql.disabled'
+)
 
 describe('database migration baseline', () => {
   it('contains exactly the SQL migrations recorded in the Drizzle journal', () => {
@@ -25,11 +28,8 @@ describe('database migration baseline', () => {
     assert.deepEqual(migrationFiles, journalFiles)
   })
 
-  it('keeps the unapproved RLS draft disabled and outside migrations', () => {
-    const draft = readFileSync(policyDraft, 'utf8')
-
-    assert.equal(policyDraft.endsWith('.sql.disabled'), true)
-    assert.equal(draft.startsWith('-- UNAPPROVED SECURITY DESIGN - DO NOT APPLY'), true)
+  it('removes the disabled RLS draft after its reviewed replacement is executable', () => {
+    assert.equal(existsSync(retiredPolicyDraft), false)
   })
 
   it('forces named-role RLS for the reviewed School and Student slice', () => {
