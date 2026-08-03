@@ -56,10 +56,7 @@ describe('database migration baseline', () => {
   })
 
   it('installs canonical learner admission with forced RLS and compatibility parity', () => {
-    const migration = readFileSync(
-      join(migrationsDirectory, '0028_greedy_ultimates.sql'),
-      'utf8'
-    )
+    const migration = readFileSync(join(migrationsDirectory, '0028_greedy_ultimates.sql'), 'utf8')
     for (const expected of [
       'CREATE TABLE "school_enrollments"',
       'CREATE TABLE "student_compatibility_evidence"',

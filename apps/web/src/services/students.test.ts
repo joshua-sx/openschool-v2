@@ -24,11 +24,14 @@ describe('student validation', () => {
   })
 
   it('accepts adult learners while rejecting future or invalid dates', () => {
-    assert.deepEqual(validateStudentData({
-      firstName: 'Ada',
-      lastName: 'Lovelace',
-      dateOfBirth: '1985-12-10',
-    }), [])
+    assert.deepEqual(
+      validateStudentData({
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        dateOfBirth: '1985-12-10',
+      }),
+      []
+    )
     assert.deepEqual(validateStudentUpdateData({ dateOfBirth: 'not-a-date' }), [
       { field: 'dateOfBirth', message: 'Enter a valid date of birth' },
     ])
