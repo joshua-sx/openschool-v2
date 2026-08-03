@@ -124,6 +124,7 @@ describe('database migration baseline', () => {
       'OWNER TO "openschool_student_admitter"',
       'REVOKE INSERT, UPDATE, DELETE ON "school_enrollment_transition_events"',
       'GRANT INSERT ON "school_enrollment_transition_events"',
+      'GRANT UPDATE ("school_id", "status", "updated_at")',
     ]) {
       assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
     }

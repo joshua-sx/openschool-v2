@@ -162,6 +162,8 @@ GRANT UPDATE ("status", "updated_at")
   ON "student_profiles" TO "openschool_student_admitter";--> statement-breakpoint
 GRANT UPDATE ("membership_version", "updated_at")
   ON "accounts" TO "openschool_student_admitter";--> statement-breakpoint
+GRANT UPDATE ("school_id", "status", "updated_at")
+  ON "students" TO "openschool_student_admitter";--> statement-breakpoint
 
 CREATE FUNCTION "openschool_private"."schedule_school_enrollment_transition"(
   p_event_id uuid,
