@@ -68,13 +68,9 @@
         "tenant_placements_tenant_id_tenants_id_fk": {
           "name": "tenant_placements_tenant_id_tenants_id_fk",
           "tableFrom": "tenant_placements",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -83,9 +79,7 @@
       "uniqueConstraints": {
         "tenant_placements_tenant_id_unique": {
           "name": "tenant_placements_tenant_id_unique",
-          "columns": [
-            "tenant_id"
-          ],
+          "columns": ["tenant_id"],
           "nullsNotDistinct": false
         }
       },
@@ -160,9 +154,7 @@
       "uniqueConstraints": {
         "tenants_slug_unique": {
           "name": "tenants_slug_unique",
-          "columns": [
-            "slug"
-          ],
+          "columns": ["slug"],
           "nullsNotDistinct": false
         }
       },
@@ -231,13 +223,9 @@
         "organizations_tenant_id_tenants_id_fk": {
           "name": "organizations_tenant_id_tenants_id_fk",
           "tableFrom": "organizations",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -246,17 +234,12 @@
       "uniqueConstraints": {
         "organizations_slug_unique": {
           "name": "organizations_slug_unique",
-          "columns": [
-            "slug"
-          ],
+          "columns": ["slug"],
           "nullsNotDistinct": false
         },
         "organizations_tenant_id_id_unique": {
           "name": "organizations_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         }
       },
@@ -387,28 +370,18 @@
         "schools_tenant_id_tenants_id_fk": {
           "name": "schools_tenant_id_tenants_id_fk",
           "tableFrom": "schools",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "schools_tenant_organization_fk": {
           "name": "schools_tenant_organization_fk",
           "tableFrom": "schools",
-          "columnsFrom": [
-            "tenant_id",
-            "org_id"
-          ],
+          "columnsFrom": ["tenant_id", "org_id"],
           "tableTo": "organizations",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -417,18 +390,12 @@
       "uniqueConstraints": {
         "schools_tenant_id_id_unique": {
           "name": "schools_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         },
         "schools_tenant_id_slug_unique": {
           "name": "schools_tenant_id_slug_unique",
-          "columns": [
-            "tenant_id",
-            "slug"
-          ],
+          "columns": ["tenant_id", "slug"],
           "nullsNotDistinct": false
         }
       },
@@ -437,45 +404,35 @@
           "name": "schools_runtime_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "\n        \"schools\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND (\n          \"schools\".\"id\" = nullif(current_setting('app.school_id', true), '')::uuid\n          OR (\n            nullif(current_setting('app.policy_capability', true), '')\n              IN (\n                'tenant.schools.read', 'tenant.students.create',\n                'support.schools.read', 'support.students.read',\n                'tenant.accounts.invite', 'tenant.accounts.manage',\n                'identity.context.resolve'\n              )\n            AND public.openschool_school_scope_allows(\n              \"schools\".\"tenant_id\", \"schools\".\"id\"\n            )\n          )\n        )\n      "
         },
         "schools_identity_revoker_select": {
           "name": "schools_identity_revoker_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_identity_revoker"
-          ],
+          "to": ["openschool_identity_revoker"],
           "using": "\n        \"schools\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.accounts.manage'\n        AND nullif(current_setting('app.assurance_level', true), '') = 'aal2'\n      "
         },
         "schools_worker_select": {
           "name": "schools_worker_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "\"schools\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid"
         },
         "schools_runtime_insert_deny": {
           "name": "schools_runtime_insert_deny",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "withCheck": "false"
         },
         "schools_runtime_update_deny": {
           "name": "schools_runtime_update_deny",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "false",
           "withCheck": "false"
         },
@@ -483,27 +440,21 @@
           "name": "schools_runtime_delete_deny",
           "as": "PERMISSIVE",
           "for": "DELETE",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "false"
         },
         "schools_worker_insert_deny": {
           "name": "schools_worker_insert_deny",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "withCheck": "false"
         },
         "schools_worker_update_deny": {
           "name": "schools_worker_update_deny",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "false",
           "withCheck": "false"
         },
@@ -511,9 +462,7 @@
           "name": "schools_worker_delete_deny",
           "as": "PERMISSIVE",
           "for": "DELETE",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "false"
         }
       },
@@ -622,28 +571,18 @@
         "education_organizations_tenant_id_tenants_id_fk": {
           "name": "education_organizations_tenant_id_tenants_id_fk",
           "tableFrom": "education_organizations",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "education_organizations_legacy_organization_fk": {
           "name": "education_organizations_legacy_organization_fk",
           "tableFrom": "education_organizations",
-          "columnsFrom": [
-            "tenant_id",
-            "legacy_organization_id"
-          ],
+          "columnsFrom": ["tenant_id", "legacy_organization_id"],
           "tableTo": "organizations",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -652,25 +591,17 @@
       "uniqueConstraints": {
         "education_organizations_tenant_id_id_unique": {
           "name": "education_organizations_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         },
         "education_organizations_tenant_id_slug_unique": {
           "name": "education_organizations_tenant_id_slug_unique",
-          "columns": [
-            "tenant_id",
-            "slug"
-          ],
+          "columns": ["tenant_id", "slug"],
           "nullsNotDistinct": false
         },
         "education_organizations_legacy_organization_id_unique": {
           "name": "education_organizations_legacy_organization_id_unique",
-          "columns": [
-            "legacy_organization_id"
-          ],
+          "columns": ["legacy_organization_id"],
           "nullsNotDistinct": false
         }
       },
@@ -806,58 +737,36 @@
         "organization_tree_closure_tenant_id_tenants_id_fk": {
           "name": "organization_tree_closure_tenant_id_tenants_id_fk",
           "tableFrom": "organization_tree_closure",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "organization_tree_closure_version_fk": {
           "name": "organization_tree_closure_version_fk",
           "tableFrom": "organization_tree_closure",
-          "columnsFrom": [
-            "tenant_id",
-            "tree_version_id"
-          ],
+          "columnsFrom": ["tenant_id", "tree_version_id"],
           "tableTo": "organization_tree_versions",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "organization_tree_closure_ancestor_fk": {
           "name": "organization_tree_closure_ancestor_fk",
           "tableFrom": "organization_tree_closure",
-          "columnsFrom": [
-            "tenant_id",
-            "ancestor_organization_id"
-          ],
+          "columnsFrom": ["tenant_id", "ancestor_organization_id"],
           "tableTo": "education_organizations",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "organization_tree_closure_descendant_fk": {
           "name": "organization_tree_closure_descendant_fk",
           "tableFrom": "organization_tree_closure",
-          "columnsFrom": [
-            "tenant_id",
-            "descendant_organization_id"
-          ],
+          "columnsFrom": ["tenant_id", "descendant_organization_id"],
           "tableTo": "education_organizations",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -949,58 +858,36 @@
         "organization_tree_nodes_tenant_id_tenants_id_fk": {
           "name": "organization_tree_nodes_tenant_id_tenants_id_fk",
           "tableFrom": "organization_tree_nodes",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "organization_tree_nodes_version_fk": {
           "name": "organization_tree_nodes_version_fk",
           "tableFrom": "organization_tree_nodes",
-          "columnsFrom": [
-            "tenant_id",
-            "tree_version_id"
-          ],
+          "columnsFrom": ["tenant_id", "tree_version_id"],
           "tableTo": "organization_tree_versions",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "organization_tree_nodes_organization_fk": {
           "name": "organization_tree_nodes_organization_fk",
           "tableFrom": "organization_tree_nodes",
-          "columnsFrom": [
-            "tenant_id",
-            "organization_id"
-          ],
+          "columnsFrom": ["tenant_id", "organization_id"],
           "tableTo": "education_organizations",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "organization_tree_nodes_parent_fk": {
           "name": "organization_tree_nodes_parent_fk",
           "tableFrom": "organization_tree_nodes",
-          "columnsFrom": [
-            "tenant_id",
-            "parent_organization_id"
-          ],
+          "columnsFrom": ["tenant_id", "parent_organization_id"],
           "tableTo": "education_organizations",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -1008,11 +895,7 @@
       "compositePrimaryKeys": {
         "organization_tree_nodes_pk": {
           "name": "organization_tree_nodes_pk",
-          "columns": [
-            "tenant_id",
-            "tree_version_id",
-            "organization_id"
-          ]
+          "columns": ["tenant_id", "tree_version_id", "organization_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1095,13 +978,9 @@
         "organization_tree_versions_tenant_id_tenants_id_fk": {
           "name": "organization_tree_versions_tenant_id_tenants_id_fk",
           "tableFrom": "organization_tree_versions",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -1110,26 +989,17 @@
       "uniqueConstraints": {
         "organization_tree_versions_tenant_id_id_unique": {
           "name": "organization_tree_versions_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         },
         "organization_tree_versions_tenant_id_version_unique": {
           "name": "organization_tree_versions_tenant_id_version_unique",
-          "columns": [
-            "tenant_id",
-            "version"
-          ],
+          "columns": ["tenant_id", "version"],
           "nullsNotDistinct": false
         },
         "organization_tree_versions_tenant_effective_from_unique": {
           "name": "organization_tree_versions_tenant_effective_from_unique",
-          "columns": [
-            "tenant_id",
-            "effective_from"
-          ],
+          "columns": ["tenant_id", "effective_from"],
           "nullsNotDistinct": false
         }
       },
@@ -1230,43 +1100,27 @@
         "school_governance_assignments_tenant_id_tenants_id_fk": {
           "name": "school_governance_assignments_tenant_id_tenants_id_fk",
           "tableFrom": "school_governance_assignments",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "school_governance_assignments_school_fk": {
           "name": "school_governance_assignments_school_fk",
           "tableFrom": "school_governance_assignments",
-          "columnsFrom": [
-            "tenant_id",
-            "school_id"
-          ],
+          "columnsFrom": ["tenant_id", "school_id"],
           "tableTo": "schools",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "school_governance_assignments_organization_fk": {
           "name": "school_governance_assignments_organization_fk",
           "tableFrom": "school_governance_assignments",
-          "columnsFrom": [
-            "tenant_id",
-            "education_organization_id"
-          ],
+          "columnsFrom": ["tenant_id", "education_organization_id"],
           "tableTo": "education_organizations",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -1275,10 +1129,7 @@
       "uniqueConstraints": {
         "school_governance_assignments_tenant_id_id_unique": {
           "name": "school_governance_assignments_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         }
       },
@@ -1450,67 +1301,45 @@
         "account_links_tenant_id_tenants_id_fk": {
           "name": "account_links_tenant_id_tenants_id_fk",
           "tableFrom": "account_links",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "account_links_account_id_accounts_id_fk": {
           "name": "account_links_account_id_accounts_id_fk",
           "tableFrom": "account_links",
-          "columnsFrom": [
-            "account_id"
-          ],
+          "columnsFrom": ["account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "account_links_issued_by_account_id_accounts_id_fk": {
           "name": "account_links_issued_by_account_id_accounts_id_fk",
           "tableFrom": "account_links",
-          "columnsFrom": [
-            "issued_by_account_id"
-          ],
+          "columnsFrom": ["issued_by_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "account_links_revoked_by_account_id_accounts_id_fk": {
           "name": "account_links_revoked_by_account_id_accounts_id_fk",
           "tableFrom": "account_links",
-          "columnsFrom": [
-            "revoked_by_account_id"
-          ],
+          "columnsFrom": ["revoked_by_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "account_links_tenant_person_fk": {
           "name": "account_links_tenant_person_fk",
           "tableFrom": "account_links",
-          "columnsFrom": [
-            "tenant_id",
-            "person_id"
-          ],
+          "columnsFrom": ["tenant_id", "person_id"],
           "tableTo": "people",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -1519,10 +1348,7 @@
       "uniqueConstraints": {
         "account_links_tenant_id_id_unique": {
           "name": "account_links_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         }
       },
@@ -1686,26 +1512,18 @@
         "account_sessions_account_id_accounts_id_fk": {
           "name": "account_sessions_account_id_accounts_id_fk",
           "tableFrom": "account_sessions",
-          "columnsFrom": [
-            "account_id"
-          ],
+          "columnsFrom": ["account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "account_sessions_revoked_by_account_id_accounts_id_fk": {
           "name": "account_sessions_revoked_by_account_id_accounts_id_fk",
           "tableFrom": "account_sessions",
-          "columnsFrom": [
-            "revoked_by_account_id"
-          ],
+          "columnsFrom": ["revoked_by_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -1714,9 +1532,7 @@
       "uniqueConstraints": {
         "account_sessions_provider_session_id_unique": {
           "name": "account_sessions_provider_session_id_unique",
-          "columns": [
-            "provider_session_id"
-          ],
+          "columns": ["provider_session_id"],
           "nullsNotDistinct": false
         }
       },
@@ -1838,13 +1654,9 @@
         "accounts_legacy_user_id_users_id_fk": {
           "name": "accounts_legacy_user_id_users_id_fk",
           "tableFrom": "accounts",
-          "columnsFrom": [
-            "legacy_user_id"
-          ],
+          "columnsFrom": ["legacy_user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -1853,24 +1665,17 @@
       "uniqueConstraints": {
         "accounts_legacy_user_id_unique": {
           "name": "accounts_legacy_user_id_unique",
-          "columns": [
-            "legacy_user_id"
-          ],
+          "columns": ["legacy_user_id"],
           "nullsNotDistinct": false
         },
         "accounts_provider_subject_unique": {
           "name": "accounts_provider_subject_unique",
-          "columns": [
-            "identity_provider",
-            "provider_subject"
-          ],
+          "columns": ["identity_provider", "provider_subject"],
           "nullsNotDistinct": false
         },
         "accounts_primary_email_unique": {
           "name": "accounts_primary_email_unique",
-          "columns": [
-            "primary_email"
-          ],
+          "columns": ["primary_email"],
           "nullsNotDistinct": false
         }
       },
@@ -2092,99 +1897,63 @@
         "affiliations_tenant_id_tenants_id_fk": {
           "name": "affiliations_tenant_id_tenants_id_fk",
           "tableFrom": "affiliations",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "affiliations_issued_by_account_id_accounts_id_fk": {
           "name": "affiliations_issued_by_account_id_accounts_id_fk",
           "tableFrom": "affiliations",
-          "columnsFrom": [
-            "issued_by_account_id"
-          ],
+          "columnsFrom": ["issued_by_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "affiliations_revoked_by_account_id_accounts_id_fk": {
           "name": "affiliations_revoked_by_account_id_accounts_id_fk",
           "tableFrom": "affiliations",
-          "columnsFrom": [
-            "revoked_by_account_id"
-          ],
+          "columnsFrom": ["revoked_by_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "affiliations_tenant_person_fk": {
           "name": "affiliations_tenant_person_fk",
           "tableFrom": "affiliations",
-          "columnsFrom": [
-            "tenant_id",
-            "person_id"
-          ],
+          "columnsFrom": ["tenant_id", "person_id"],
           "tableTo": "people",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "affiliations_tenant_education_organization_fk": {
           "name": "affiliations_tenant_education_organization_fk",
           "tableFrom": "affiliations",
-          "columnsFrom": [
-            "tenant_id",
-            "education_organization_id"
-          ],
+          "columnsFrom": ["tenant_id", "education_organization_id"],
           "tableTo": "education_organizations",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "affiliations_tenant_school_fk": {
           "name": "affiliations_tenant_school_fk",
           "tableFrom": "affiliations",
-          "columnsFrom": [
-            "tenant_id",
-            "school_id"
-          ],
+          "columnsFrom": ["tenant_id", "school_id"],
           "tableTo": "schools",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "affiliations_tenant_class_fk": {
           "name": "affiliations_tenant_class_fk",
           "tableFrom": "affiliations",
-          "columnsFrom": [
-            "tenant_id",
-            "class_id"
-          ],
+          "columnsFrom": ["tenant_id", "class_id"],
           "tableTo": "classes",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -2193,10 +1962,7 @@
       "uniqueConstraints": {
         "affiliations_tenant_id_id_unique": {
           "name": "affiliations_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         }
       },
@@ -2280,28 +2046,18 @@
         "employee_profiles_tenant_id_tenants_id_fk": {
           "name": "employee_profiles_tenant_id_tenants_id_fk",
           "tableFrom": "employee_profiles",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "employee_profiles_tenant_person_fk": {
           "name": "employee_profiles_tenant_person_fk",
           "tableFrom": "employee_profiles",
-          "columnsFrom": [
-            "tenant_id",
-            "person_id"
-          ],
+          "columnsFrom": ["tenant_id", "person_id"],
           "tableTo": "people",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -2309,19 +2065,13 @@
       "compositePrimaryKeys": {
         "employee_profiles_pk": {
           "name": "employee_profiles_pk",
-          "columns": [
-            "tenant_id",
-            "person_id"
-          ]
+          "columns": ["tenant_id", "person_id"]
         }
       },
       "uniqueConstraints": {
         "employee_profiles_tenant_employee_number_unique": {
           "name": "employee_profiles_tenant_employee_number_unique",
-          "columns": [
-            "tenant_id",
-            "employee_number"
-          ],
+          "columns": ["tenant_id", "employee_number"],
           "nullsNotDistinct": false
         }
       },
@@ -2377,28 +2127,18 @@
         "guardian_profiles_tenant_id_tenants_id_fk": {
           "name": "guardian_profiles_tenant_id_tenants_id_fk",
           "tableFrom": "guardian_profiles",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "guardian_profiles_tenant_person_fk": {
           "name": "guardian_profiles_tenant_person_fk",
           "tableFrom": "guardian_profiles",
-          "columnsFrom": [
-            "tenant_id",
-            "person_id"
-          ],
+          "columnsFrom": ["tenant_id", "person_id"],
           "tableTo": "people",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -2406,10 +2146,7 @@
       "compositePrimaryKeys": {
         "guardian_profiles_pk": {
           "name": "guardian_profiles_pk",
-          "columns": [
-            "tenant_id",
-            "person_id"
-          ]
+          "columns": ["tenant_id", "person_id"]
         }
       },
       "uniqueConstraints": {},
@@ -2544,69 +2281,45 @@
         "identity_migration_events_tenant_id_tenants_id_fk": {
           "name": "identity_migration_events_tenant_id_tenants_id_fk",
           "tableFrom": "identity_migration_events",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "identity_migration_events_account_id_accounts_id_fk": {
           "name": "identity_migration_events_account_id_accounts_id_fk",
           "tableFrom": "identity_migration_events",
-          "columnsFrom": [
-            "account_id"
-          ],
+          "columnsFrom": ["account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "identity_migration_events_actor_account_id_accounts_id_fk": {
           "name": "identity_migration_events_actor_account_id_accounts_id_fk",
           "tableFrom": "identity_migration_events",
-          "columnsFrom": [
-            "actor_account_id"
-          ],
+          "columnsFrom": ["actor_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "identity_migration_events_tenant_person_fk": {
           "name": "identity_migration_events_tenant_person_fk",
           "tableFrom": "identity_migration_events",
-          "columnsFrom": [
-            "tenant_id",
-            "person_id"
-          ],
+          "columnsFrom": ["tenant_id", "person_id"],
           "tableTo": "people",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "identity_migration_events_tenant_account_link_fk": {
           "name": "identity_migration_events_tenant_account_link_fk",
           "tableFrom": "identity_migration_events",
-          "columnsFrom": [
-            "tenant_id",
-            "account_link_id"
-          ],
+          "columnsFrom": ["tenant_id", "account_link_id"],
           "tableTo": "account_links",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -2615,10 +2328,7 @@
       "uniqueConstraints": {
         "identity_migration_events_tenant_id_id_unique": {
           "name": "identity_migration_events_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         }
       },
@@ -2795,41 +2505,27 @@
         "people_tenant_id_tenants_id_fk": {
           "name": "people_tenant_id_tenants_id_fk",
           "tableFrom": "people",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "people_legacy_user_id_users_id_fk": {
           "name": "people_legacy_user_id_users_id_fk",
           "tableFrom": "people",
-          "columnsFrom": [
-            "legacy_user_id"
-          ],
+          "columnsFrom": ["legacy_user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "people_tenant_legacy_student_fk": {
           "name": "people_tenant_legacy_student_fk",
           "tableFrom": "people",
-          "columnsFrom": [
-            "tenant_id",
-            "legacy_student_id"
-          ],
+          "columnsFrom": ["tenant_id", "legacy_student_id"],
           "tableTo": "students",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -2838,26 +2534,17 @@
       "uniqueConstraints": {
         "people_tenant_id_id_unique": {
           "name": "people_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         },
         "people_tenant_legacy_user_unique": {
           "name": "people_tenant_legacy_user_unique",
-          "columns": [
-            "tenant_id",
-            "legacy_user_id"
-          ],
+          "columns": ["tenant_id", "legacy_user_id"],
           "nullsNotDistinct": false
         },
         "people_tenant_legacy_student_unique": {
           "name": "people_tenant_legacy_student_unique",
-          "columns": [
-            "tenant_id",
-            "legacy_student_id"
-          ],
+          "columns": ["tenant_id", "legacy_student_id"],
           "nullsNotDistinct": false
         }
       },
@@ -2986,56 +2673,36 @@
         "person_merge_evidence_tenant_id_tenants_id_fk": {
           "name": "person_merge_evidence_tenant_id_tenants_id_fk",
           "tableFrom": "person_merge_evidence",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "person_merge_evidence_recorded_by_account_id_accounts_id_fk": {
           "name": "person_merge_evidence_recorded_by_account_id_accounts_id_fk",
           "tableFrom": "person_merge_evidence",
-          "columnsFrom": [
-            "recorded_by_account_id"
-          ],
+          "columnsFrom": ["recorded_by_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "person_merge_evidence_tenant_source_fk": {
           "name": "person_merge_evidence_tenant_source_fk",
           "tableFrom": "person_merge_evidence",
-          "columnsFrom": [
-            "tenant_id",
-            "source_person_id"
-          ],
+          "columnsFrom": ["tenant_id", "source_person_id"],
           "tableTo": "people",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "person_merge_evidence_tenant_target_fk": {
           "name": "person_merge_evidence_tenant_target_fk",
           "tableFrom": "person_merge_evidence",
-          "columnsFrom": [
-            "tenant_id",
-            "target_person_id"
-          ],
+          "columnsFrom": ["tenant_id", "target_person_id"],
           "tableTo": "people",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -3044,10 +2711,7 @@
       "uniqueConstraints": {
         "person_merge_evidence_tenant_id_id_unique": {
           "name": "person_merge_evidence_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         }
       },
@@ -3251,69 +2915,45 @@
         "person_relationships_tenant_id_tenants_id_fk": {
           "name": "person_relationships_tenant_id_tenants_id_fk",
           "tableFrom": "person_relationships",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "person_relationships_issued_by_account_id_accounts_id_fk": {
           "name": "person_relationships_issued_by_account_id_accounts_id_fk",
           "tableFrom": "person_relationships",
-          "columnsFrom": [
-            "issued_by_account_id"
-          ],
+          "columnsFrom": ["issued_by_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "person_relationships_revoked_by_account_id_accounts_id_fk": {
           "name": "person_relationships_revoked_by_account_id_accounts_id_fk",
           "tableFrom": "person_relationships",
-          "columnsFrom": [
-            "revoked_by_account_id"
-          ],
+          "columnsFrom": ["revoked_by_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "person_relationships_tenant_subject_fk": {
           "name": "person_relationships_tenant_subject_fk",
           "tableFrom": "person_relationships",
-          "columnsFrom": [
-            "tenant_id",
-            "subject_person_id"
-          ],
+          "columnsFrom": ["tenant_id", "subject_person_id"],
           "tableTo": "people",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "person_relationships_tenant_related_fk": {
           "name": "person_relationships_tenant_related_fk",
           "tableFrom": "person_relationships",
-          "columnsFrom": [
-            "tenant_id",
-            "related_person_id"
-          ],
+          "columnsFrom": ["tenant_id", "related_person_id"],
           "tableTo": "people",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -3322,10 +2962,7 @@
       "uniqueConstraints": {
         "person_relationships_tenant_id_id_unique": {
           "name": "person_relationships_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         }
       },
@@ -3492,54 +3129,36 @@
         "role_template_assignments_tenant_id_tenants_id_fk": {
           "name": "role_template_assignments_tenant_id_tenants_id_fk",
           "tableFrom": "role_template_assignments",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "role_template_assignments_issued_by_account_id_accounts_id_fk": {
           "name": "role_template_assignments_issued_by_account_id_accounts_id_fk",
           "tableFrom": "role_template_assignments",
-          "columnsFrom": [
-            "issued_by_account_id"
-          ],
+          "columnsFrom": ["issued_by_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "role_template_assignments_revoked_by_account_id_accounts_id_fk": {
           "name": "role_template_assignments_revoked_by_account_id_accounts_id_fk",
           "tableFrom": "role_template_assignments",
-          "columnsFrom": [
-            "revoked_by_account_id"
-          ],
+          "columnsFrom": ["revoked_by_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "role_template_assignments_tenant_affiliation_fk": {
           "name": "role_template_assignments_tenant_affiliation_fk",
           "tableFrom": "role_template_assignments",
-          "columnsFrom": [
-            "tenant_id",
-            "affiliation_id"
-          ],
+          "columnsFrom": ["tenant_id", "affiliation_id"],
           "tableTo": "affiliations",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -3548,10 +3167,7 @@
       "uniqueConstraints": {
         "role_template_assignments_tenant_id_id_unique": {
           "name": "role_template_assignments_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         }
       },
@@ -3627,43 +3243,27 @@
         "student_profiles_tenant_id_tenants_id_fk": {
           "name": "student_profiles_tenant_id_tenants_id_fk",
           "tableFrom": "student_profiles",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "student_profiles_tenant_person_fk": {
           "name": "student_profiles_tenant_person_fk",
           "tableFrom": "student_profiles",
-          "columnsFrom": [
-            "tenant_id",
-            "person_id"
-          ],
+          "columnsFrom": ["tenant_id", "person_id"],
           "tableTo": "people",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "student_profiles_tenant_legacy_student_fk": {
           "name": "student_profiles_tenant_legacy_student_fk",
           "tableFrom": "student_profiles",
-          "columnsFrom": [
-            "tenant_id",
-            "legacy_student_id"
-          ],
+          "columnsFrom": ["tenant_id", "legacy_student_id"],
           "tableTo": "students",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -3671,27 +3271,18 @@
       "compositePrimaryKeys": {
         "student_profiles_pk": {
           "name": "student_profiles_pk",
-          "columns": [
-            "tenant_id",
-            "person_id"
-          ]
+          "columns": ["tenant_id", "person_id"]
         }
       },
       "uniqueConstraints": {
         "student_profiles_tenant_student_number_unique": {
           "name": "student_profiles_tenant_student_number_unique",
-          "columns": [
-            "tenant_id",
-            "student_number"
-          ],
+          "columns": ["tenant_id", "student_number"],
           "nullsNotDistinct": false
         },
         "student_profiles_tenant_legacy_student_unique": {
           "name": "student_profiles_tenant_legacy_student_unique",
-          "columns": [
-            "tenant_id",
-            "legacy_student_id"
-          ],
+          "columns": ["tenant_id", "legacy_student_id"],
           "nullsNotDistinct": false
         }
       },
@@ -3753,28 +3344,18 @@
         "teacher_profiles_tenant_id_tenants_id_fk": {
           "name": "teacher_profiles_tenant_id_tenants_id_fk",
           "tableFrom": "teacher_profiles",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "teacher_profiles_tenant_person_fk": {
           "name": "teacher_profiles_tenant_person_fk",
           "tableFrom": "teacher_profiles",
-          "columnsFrom": [
-            "tenant_id",
-            "person_id"
-          ],
+          "columnsFrom": ["tenant_id", "person_id"],
           "tableTo": "people",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -3782,19 +3363,13 @@
       "compositePrimaryKeys": {
         "teacher_profiles_pk": {
           "name": "teacher_profiles_pk",
-          "columns": [
-            "tenant_id",
-            "person_id"
-          ]
+          "columns": ["tenant_id", "person_id"]
         }
       },
       "uniqueConstraints": {
         "teacher_profiles_tenant_registration_number_unique": {
           "name": "teacher_profiles_tenant_registration_number_unique",
-          "columns": [
-            "tenant_id",
-            "registration_number"
-          ],
+          "columns": ["tenant_id", "registration_number"],
           "nullsNotDistinct": false
         }
       },
@@ -3897,28 +3472,18 @@
         "classes_tenant_id_tenants_id_fk": {
           "name": "classes_tenant_id_tenants_id_fk",
           "tableFrom": "classes",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "classes_tenant_school_fk": {
           "name": "classes_tenant_school_fk",
           "tableFrom": "classes",
-          "columnsFrom": [
-            "tenant_id",
-            "school_id"
-          ],
+          "columnsFrom": ["tenant_id", "school_id"],
           "tableTo": "schools",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -3927,10 +3492,7 @@
       "uniqueConstraints": {
         "classes_tenant_id_id_unique": {
           "name": "classes_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         }
       },
@@ -3993,9 +3555,7 @@
       "uniqueConstraints": {
         "users_email_unique": {
           "name": "users_email_unique",
-          "columns": [
-            "email"
-          ],
+          "columns": ["email"],
           "nullsNotDistinct": false
         }
       },
@@ -4105,28 +3665,18 @@
         "students_tenant_id_tenants_id_fk": {
           "name": "students_tenant_id_tenants_id_fk",
           "tableFrom": "students",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "students_tenant_school_fk": {
           "name": "students_tenant_school_fk",
           "tableFrom": "students",
-          "columnsFrom": [
-            "tenant_id",
-            "school_id"
-          ],
+          "columnsFrom": ["tenant_id", "school_id"],
           "tableTo": "schools",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -4135,18 +3685,12 @@
       "uniqueConstraints": {
         "students_tenant_id_id_unique": {
           "name": "students_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         },
         "students_tenant_id_student_number_unique": {
           "name": "students_tenant_id_student_number_unique",
-          "columns": [
-            "tenant_id",
-            "student_number"
-          ],
+          "columns": ["tenant_id", "student_number"],
           "nullsNotDistinct": false
         }
       },
@@ -4155,27 +3699,21 @@
           "name": "students_runtime_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "\n        \"students\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') IN (\n          'tenant.students.create', 'tenant.students.read',\n          'tenant.students.update', 'tenant.students.delete',\n          'support.students.read',\n          'identity.context.resolve'\n        )\n        AND public.openschool_student_scope_allows(\n          \"students\".\"tenant_id\", \"students\".\"school_id\", \"students\".\"id\"\n        )\n      "
         },
         "students_runtime_insert": {
           "name": "students_runtime_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "withCheck": "\n        \"students\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.students.create'\n        AND public.openschool_student_scope_allows(\n          \"students\".\"tenant_id\", \"students\".\"school_id\", \"students\".\"id\"\n        )\n      "
         },
         "students_runtime_update": {
           "name": "students_runtime_update",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "\n        \"students\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.students.update'\n        AND public.openschool_student_scope_allows(\n          \"students\".\"tenant_id\", \"students\".\"school_id\", \"students\".\"id\"\n        )\n      ",
           "withCheck": "\n        \"students\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.students.update'\n        AND public.openschool_student_scope_allows(\n          \"students\".\"tenant_id\", \"students\".\"school_id\", \"students\".\"id\"\n        )\n      "
         },
@@ -4183,36 +3721,28 @@
           "name": "students_runtime_delete",
           "as": "PERMISSIVE",
           "for": "DELETE",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "\n        \"students\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.students.delete'\n        AND public.openschool_student_scope_allows(\n          \"students\".\"tenant_id\", \"students\".\"school_id\", \"students\".\"id\"\n        )\n      "
         },
         "students_worker_select": {
           "name": "students_worker_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "\"students\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid"
         },
         "students_worker_insert_deny": {
           "name": "students_worker_insert_deny",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "withCheck": "false"
         },
         "students_worker_update_deny": {
           "name": "students_worker_update_deny",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "false",
           "withCheck": "false"
         },
@@ -4220,9 +3750,7 @@
           "name": "students_worker_delete_deny",
           "as": "PERMISSIVE",
           "for": "DELETE",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "false"
         }
       },
@@ -4299,41 +3827,27 @@
         "parent_student_tenant_id_tenants_id_fk": {
           "name": "parent_student_tenant_id_tenants_id_fk",
           "tableFrom": "parent_student",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "parent_student_parent_id_users_id_fk": {
           "name": "parent_student_parent_id_users_id_fk",
           "tableFrom": "parent_student",
-          "columnsFrom": [
-            "parent_id"
-          ],
+          "columnsFrom": ["parent_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "parent_student_tenant_student_fk": {
           "name": "parent_student_tenant_student_fk",
           "tableFrom": "parent_student",
-          "columnsFrom": [
-            "tenant_id",
-            "student_id"
-          ],
+          "columnsFrom": ["tenant_id", "student_id"],
           "tableTo": "students",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -4342,10 +3856,7 @@
       "uniqueConstraints": {
         "parent_student_tenant_id_id_unique": {
           "name": "parent_student_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         }
       },
@@ -4424,41 +3935,27 @@
         "teachers_on_class_tenant_id_tenants_id_fk": {
           "name": "teachers_on_class_tenant_id_tenants_id_fk",
           "tableFrom": "teachers_on_class",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "teachers_on_class_user_id_users_id_fk": {
           "name": "teachers_on_class_user_id_users_id_fk",
           "tableFrom": "teachers_on_class",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "teachers_on_class_tenant_class_fk": {
           "name": "teachers_on_class_tenant_class_fk",
           "tableFrom": "teachers_on_class",
-          "columnsFrom": [
-            "tenant_id",
-            "class_id"
-          ],
+          "columnsFrom": ["tenant_id", "class_id"],
           "tableTo": "classes",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -4467,10 +3964,7 @@
       "uniqueConstraints": {
         "teachers_on_class_tenant_id_id_unique": {
           "name": "teachers_on_class_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         }
       },
@@ -4548,41 +4042,27 @@
         "users_on_org_tenant_id_tenants_id_fk": {
           "name": "users_on_org_tenant_id_tenants_id_fk",
           "tableFrom": "users_on_org",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "users_on_org_user_id_users_id_fk": {
           "name": "users_on_org_user_id_users_id_fk",
           "tableFrom": "users_on_org",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "users_on_org_tenant_organization_fk": {
           "name": "users_on_org_tenant_organization_fk",
           "tableFrom": "users_on_org",
-          "columnsFrom": [
-            "tenant_id",
-            "org_id"
-          ],
+          "columnsFrom": ["tenant_id", "org_id"],
           "tableTo": "organizations",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -4591,10 +4071,7 @@
       "uniqueConstraints": {
         "users_on_org_tenant_id_id_unique": {
           "name": "users_on_org_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         }
       },
@@ -4672,41 +4149,27 @@
         "users_on_school_tenant_id_tenants_id_fk": {
           "name": "users_on_school_tenant_id_tenants_id_fk",
           "tableFrom": "users_on_school",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "users_on_school_user_id_users_id_fk": {
           "name": "users_on_school_user_id_users_id_fk",
           "tableFrom": "users_on_school",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "users_on_school_tenant_school_fk": {
           "name": "users_on_school_tenant_school_fk",
           "tableFrom": "users_on_school",
-          "columnsFrom": [
-            "tenant_id",
-            "school_id"
-          ],
+          "columnsFrom": ["tenant_id", "school_id"],
           "tableTo": "schools",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -4715,10 +4178,7 @@
       "uniqueConstraints": {
         "users_on_school_tenant_id_id_unique": {
           "name": "users_on_school_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         }
       },
@@ -4818,43 +4278,27 @@
         "enrollments_tenant_id_tenants_id_fk": {
           "name": "enrollments_tenant_id_tenants_id_fk",
           "tableFrom": "enrollments",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "enrollments_tenant_student_fk": {
           "name": "enrollments_tenant_student_fk",
           "tableFrom": "enrollments",
-          "columnsFrom": [
-            "tenant_id",
-            "student_id"
-          ],
+          "columnsFrom": ["tenant_id", "student_id"],
           "tableTo": "students",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "enrollments_tenant_class_fk": {
           "name": "enrollments_tenant_class_fk",
           "tableFrom": "enrollments",
-          "columnsFrom": [
-            "tenant_id",
-            "class_id"
-          ],
+          "columnsFrom": ["tenant_id", "class_id"],
           "tableTo": "classes",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -4863,10 +4307,7 @@
       "uniqueConstraints": {
         "enrollments_tenant_id_id_unique": {
           "name": "enrollments_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         }
       },
@@ -4970,41 +4411,27 @@
         "grades_tenant_id_tenants_id_fk": {
           "name": "grades_tenant_id_tenants_id_fk",
           "tableFrom": "grades",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "grades_graded_by_users_id_fk": {
           "name": "grades_graded_by_users_id_fk",
           "tableFrom": "grades",
-          "columnsFrom": [
-            "graded_by"
-          ],
+          "columnsFrom": ["graded_by"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "grades_tenant_enrollment_fk": {
           "name": "grades_tenant_enrollment_fk",
           "tableFrom": "grades",
-          "columnsFrom": [
-            "tenant_id",
-            "enrollment_id"
-          ],
+          "columnsFrom": ["tenant_id", "enrollment_id"],
           "tableTo": "enrollments",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -5013,10 +4440,7 @@
       "uniqueConstraints": {
         "grades_tenant_id_id_unique": {
           "name": "grades_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         }
       },
@@ -5161,13 +4585,9 @@
         "audit_archive_manifests_tenant_id_tenants_id_fk": {
           "name": "audit_archive_manifests_tenant_id_tenants_id_fk",
           "tableFrom": "audit_archive_manifests",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -5176,11 +4596,7 @@
       "uniqueConstraints": {
         "audit_archive_manifest_period_unique": {
           "name": "audit_archive_manifest_period_unique",
-          "columns": [
-            "tenant_id",
-            "period_start",
-            "retention_class"
-          ],
+          "columns": ["tenant_id", "period_start", "retention_class"],
           "nullsNotDistinct": false
         }
       },
@@ -5481,71 +4897,45 @@
         "audit_events_tenant_id_tenants_id_fk": {
           "name": "audit_events_tenant_id_tenants_id_fk",
           "tableFrom": "audit_events",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "audit_events_actor_account_id_accounts_id_fk": {
           "name": "audit_events_actor_account_id_accounts_id_fk",
           "tableFrom": "audit_events",
-          "columnsFrom": [
-            "actor_account_id"
-          ],
+          "columnsFrom": ["actor_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "audit_events_tenant_actor_person_fk": {
           "name": "audit_events_tenant_actor_person_fk",
           "tableFrom": "audit_events",
-          "columnsFrom": [
-            "tenant_id",
-            "actor_person_id"
-          ],
+          "columnsFrom": ["tenant_id", "actor_person_id"],
           "tableTo": "people",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "audit_events_tenant_organization_fk": {
           "name": "audit_events_tenant_organization_fk",
           "tableFrom": "audit_events",
-          "columnsFrom": [
-            "tenant_id",
-            "education_organization_id"
-          ],
+          "columnsFrom": ["tenant_id", "education_organization_id"],
           "tableTo": "education_organizations",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "audit_events_tenant_school_fk": {
           "name": "audit_events_tenant_school_fk",
           "tableFrom": "audit_events",
-          "columnsFrom": [
-            "tenant_id",
-            "school_id"
-          ],
+          "columnsFrom": ["tenant_id", "school_id"],
           "tableTo": "schools",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -5553,10 +4943,7 @@
       "compositePrimaryKeys": {
         "audit_events_pk": {
           "name": "audit_events_pk",
-          "columns": [
-            "occurred_at",
-            "id"
-          ]
+          "columns": ["occurred_at", "id"]
         }
       },
       "uniqueConstraints": {},
@@ -5565,36 +4952,28 @@
           "name": "audit_events_runtime_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "\n        \"audit_events\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.audit.read'\n        AND public.openschool_audit_scope_allows(\n          \"audit_events\".\"tenant_id\", \"audit_events\".\"education_organization_id\", \"audit_events\".\"school_id\"\n        )\n      "
         },
         "audit_events_runtime_insert": {
           "name": "audit_events_runtime_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "withCheck": "\n        \"audit_events\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND \"audit_events\".\"actor_type\" IN ('account', 'support')\n        AND \"audit_events\".\"actor_account_id\" = nullif(current_setting('app.account_id', true), '')::uuid\n        AND \"audit_events\".\"actor_person_id\" IS NOT DISTINCT FROM nullif(current_setting('app.person_id', true), '')::uuid\n        AND \"audit_events\".\"request_id\" = nullif(current_setting('app.request_id', true), '')\n        AND \"audit_events\".\"education_organization_id\" IS NOT DISTINCT FROM nullif(current_setting('app.education_organization_id', true), '')::uuid\n        AND \"audit_events\".\"school_id\" IS NOT DISTINCT FROM nullif(current_setting('app.school_id', true), '')::uuid\n        AND (\n          (\"audit_events\".\"actor_type\" = 'account' AND \"audit_events\".\"source\" = 'web' AND \"audit_events\".\"support_grant_id\" IS NULL)\n          OR (\"audit_events\".\"actor_type\" = 'support' AND \"audit_events\".\"source\" = 'support' AND \"audit_events\".\"support_grant_id\" IS NOT NULL AND \"audit_events\".\"purpose\" IS NOT NULL)\n        )\n      "
         },
         "audit_events_invitation_denial_insert": {
           "name": "audit_events_invitation_denial_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "withCheck": "\n        \"audit_events\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND \"audit_events\".\"actor_type\" = 'system'\n        AND \"audit_events\".\"actor_account_id\" IS NULL\n        AND \"audit_events\".\"actor_person_id\" IS NULL\n        AND \"audit_events\".\"request_id\" = nullif(current_setting('app.request_id', true), '')\n        AND \"audit_events\".\"education_organization_id\" IS NOT DISTINCT FROM nullif(current_setting('app.education_organization_id', true), '')::uuid\n        AND \"audit_events\".\"school_id\" IS NOT DISTINCT FROM nullif(current_setting('app.school_id', true), '')::uuid\n        AND \"audit_events\".\"event_type\" = 'account.invitation.accept'\n        AND \"audit_events\".\"outcome\" = 'denied'\n        AND \"audit_events\".\"capability\" = 'identity.invitation.accept'\n        AND \"audit_events\".\"policy_version\" = 'identity-invitation.v1'\n        AND \"audit_events\".\"policy_decision\" ->> 'effect' = 'deny'\n        AND \"audit_events\".\"policy_decision\" ->> 'reason' IN (\n          'INVITATION_UNAVAILABLE', 'INVITATION_IDENTITY_MISMATCH', 'INVITATION_ACCOUNT_CONFLICT'\n        )\n        AND \"audit_events\".\"target_type\" = 'account.invitation'\n        AND \"audit_events\".\"target_id\" IS NOT NULL\n        AND \"audit_events\".\"data_classes\" = '[\"credential\"]'::jsonb\n        AND \"audit_events\".\"purpose\" = 'account_onboarding'\n        AND \"audit_events\".\"source\" = 'web'\n        AND \"audit_events\".\"retention_class\" = 'security'\n      "
         },
         "audit_events_runtime_update_deny": {
           "name": "audit_events_runtime_update_deny",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "false",
           "withCheck": "false"
         },
@@ -5602,36 +4981,28 @@
           "name": "audit_events_runtime_delete_deny",
           "as": "PERMISSIVE",
           "for": "DELETE",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "false"
         },
         "audit_events_worker_select": {
           "name": "audit_events_worker_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "\"audit_events\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid"
         },
         "audit_events_worker_insert": {
           "name": "audit_events_worker_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "withCheck": "\n        \"audit_events\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND \"audit_events\".\"actor_type\" = 'worker'\n        AND \"audit_events\".\"actor_account_id\" IS NULL\n        AND \"audit_events\".\"actor_person_id\" IS NULL\n        AND \"audit_events\".\"source\" = 'worker'\n      "
         },
         "audit_events_worker_update_deny": {
           "name": "audit_events_worker_update_deny",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "false",
           "withCheck": "false"
         },
@@ -5639,9 +5010,7 @@
           "name": "audit_events_worker_delete_deny",
           "as": "PERMISSIVE",
           "for": "DELETE",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "false"
         }
       },
@@ -5793,13 +5162,9 @@
         "audit_logs_user_id_users_id_fk": {
           "name": "audit_logs_user_id_users_id_fk",
           "tableFrom": "audit_logs",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -5990,28 +5355,18 @@
         "audit_outbox_tenant_id_tenants_id_fk": {
           "name": "audit_outbox_tenant_id_tenants_id_fk",
           "tableFrom": "audit_outbox",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "audit_outbox_event_fk": {
           "name": "audit_outbox_event_fk",
           "tableFrom": "audit_outbox",
-          "columnsFrom": [
-            "audit_event_occurred_at",
-            "audit_event_id"
-          ],
+          "columnsFrom": ["audit_event_occurred_at", "audit_event_id"],
           "tableTo": "audit_events",
-          "columnsTo": [
-            "occurred_at",
-            "id"
-          ],
+          "columnsTo": ["occurred_at", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -6020,10 +5375,7 @@
       "uniqueConstraints": {
         "audit_outbox_tenant_dedup_unique": {
           "name": "audit_outbox_tenant_dedup_unique",
-          "columns": [
-            "tenant_id",
-            "deduplication_key"
-          ],
+          "columns": ["tenant_id", "deduplication_key"],
           "nullsNotDistinct": false
         }
       },
@@ -6032,45 +5384,35 @@
           "name": "audit_outbox_runtime_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "\n        \"audit_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND \"audit_outbox\".\"context\" ->> 'actorAccountId' = nullif(current_setting('app.account_id', true), '')\n        AND \"audit_outbox\".\"context\" ->> 'actorPersonId' = nullif(current_setting('app.person_id', true), '')\n      "
         },
         "audit_outbox_runtime_insert": {
           "name": "audit_outbox_runtime_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "withCheck": "\n        \"audit_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND \"audit_outbox\".\"context\" ->> 'requestId' = nullif(current_setting('app.request_id', true), '')\n        AND \"audit_outbox\".\"context\" ->> 'actorAccountId' = nullif(current_setting('app.account_id', true), '')\n        AND \"audit_outbox\".\"context\" ->> 'actorPersonId' = nullif(current_setting('app.person_id', true), '')\n      "
         },
         "audit_outbox_invitation_denial_select": {
           "name": "audit_outbox_invitation_denial_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "\n        \"audit_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND \"audit_outbox\".\"context\" ->> 'requestId' = nullif(current_setting('app.request_id', true), '')\n        AND \"audit_outbox\".\"context\" ->> 'actorAccountId' IS NULL\n        AND \"audit_outbox\".\"context\" ->> 'actorPersonId' IS NULL\n        AND \"audit_outbox\".\"topic\" = 'audit.event.committed'\n        AND \"audit_outbox\".\"payload\" ->> 'eventType' = 'account.invitation.accept'\n        AND \"audit_outbox\".\"payload\" ->> 'outcome' = 'denied'\n        AND \"audit_outbox\".\"payload\" ->> 'targetType' = 'account.invitation'\n        AND nullif(\"audit_outbox\".\"payload\" ->> 'targetId', '') IS NOT NULL\n        AND \"audit_outbox\".\"deduplication_key\" =\n          'account.invitation.accept.denied:' || (\"audit_outbox\".\"payload\" ->> 'targetId') || ':' ||\n          nullif(current_setting('app.request_id', true), '')\n      "
         },
         "audit_outbox_invitation_denial_insert": {
           "name": "audit_outbox_invitation_denial_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "withCheck": "\n        \"audit_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND \"audit_outbox\".\"context\" ->> 'requestId' = nullif(current_setting('app.request_id', true), '')\n        AND \"audit_outbox\".\"context\" ->> 'actorAccountId' IS NULL\n        AND \"audit_outbox\".\"context\" ->> 'actorPersonId' IS NULL\n        AND \"audit_outbox\".\"topic\" = 'audit.event.committed'\n        AND \"audit_outbox\".\"payload\" ->> 'eventType' = 'account.invitation.accept'\n        AND \"audit_outbox\".\"payload\" ->> 'outcome' = 'denied'\n        AND \"audit_outbox\".\"payload\" ->> 'targetType' = 'account.invitation'\n        AND nullif(\"audit_outbox\".\"payload\" ->> 'targetId', '') IS NOT NULL\n        AND \"audit_outbox\".\"deduplication_key\" =\n          'account.invitation.accept.denied:' || (\"audit_outbox\".\"payload\" ->> 'targetId') || ':' ||\n          nullif(current_setting('app.request_id', true), '')\n      "
         },
         "audit_outbox_runtime_update_deny": {
           "name": "audit_outbox_runtime_update_deny",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "false",
           "withCheck": "false"
         },
@@ -6078,27 +5420,21 @@
           "name": "audit_outbox_runtime_delete_deny",
           "as": "PERMISSIVE",
           "for": "DELETE",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "false"
         },
         "audit_outbox_worker_select": {
           "name": "audit_outbox_worker_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "\"audit_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid"
         },
         "audit_outbox_worker_update": {
           "name": "audit_outbox_worker_update",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "\"audit_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid",
           "withCheck": "\"audit_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid"
         },
@@ -6106,18 +5442,14 @@
           "name": "audit_outbox_worker_insert_deny",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "withCheck": "false"
         },
         "audit_outbox_worker_delete_deny": {
           "name": "audit_outbox_worker_delete_deny",
           "as": "PERMISSIVE",
           "for": "DELETE",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "false"
         }
       },
@@ -6394,112 +5726,72 @@
         "account_invitations_tenant_id_tenants_id_fk": {
           "name": "account_invitations_tenant_id_tenants_id_fk",
           "tableFrom": "account_invitations",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "account_invitations_issued_by_account_id_accounts_id_fk": {
           "name": "account_invitations_issued_by_account_id_accounts_id_fk",
           "tableFrom": "account_invitations",
-          "columnsFrom": [
-            "issued_by_account_id"
-          ],
+          "columnsFrom": ["issued_by_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "account_invitations_accepted_by_account_id_accounts_id_fk": {
           "name": "account_invitations_accepted_by_account_id_accounts_id_fk",
           "tableFrom": "account_invitations",
-          "columnsFrom": [
-            "accepted_by_account_id"
-          ],
+          "columnsFrom": ["accepted_by_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "account_invitations_cancelled_by_account_id_accounts_id_fk": {
           "name": "account_invitations_cancelled_by_account_id_accounts_id_fk",
           "tableFrom": "account_invitations",
-          "columnsFrom": [
-            "cancelled_by_account_id"
-          ],
+          "columnsFrom": ["cancelled_by_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "account_invitations_tenant_person_fk": {
           "name": "account_invitations_tenant_person_fk",
           "tableFrom": "account_invitations",
-          "columnsFrom": [
-            "tenant_id",
-            "person_id"
-          ],
+          "columnsFrom": ["tenant_id", "person_id"],
           "tableTo": "people",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "account_invitations_tenant_organization_fk": {
           "name": "account_invitations_tenant_organization_fk",
           "tableFrom": "account_invitations",
-          "columnsFrom": [
-            "tenant_id",
-            "education_organization_id"
-          ],
+          "columnsFrom": ["tenant_id", "education_organization_id"],
           "tableTo": "education_organizations",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "account_invitations_tenant_school_fk": {
           "name": "account_invitations_tenant_school_fk",
           "tableFrom": "account_invitations",
-          "columnsFrom": [
-            "tenant_id",
-            "school_id"
-          ],
+          "columnsFrom": ["tenant_id", "school_id"],
           "tableTo": "schools",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "account_invitations_tenant_class_fk": {
           "name": "account_invitations_tenant_class_fk",
           "tableFrom": "account_invitations",
-          "columnsFrom": [
-            "tenant_id",
-            "class_id"
-          ],
+          "columnsFrom": ["tenant_id", "class_id"],
           "tableTo": "classes",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -6508,17 +5800,12 @@
       "uniqueConstraints": {
         "account_invitations_tenant_id_id_unique": {
           "name": "account_invitations_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         },
         "account_invitations_token_hash_unique": {
           "name": "account_invitations_token_hash_unique",
-          "columns": [
-            "token_hash"
-          ],
+          "columns": ["token_hash"],
           "nullsNotDistinct": false
         }
       },
@@ -6527,27 +5814,21 @@
           "name": "account_invitations_runtime_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "\n        \"account_invitations\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') IN (\n          'tenant.accounts.invite', 'tenant.accounts.manage'\n        )\n        AND public.openschool_invitation_scope_allows(\n          \"account_invitations\".\"tenant_id\", \"account_invitations\".\"scope_type\", \"account_invitations\".\"education_organization_id\",\n          \"account_invitations\".\"school_id\", \"account_invitations\".\"class_id\"\n        )\n      "
         },
         "account_invitations_runtime_insert": {
           "name": "account_invitations_runtime_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "withCheck": "\n        \"account_invitations\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND \"account_invitations\".\"issued_by_account_id\" = nullif(current_setting('app.account_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.accounts.invite'\n        AND public.openschool_invitation_scope_allows(\n          \"account_invitations\".\"tenant_id\", \"account_invitations\".\"scope_type\", \"account_invitations\".\"education_organization_id\",\n          \"account_invitations\".\"school_id\", \"account_invitations\".\"class_id\"\n        )\n      "
         },
         "account_invitations_runtime_update": {
           "name": "account_invitations_runtime_update",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "\n        \"account_invitations\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.accounts.manage'\n        AND public.openschool_invitation_scope_allows(\n          \"account_invitations\".\"tenant_id\", \"account_invitations\".\"scope_type\", \"account_invitations\".\"education_organization_id\",\n          \"account_invitations\".\"school_id\", \"account_invitations\".\"class_id\"\n        )\n      ",
           "withCheck": "\n        \"account_invitations\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND \"account_invitations\".\"cancelled_by_account_id\" = nullif(current_setting('app.account_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.accounts.manage'\n        AND public.openschool_invitation_scope_allows(\n          \"account_invitations\".\"tenant_id\", \"account_invitations\".\"scope_type\", \"account_invitations\".\"education_organization_id\",\n          \"account_invitations\".\"school_id\", \"account_invitations\".\"class_id\"\n        )\n      "
         },
@@ -6555,36 +5836,28 @@
           "name": "account_invitations_runtime_delete_deny",
           "as": "PERMISSIVE",
           "for": "DELETE",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "false"
         },
         "account_invitations_worker_select": {
           "name": "account_invitations_worker_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "\"account_invitations\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid"
         },
         "account_invitations_acceptance_select": {
           "name": "account_invitations_acceptance_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "public"
-          ],
+          "to": ["public"],
           "using": "\n        session_user = 'openschool_runtime'\n        AND current_user = 'openschool_invitation_acceptor'\n        AND \"account_invitations\".\"token_hash\" = nullif(current_setting('app.invitation_token_hash', true), '')\n      "
         },
         "account_invitations_acceptance_update": {
           "name": "account_invitations_acceptance_update",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": [
-            "public"
-          ],
+          "to": ["public"],
           "using": "\n        session_user = 'openschool_runtime'\n        AND current_user = 'openschool_invitation_acceptor'\n        AND \"account_invitations\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND \"account_invitations\".\"token_hash\" = nullif(current_setting('app.invitation_token_hash', true), '')\n        AND \"account_invitations\".\"status\" = 'pending'\n        AND \"account_invitations\".\"expires_at\" > now()\n        AND \"account_invitations\".\"identity_provider\" = nullif(current_setting('app.identity_provider', true), '')\n        AND \"account_invitations\".\"intended_email\" = lower(btrim(nullif(current_setting('app.identity_email', true), '')))\n        AND (\n          \"account_invitations\".\"intended_provider_subject\" IS NULL\n          OR \"account_invitations\".\"intended_provider_subject\" = nullif(current_setting('app.provider_subject', true), '')\n        )\n      ",
           "withCheck": "\n        session_user = 'openschool_runtime'\n        AND current_user = 'openschool_invitation_acceptor'\n        AND \"account_invitations\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND \"account_invitations\".\"token_hash\" = nullif(current_setting('app.invitation_token_hash', true), '')\n        AND \"account_invitations\".\"status\" = 'accepted'\n        AND \"account_invitations\".\"accepted_provider_subject\" = nullif(current_setting('app.provider_subject', true), '')\n        AND EXISTS (\n          SELECT 1 FROM public.accounts AS accepted_account\n          WHERE accepted_account.id = \"account_invitations\".\"accepted_by_account_id\"\n            AND accepted_account.identity_provider = nullif(current_setting('app.identity_provider', true), '')\n            AND accepted_account.provider_subject = nullif(current_setting('app.provider_subject', true), '')\n            AND lower(btrim(accepted_account.primary_email)) = lower(btrim(nullif(current_setting('app.identity_email', true), '')))\n            AND accepted_account.status = 'active'\n        )\n      "
         }
@@ -6661,9 +5934,7 @@
       "compositePrimaryKeys": {
         "invitation_acceptance_rate_limits_pkey": {
           "name": "invitation_acceptance_rate_limits_pkey",
-          "columns": [
-            "key_hash"
-          ]
+          "columns": ["key_hash"]
         }
       },
       "uniqueConstraints": {},
@@ -6672,27 +5943,21 @@
           "name": "invitation_acceptance_rate_limits_acceptor_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "public"
-          ],
+          "to": ["public"],
           "using": "session_user = 'openschool_runtime' AND current_user = 'openschool_invitation_acceptor'"
         },
         "invitation_acceptance_rate_limits_acceptor_insert": {
           "name": "invitation_acceptance_rate_limits_acceptor_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "public"
-          ],
+          "to": ["public"],
           "withCheck": "session_user = 'openschool_runtime' AND current_user = 'openschool_invitation_acceptor'"
         },
         "invitation_acceptance_rate_limits_acceptor_update": {
           "name": "invitation_acceptance_rate_limits_acceptor_update",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": [
-            "public"
-          ],
+          "to": ["public"],
           "using": "session_user = 'openschool_runtime' AND current_user = 'openschool_invitation_acceptor'",
           "withCheck": "session_user = 'openschool_runtime' AND current_user = 'openschool_invitation_acceptor'"
         }
@@ -6859,28 +6124,18 @@
         "invitation_delivery_outbox_tenant_id_tenants_id_fk": {
           "name": "invitation_delivery_outbox_tenant_id_tenants_id_fk",
           "tableFrom": "invitation_delivery_outbox",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "invitation_delivery_invitation_fk": {
           "name": "invitation_delivery_invitation_fk",
           "tableFrom": "invitation_delivery_outbox",
-          "columnsFrom": [
-            "tenant_id",
-            "invitation_id"
-          ],
+          "columnsFrom": ["tenant_id", "invitation_id"],
           "tableTo": "account_invitations",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -6889,10 +6144,7 @@
       "uniqueConstraints": {
         "invitation_delivery_invitation_unique": {
           "name": "invitation_delivery_invitation_unique",
-          "columns": [
-            "tenant_id",
-            "invitation_id"
-          ],
+          "columns": ["tenant_id", "invitation_id"],
           "nullsNotDistinct": false
         }
       },
@@ -6901,27 +6153,21 @@
           "name": "invitation_delivery_runtime_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "withCheck": "\n        \"invitation_delivery_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.accounts.invite'\n        AND EXISTS (\n          SELECT 1 FROM public.account_invitations AS invitation\n          WHERE invitation.tenant_id = \"invitation_delivery_outbox\".\"tenant_id\"\n            AND invitation.id = \"invitation_delivery_outbox\".\"invitation_id\"\n            AND invitation.intended_email = \"invitation_delivery_outbox\".\"recipient_email\"\n            AND invitation.issued_by_account_id = nullif(current_setting('app.account_id', true), '')::uuid\n            AND invitation.status = 'pending'\n        )\n      "
         },
         "invitation_delivery_runtime_select_deny": {
           "name": "invitation_delivery_runtime_select_deny",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "false"
         },
         "invitation_delivery_runtime_update_deny": {
           "name": "invitation_delivery_runtime_update_deny",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "false",
           "withCheck": "false"
         },
@@ -6929,27 +6175,21 @@
           "name": "invitation_delivery_runtime_delete_deny",
           "as": "PERMISSIVE",
           "for": "DELETE",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "false"
         },
         "invitation_delivery_worker_select": {
           "name": "invitation_delivery_worker_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "\"invitation_delivery_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid"
         },
         "invitation_delivery_worker_update": {
           "name": "invitation_delivery_worker_update",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "\"invitation_delivery_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid",
           "withCheck": "\"invitation_delivery_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid"
         },
@@ -6957,18 +6197,14 @@
           "name": "invitation_delivery_worker_insert_deny",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "withCheck": "false"
         },
         "invitation_delivery_worker_delete_deny": {
           "name": "invitation_delivery_worker_delete_deny",
           "as": "PERMISSIVE",
           "for": "DELETE",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "false"
         }
       },
@@ -7129,39 +6365,27 @@
         "platform_access_grants_account_id_accounts_id_fk": {
           "name": "platform_access_grants_account_id_accounts_id_fk",
           "tableFrom": "platform_access_grants",
-          "columnsFrom": [
-            "account_id"
-          ],
+          "columnsFrom": ["account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "platform_access_grants_issued_by_account_id_accounts_id_fk": {
           "name": "platform_access_grants_issued_by_account_id_accounts_id_fk",
           "tableFrom": "platform_access_grants",
-          "columnsFrom": [
-            "issued_by_account_id"
-          ],
+          "columnsFrom": ["issued_by_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "platform_access_grants_revoked_by_account_id_accounts_id_fk": {
           "name": "platform_access_grants_revoked_by_account_id_accounts_id_fk",
           "tableFrom": "platform_access_grants",
-          "columnsFrom": [
-            "revoked_by_account_id"
-          ],
+          "columnsFrom": ["revoked_by_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -7353,54 +6577,36 @@
         "provider_security_reconciliation_outbox_tenant_id_tenants_id_fk": {
           "name": "provider_security_reconciliation_outbox_tenant_id_tenants_id_fk",
           "tableFrom": "provider_security_reconciliation_outbox",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "provider_security_reconciliation_outbox_account_id_accounts_id_fk": {
           "name": "provider_security_reconciliation_outbox_account_id_accounts_id_fk",
           "tableFrom": "provider_security_reconciliation_outbox",
-          "columnsFrom": [
-            "account_id"
-          ],
+          "columnsFrom": ["account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "provider_security_reconciliation_outbox_actor_account_id_accounts_id_fk": {
           "name": "provider_security_reconciliation_outbox_actor_account_id_accounts_id_fk",
           "tableFrom": "provider_security_reconciliation_outbox",
-          "columnsFrom": [
-            "actor_account_id"
-          ],
+          "columnsFrom": ["actor_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "provider_security_reconciliation_actor_person_fk": {
           "name": "provider_security_reconciliation_actor_person_fk",
           "tableFrom": "provider_security_reconciliation_outbox",
-          "columnsFrom": [
-            "tenant_id",
-            "actor_person_id"
-          ],
+          "columnsFrom": ["tenant_id", "actor_person_id"],
           "tableTo": "people",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -7409,12 +6615,7 @@
       "uniqueConstraints": {
         "provider_security_reconciliation_effect_unique": {
           "name": "provider_security_reconciliation_effect_unique",
-          "columns": [
-            "tenant_id",
-            "account_id",
-            "action",
-            "expected_security_version"
-          ],
+          "columns": ["tenant_id", "account_id", "action", "expected_security_version"],
           "nullsNotDistinct": false
         }
       },
@@ -7423,27 +6624,21 @@
           "name": "provider_security_reconciliation_revoker_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_identity_revoker"
-          ],
+          "to": ["openschool_identity_revoker"],
           "withCheck": "\n        session_user = 'openschool_runtime'\n        AND current_user = 'openschool_identity_revoker'\n        AND \"provider_security_reconciliation_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND \"provider_security_reconciliation_outbox\".\"actor_account_id\" = nullif(current_setting('app.account_id', true), '')::uuid\n        AND \"provider_security_reconciliation_outbox\".\"actor_person_id\" = nullif(current_setting('app.person_id', true), '')::uuid\n        AND \"provider_security_reconciliation_outbox\".\"request_id\" = nullif(current_setting('app.request_id', true), '')\n      "
         },
         "provider_security_reconciliation_worker_select": {
           "name": "provider_security_reconciliation_worker_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "\n        \"provider_security_reconciliation_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.job_type', true), '') = 'provider_mfa_reconciliation'\n        AND nullif(current_setting('app.job_id', true), '') IS NOT NULL\n        AND nullif(current_setting('app.request_id', true), '') IS NOT NULL\n      "
         },
         "provider_security_reconciliation_worker_update": {
           "name": "provider_security_reconciliation_worker_update",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "\n        \"provider_security_reconciliation_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.job_type', true), '') = 'provider_mfa_reconciliation'\n        AND nullif(current_setting('app.job_id', true), '') IS NOT NULL\n        AND nullif(current_setting('app.request_id', true), '') IS NOT NULL\n      ",
           "withCheck": "\n        \"provider_security_reconciliation_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.job_type', true), '') = 'provider_mfa_reconciliation'\n        AND nullif(current_setting('app.job_id', true), '') IS NOT NULL\n        AND nullif(current_setting('app.request_id', true), '') IS NOT NULL\n      "
         },
@@ -7451,18 +6646,14 @@
           "name": "provider_security_reconciliation_resolver_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_provider_security_resolver"
-          ],
+          "to": ["openschool_provider_security_resolver"],
           "using": "\n        session_user = 'openschool_worker'\n        AND current_user = 'openschool_provider_security_resolver'\n        AND \"provider_security_reconciliation_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.job_type', true), '') = 'provider_mfa_reconciliation'\n        AND nullif(current_setting('app.job_id', true), '') IS NOT NULL\n        AND nullif(current_setting('app.request_id', true), '') IS NOT NULL\n      "
         },
         "provider_security_reconciliation_identity_resolver_select": {
           "name": "provider_security_reconciliation_identity_resolver_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_provider_security_resolver"
-          ],
+          "to": ["openschool_provider_security_resolver"],
           "using": "\n        session_user = 'openschool_runtime'\n        AND current_user = 'openschool_provider_security_resolver'\n        AND EXISTS (\n          SELECT 1 FROM public.accounts AS verified_account\n          WHERE verified_account.id = \"provider_security_reconciliation_outbox\".\"account_id\"\n            AND verified_account.identity_provider = nullif(current_setting('app.identity_provider', true), '')\n            AND verified_account.provider_subject = nullif(current_setting('app.provider_subject', true), '')\n        )\n      "
         }
       },
@@ -7799,194 +6990,126 @@
         "support_access_grants_tenant_id_tenants_id_fk": {
           "name": "support_access_grants_tenant_id_tenants_id_fk",
           "tableFrom": "support_access_grants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "support_access_grants_support_account_id_accounts_id_fk": {
           "name": "support_access_grants_support_account_id_accounts_id_fk",
           "tableFrom": "support_access_grants",
-          "columnsFrom": [
-            "support_account_id"
-          ],
+          "columnsFrom": ["support_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "support_access_grants_platform_access_grant_id_platform_access_grants_id_fk": {
           "name": "support_access_grants_platform_access_grant_id_platform_access_grants_id_fk",
           "tableFrom": "support_access_grants",
-          "columnsFrom": [
-            "platform_access_grant_id"
-          ],
+          "columnsFrom": ["platform_access_grant_id"],
           "tableTo": "platform_access_grants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "support_access_grants_authorized_by_account_id_accounts_id_fk": {
           "name": "support_access_grants_authorized_by_account_id_accounts_id_fk",
           "tableFrom": "support_access_grants",
-          "columnsFrom": [
-            "authorized_by_account_id"
-          ],
+          "columnsFrom": ["authorized_by_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "support_access_grants_bound_account_session_id_account_sessions_id_fk": {
           "name": "support_access_grants_bound_account_session_id_account_sessions_id_fk",
           "tableFrom": "support_access_grants",
-          "columnsFrom": [
-            "bound_account_session_id"
-          ],
+          "columnsFrom": ["bound_account_session_id"],
           "tableTo": "account_sessions",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "support_access_grants_closed_by_account_id_accounts_id_fk": {
           "name": "support_access_grants_closed_by_account_id_accounts_id_fk",
           "tableFrom": "support_access_grants",
-          "columnsFrom": [
-            "closed_by_account_id"
-          ],
+          "columnsFrom": ["closed_by_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "support_access_grants_revoked_by_account_id_accounts_id_fk": {
           "name": "support_access_grants_revoked_by_account_id_accounts_id_fk",
           "tableFrom": "support_access_grants",
-          "columnsFrom": [
-            "revoked_by_account_id"
-          ],
+          "columnsFrom": ["revoked_by_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "support_access_grants_reviewed_by_account_id_accounts_id_fk": {
           "name": "support_access_grants_reviewed_by_account_id_accounts_id_fk",
           "tableFrom": "support_access_grants",
-          "columnsFrom": [
-            "reviewed_by_account_id"
-          ],
+          "columnsFrom": ["reviewed_by_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "support_access_grants_tenant_organization_fk": {
           "name": "support_access_grants_tenant_organization_fk",
           "tableFrom": "support_access_grants",
-          "columnsFrom": [
-            "tenant_id",
-            "education_organization_id"
-          ],
+          "columnsFrom": ["tenant_id", "education_organization_id"],
           "tableTo": "education_organizations",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "support_access_grants_tenant_school_fk": {
           "name": "support_access_grants_tenant_school_fk",
           "tableFrom": "support_access_grants",
-          "columnsFrom": [
-            "tenant_id",
-            "school_id"
-          ],
+          "columnsFrom": ["tenant_id", "school_id"],
           "tableTo": "schools",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "support_access_grants_tenant_authorizer_person_fk": {
           "name": "support_access_grants_tenant_authorizer_person_fk",
           "tableFrom": "support_access_grants",
-          "columnsFrom": [
-            "tenant_id",
-            "authorized_by_person_id"
-          ],
+          "columnsFrom": ["tenant_id", "authorized_by_person_id"],
           "tableTo": "people",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "support_access_grants_tenant_closer_person_fk": {
           "name": "support_access_grants_tenant_closer_person_fk",
           "tableFrom": "support_access_grants",
-          "columnsFrom": [
-            "tenant_id",
-            "closed_by_person_id"
-          ],
+          "columnsFrom": ["tenant_id", "closed_by_person_id"],
           "tableTo": "people",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "support_access_grants_tenant_revoker_person_fk": {
           "name": "support_access_grants_tenant_revoker_person_fk",
           "tableFrom": "support_access_grants",
-          "columnsFrom": [
-            "tenant_id",
-            "revoked_by_person_id"
-          ],
+          "columnsFrom": ["tenant_id", "revoked_by_person_id"],
           "tableTo": "people",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "support_access_grants_tenant_reviewer_person_fk": {
           "name": "support_access_grants_tenant_reviewer_person_fk",
           "tableFrom": "support_access_grants",
-          "columnsFrom": [
-            "tenant_id",
-            "reviewed_by_person_id"
-          ],
+          "columnsFrom": ["tenant_id", "reviewed_by_person_id"],
           "tableTo": "people",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -7995,10 +7118,7 @@
       "uniqueConstraints": {
         "support_access_grants_tenant_id_id_unique": {
           "name": "support_access_grants_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         }
       },
@@ -8007,27 +7127,21 @@
           "name": "support_access_grants_manager_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_support_grant_manager"
-          ],
+          "to": ["openschool_support_grant_manager"],
           "using": "\"support_access_grants\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid"
         },
         "support_access_grants_manager_insert": {
           "name": "support_access_grants_manager_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_support_grant_manager"
-          ],
+          "to": ["openschool_support_grant_manager"],
           "withCheck": "\"support_access_grants\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid"
         },
         "support_access_grants_manager_update": {
           "name": "support_access_grants_manager_update",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": [
-            "openschool_support_grant_manager"
-          ],
+          "to": ["openschool_support_grant_manager"],
           "using": "\"support_access_grants\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid",
           "withCheck": "\"support_access_grants\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid"
         },
@@ -8035,18 +7149,14 @@
           "name": "support_access_grants_resolver_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_support_access_resolver"
-          ],
+          "to": ["openschool_support_access_resolver"],
           "using": "\"support_access_grants\".\"id\" = nullif(current_setting('app.support_grant_id', true), '')::uuid"
         },
         "support_access_grants_resolver_update": {
           "name": "support_access_grants_resolver_update",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": [
-            "openschool_support_access_resolver"
-          ],
+          "to": ["openschool_support_access_resolver"],
           "using": "\"support_access_grants\".\"id\" = nullif(current_setting('app.support_grant_id', true), '')::uuid",
           "withCheck": "\"support_access_grants\".\"id\" = nullif(current_setting('app.support_grant_id', true), '')::uuid"
         },
@@ -8054,18 +7164,14 @@
           "name": "support_access_grants_worker_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "\"support_access_grants\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.job_type', true), '') = 'support_access_expiry'"
         },
         "support_access_grants_worker_update": {
           "name": "support_access_grants_worker_update",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "\"support_access_grants\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.job_type', true), '') = 'support_access_expiry'",
           "withCheck": "\"support_access_grants\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.job_type', true), '') = 'support_access_expiry'"
         }
@@ -8210,41 +7316,27 @@
         "support_access_notifications_tenant_id_tenants_id_fk": {
           "name": "support_access_notifications_tenant_id_tenants_id_fk",
           "tableFrom": "support_access_notifications",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "support_access_notifications_actor_account_id_accounts_id_fk": {
           "name": "support_access_notifications_actor_account_id_accounts_id_fk",
           "tableFrom": "support_access_notifications",
-          "columnsFrom": [
-            "actor_account_id"
-          ],
+          "columnsFrom": ["actor_account_id"],
           "tableTo": "accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "support_access_notifications_grant_fk": {
           "name": "support_access_notifications_grant_fk",
           "tableFrom": "support_access_notifications",
-          "columnsFrom": [
-            "tenant_id",
-            "support_grant_id"
-          ],
+          "columnsFrom": ["tenant_id", "support_grant_id"],
           "tableTo": "support_access_grants",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -8253,20 +7345,12 @@
       "uniqueConstraints": {
         "support_access_notifications_tenant_id_id_unique": {
           "name": "support_access_notifications_tenant_id_id_unique",
-          "columns": [
-            "tenant_id",
-            "id"
-          ],
+          "columns": ["tenant_id", "id"],
           "nullsNotDistinct": false
         },
         "support_access_notifications_operation_unique": {
           "name": "support_access_notifications_operation_unique",
-          "columns": [
-            "tenant_id",
-            "support_grant_id",
-            "event",
-            "operation_id"
-          ],
+          "columns": ["tenant_id", "support_grant_id", "event", "operation_id"],
           "nullsNotDistinct": false
         }
       },
@@ -8275,45 +7359,35 @@
           "name": "support_access_notifications_runtime_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_runtime"
-          ],
+          "to": ["openschool_runtime"],
           "using": "\"support_access_notifications\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.support.grants.manage'\n        AND openschool_private.tenant_admin_can_view_support_notification(\n          \"support_access_notifications\".\"tenant_id\",\n          nullif(current_setting('app.person_id', true), '')::uuid,\n          \"support_access_notifications\".\"support_grant_id\",\n          statement_timestamp()\n        )"
         },
         "support_access_notifications_manager_insert": {
           "name": "support_access_notifications_manager_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_support_grant_manager"
-          ],
+          "to": ["openschool_support_grant_manager"],
           "withCheck": "\"support_access_notifications\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid"
         },
         "support_access_notifications_resolver_insert": {
           "name": "support_access_notifications_resolver_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_support_access_resolver"
-          ],
+          "to": ["openschool_support_access_resolver"],
           "withCheck": "\"support_access_notifications\".\"support_grant_id\" = nullif(current_setting('app.support_grant_id', true), '')::uuid"
         },
         "support_access_notifications_worker_insert": {
           "name": "support_access_notifications_worker_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "withCheck": "\"support_access_notifications\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.job_type', true), '') = 'support_access_expiry'"
         },
         "support_access_notifications_worker_select": {
           "name": "support_access_notifications_worker_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "\"support_access_notifications\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.job_type', true), '') = 'support_notification_delivery'"
         }
       },
@@ -8445,28 +7519,18 @@
         "support_notification_outbox_tenant_id_tenants_id_fk": {
           "name": "support_notification_outbox_tenant_id_tenants_id_fk",
           "tableFrom": "support_notification_outbox",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         },
         "support_notification_outbox_notification_fk": {
           "name": "support_notification_outbox_notification_fk",
           "tableFrom": "support_notification_outbox",
-          "columnsFrom": [
-            "tenant_id",
-            "notification_id"
-          ],
+          "columnsFrom": ["tenant_id", "notification_id"],
           "tableTo": "support_access_notifications",
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsTo": ["tenant_id", "id"],
           "onUpdate": "restrict",
           "onDelete": "restrict"
         }
@@ -8475,10 +7539,7 @@
       "uniqueConstraints": {
         "support_notification_outbox_notification_unique": {
           "name": "support_notification_outbox_notification_unique",
-          "columns": [
-            "tenant_id",
-            "notification_id"
-          ],
+          "columns": ["tenant_id", "notification_id"],
           "nullsNotDistinct": false
         }
       },
@@ -8487,36 +7548,28 @@
           "name": "support_notification_outbox_manager_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_support_grant_manager"
-          ],
+          "to": ["openschool_support_grant_manager"],
           "withCheck": "\"support_notification_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid"
         },
         "support_notification_outbox_resolver_insert": {
           "name": "support_notification_outbox_resolver_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": [
-            "openschool_support_access_resolver"
-          ],
+          "to": ["openschool_support_access_resolver"],
           "withCheck": "\"support_notification_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.support_grant_id', true), '') IS NOT NULL"
         },
         "support_notification_outbox_worker_select": {
           "name": "support_notification_outbox_worker_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "\"support_notification_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.job_type', true), '') = 'support_notification_delivery'"
         },
         "support_notification_outbox_worker_update": {
           "name": "support_notification_outbox_worker_update",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": [
-            "openschool_worker"
-          ],
+          "to": ["openschool_worker"],
           "using": "\"support_notification_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.job_type', true), '') = 'support_notification_delivery'",
           "withCheck": "\"support_notification_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.job_type', true), '') = 'support_notification_delivery'"
         }
