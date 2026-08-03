@@ -226,6 +226,7 @@
     "db:isolation-release-evidence-poc": {
       "cache": false,
       "env": [
+        "ALLOW_DATABASE_EXECUTION_POC",
         "ALLOW_ISOLATION_RELEASE_EVIDENCE_POC",
         "DATABASE_MIGRATION_URL",
         "DATABASE_MIGRATION_ROLE",
