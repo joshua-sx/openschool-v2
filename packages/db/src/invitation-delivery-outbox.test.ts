@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { claimInvitationDeliveries, completeInvitationDelivery } from './invitation-delivery-outbox'
+import { invitationDeliveryOutbox } from './schema'
 import type { DatabaseTransaction } from './tenant-transaction'
 
 const transaction = {} as DatabaseTransaction
@@ -46,5 +47,30 @@ describe('invitation delivery completion validation', () => {
       claimInvitationDeliveries(transaction, base.tenantId, { leaseDurationMs: 999 }),
       /INVITATION_DELIVERY_LEASE_DURATION_INVALID/
     )
+  })
+
+  it('locks only delivery rows when selecting joined claim candidates', async () => {
+    let lockStrength: string | undefined
+    let lockConfig: { of?: unknown; skipLocked?: boolean } | undefined
+    const query = {
+      from: () => query,
+      innerJoin: () => query,
+      where: () => query,
+      orderBy: () => query,
+      for: (strength: string, config: { of?: unknown; skipLocked?: boolean }) => {
+        lockStrength = strength
+        lockConfig = config
+        return query
+      },
+      limit: async () => [],
+    }
+    const claimTransaction = {
+      select: () => query,
+    } as unknown as DatabaseTransaction
+
+    assert.deepEqual(await claimInvitationDeliveries(claimTransaction, base.tenantId), [])
+    assert.equal(lockStrength, 'update')
+    assert.equal(lockConfig?.of, invitationDeliveryOutbox)
+    assert.equal(lockConfig?.skipLocked, true)
   })
 })

@@ -62,7 +62,7 @@ export async function claimInvitationDeliveries(
       )
     )
     .orderBy(asc(invitationDeliveryOutbox.availableAt), asc(invitationDeliveryOutbox.id))
-    .for('update', { skipLocked: true })
+    .for('update', { of: invitationDeliveryOutbox, skipLocked: true })
     .limit(limit)
   if (candidates.length === 0) return []
 
