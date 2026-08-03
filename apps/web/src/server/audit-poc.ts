@@ -12,11 +12,14 @@ import { getMigrationEnv, getServerEnv, getWorkerEnv } from '@openschool/config/
 import {
   type TenantDatabaseContext,
   accountSessions,
+  affiliations,
   auditEvents,
   auditOutbox,
   closeDatabaseExecutionPoolsForProof,
   createMigrationClient,
   people,
+  schoolEnrollments,
+  studentCompatibilityEvidence,
   students,
   withPolicyTenantTransaction,
   withTenantTransaction,
@@ -256,6 +259,33 @@ async function runProof(): Promise<void> {
           .select({ id: people.id })
           .from(people)
           .where(eq(people.id, ROLLED_BACK_PERSON_ID))
+      ).length,
+      0
+    )
+    assert.equal(
+      (
+        await admin
+          .select({ id: affiliations.id })
+          .from(affiliations)
+          .where(eq(affiliations.id, ROLLED_BACK_AFFILIATION_ID))
+      ).length,
+      0
+    )
+    assert.equal(
+      (
+        await admin
+          .select({ id: schoolEnrollments.id })
+          .from(schoolEnrollments)
+          .where(eq(schoolEnrollments.id, ROLLED_BACK_ENROLLMENT_ID))
+      ).length,
+      0
+    )
+    assert.equal(
+      (
+        await admin
+          .select({ id: studentCompatibilityEvidence.id })
+          .from(studentCompatibilityEvidence)
+          .where(eq(studentCompatibilityEvidence.id, ROLLED_BACK_EVIDENCE_ID))
       ).length,
       0
     )

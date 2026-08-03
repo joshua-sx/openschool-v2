@@ -358,8 +358,11 @@ async function runProof(): Promise<void> {
     )
   } finally {
     await closeDatabaseExecutionPoolsForProof()
-    await admin.delete(accountSessions).where(eq(accountSessions.providerSessionId, SESSION_ID))
-    await admin.$client.end({ timeout: 5 })
+    try {
+      await admin.delete(accountSessions).where(eq(accountSessions.providerSessionId, SESSION_ID))
+    } finally {
+      await admin.$client.end({ timeout: 5 })
+    }
   }
 }
 
