@@ -8,19 +8,19 @@
 
 ## Decisions and scope
 
-`bun run isolation:matrix-poc` is the continuously enforced M1 system proof. It executes every
+`bun run isolation:matrix-poc` is the continuously enforced implemented-surface system proof. It executes every
 implemented security boundary in dependency order and emits one machine-readable
 `ISOLATION_MATRIX_REPORT` record.
 
 The report intentionally contains two different decisions:
 
-1. `implemented_m1_surface_only` is GO only when every implemented/evidence-only M1 row has its
+1. `implemented_surface_only` is GO only when every implemented/evidence-only row has its
    same-scope positive proof and valid cross-scope negative proof.
 2. `production_launch` is always NO-GO in this automated gate. Code cannot supply named
    engineering, security/privacy, operations/support, or legal/customer-owner approval. Disabled
    product paths and evidence-only backup/restore remain listed as launch blockers.
 
-An M1 engineering GO therefore means the implemented foundation is safe enough for reviewed
+An engineering GO therefore means the implemented foundation is safe enough for reviewed
 feature development. It does not authorize real school data, pilots, a jurisdiction, or production.
 
 ## Proof order
@@ -32,12 +32,13 @@ The guarded runner executes:
 3. Tenant/Organization Tree and Account/Person foundations;
 4. verified Tenant Request Context and capability query constraints;
 5. actual tRPC School/Student IDOR and error-shape proof;
-6. forced-RLS School/Student mutation, aggregate, pagination, and plan proof;
-7. atomic Audit Ledger/outbox;
-8. invitation, revocation/MFA, platform Tenant lifecycle, support, and notification proofs;
-9. backup/restore isolation rehearsal;
-10. release metadata capture; and
-11. Audit Ledger partition lifecycle last, because its default-occupancy alert fixture is immutable.
+6. canonical learner admission, legacy compatibility, and direct-write denial proof;
+7. forced-RLS School/Student aggregate, pagination, and plan proof;
+8. atomic Audit Ledger/outbox;
+9. invitation, revocation/MFA, platform Tenant lifecycle, support, and notification proofs;
+10. backup/restore isolation rehearsal;
+11. release metadata capture; and
+12. Audit Ledger partition lifecycle last, because its default-occupancy alert fixture is immutable.
 
 The runner stops at the first failed proof, emits engineering NO-GO with the missing evidence, and
 returns non-zero. Cross-Tenant, privilege, audit, backup, or bulk-output failures cannot be
@@ -59,7 +60,7 @@ destructive to disposable proof data and must never be pointed at a shared or pr
 Identity/session, context selection, tRPC API, policy/query modules, School/Student PostgreSQL RLS,
 Organization Tree, School/class, guardian/student, platform control plane, support/break glass,
 short-lived context cache, current durable jobs, support notifications, Audit Ledger, and pooled
-placement routing are implemented M1 rows. Backup/restore is evidence-only: the drill detects an
+placement routing are implemented rows. Backup/restore is evidence-only: the drill detects an
 RLS-filtered full backup, rejects a wrong-Tenant target, and reconciles a disposable Tenant restore,
 but production backup infrastructure is not configured by this repository.
 

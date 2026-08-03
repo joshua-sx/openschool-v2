@@ -1,6 +1,6 @@
 # Tenant isolation contracts
 
-`@openschool/isolation` owns the cross-path vocabulary used by OpenSchool's M1 system proof. It is
+`@openschool/isolation` owns the cross-path vocabulary used by OpenSchool's implemented-surface system proof. It is
 deliberately independent from auth, database, UI, storage, and queue implementations so every
 placement adapter and future product path can consume the same Tenant boundary contract.
 
@@ -14,8 +14,8 @@ placement adapter and future product path can consume the same Tenant boundary c
   job is a reviewed system-worker exception with its own separate context type.
 - `ISOLATION_MATRIX` classifies each path as implemented, evidence-only, or disabled and names its
   required positive and negative evidence.
-- `evaluateIsolationMatrixGate` returns two decisions. `implemented_m1_surface_only` may become GO
-  when every implemented M1 path has current evidence. `production_launch` remains NO-GO and lists
+- `evaluateIsolationMatrixGate` returns two decisions. `implemented_surface_only` may become GO
+  when every implemented path has current evidence. `production_launch` remains NO-GO and lists
   disabled/evidence-only paths plus the named human approvals code cannot grant.
 
 Run the non-database contract tests with:

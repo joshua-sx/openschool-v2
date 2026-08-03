@@ -14,6 +14,7 @@
     "invitation:onboarding-poc": "bun run src/server/invitation-onboarding-poc.ts",
     "identity:revocation-poc": "bun run src/server/identity-revocation-poc.ts",
     "api:isolation-poc": "bun run src/server/api-isolation-poc.ts",
+    "canonical:student-admission-poc": "bun run src/server/canonical-student-admission-poc.ts",
     "provider:mfa-reconcile": "bun run src/server/provider-mfa-reconciliation-job.ts"
   },
   "dependencies": {

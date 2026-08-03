@@ -59,7 +59,7 @@ flowchart TD
 
 | Order | Issue | Tracer-bullet outcome | State transition |
 | --- | --- | --- | --- |
-| 1 | [#112](https://github.com/joshua-sx/openschool-v2/issues/112) | admit and view one learner through canonical records | legacy dual-read to measured canonical parity |
+| 1 | [#112](https://github.com/joshua-sx/openschool-v2/issues/112) | admit and view one learner through canonical records | canonical read authority with a measured legacy compatibility mirror |
 | 2 | [#113](https://github.com/joshua-sx/openschool-v2/issues/113) | configure one academic year, term, and learner-level set | no academic authority to versioned School configuration |
 | 3 | [#114](https://github.com/joshua-sx/openschool-v2/issues/114) | enroll, withdraw, transfer within a Tenant, graduate, and re-enroll | mutable Student status to append-only School history |
 | 4 | [#115](https://github.com/joshua-sx/openschool-v2/issues/115) | link guardians and emergency contacts with explicit powers | informal contact fields to effective relationships |

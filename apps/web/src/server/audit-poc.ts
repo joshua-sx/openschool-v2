@@ -16,6 +16,7 @@ import {
   auditOutbox,
   closeDatabaseExecutionPoolsForProof,
   createMigrationClient,
+  people,
   students,
   withPolicyTenantTransaction,
   withTenantTransaction,
@@ -43,7 +44,11 @@ const PERSON_B = '00000000-0000-4000-8000-000000000908'
 const PROOF_RUN_ID = crypto.randomUUID()
 const SESSION_A = `audit-poc-${PROOF_RUN_ID}-a`
 const SESSION_B = `audit-poc-${PROOF_RUN_ID}-b`
+const ROLLED_BACK_PERSON_ID = crypto.randomUUID()
 const ROLLED_BACK_STUDENT_ID = crypto.randomUUID()
+const ROLLED_BACK_ENROLLMENT_ID = crypto.randomUUID()
+const ROLLED_BACK_AFFILIATION_ID = crypto.randomUUID()
+const ROLLED_BACK_EVIDENCE_ID = crypto.randomUUID()
 const UNKNOWN_STUDENT_ID = crypto.randomUUID()
 const SUPPORT_GRANT_ID = crypto.randomUUID()
 const WORKER_JOB_ID = crypto.randomUUID()
@@ -144,7 +149,6 @@ async function runProof(): Promise<void> {
   const contextB = policyContext('b')
   const now = new Date()
   const expiresAt = new Date(now.getTime() + 60 * 60 * 1000)
-  const proofStudentIds: string[] = []
 
   try {
     await admin.insert(accountSessions).values([
@@ -184,8 +188,6 @@ async function runProof(): Promise<void> {
         status: 'active',
       }
     )
-    proofStudentIds.push(created.id)
-
     const updateDecision = allow(contextA, CAPABILITIES.STUDENTS_UPDATE, {
       kind: 'student',
       tenantId: TENANT_A,
@@ -197,9 +199,9 @@ async function runProof(): Promise<void> {
       contextA,
       updateDecision,
       created.id,
-      { status: 'read_only', email: 'must-not-appear@example.test' }
+      { email: 'must-not-appear@example.test' }
     )
-    assert.equal(updated.status, 'read_only')
+    assert.equal(updated.email, 'must-not-appear@example.test')
 
     const faultContext = databaseContext(contextA, `audit-poc-${PROOF_RUN_ID}-fault`)
     await assert.rejects(
@@ -207,18 +209,31 @@ async function runProof(): Promise<void> {
         faultContext,
         toAuditDatabasePolicyContext(createDecision),
         async (transaction) => {
-          await transaction.insert(students).values({
-            id: ROLLED_BACK_STUDENT_ID,
-            tenantId: TENANT_A,
-            schoolId: SCHOOL_A,
-            firstName: 'Must',
-            lastName: 'Roll Back',
-          })
+          await transaction.execute(sql`
+            select *
+            from openschool_private.admit_canonical_student(
+              ${ROLLED_BACK_PERSON_ID}::uuid,
+              ${ROLLED_BACK_STUDENT_ID}::uuid,
+              ${ROLLED_BACK_ENROLLMENT_ID}::uuid,
+              ${ROLLED_BACK_AFFILIATION_ID}::uuid,
+              ${ROLLED_BACK_EVIDENCE_ID}::uuid,
+              ${SCHOOL_A}::uuid,
+              'Must',
+              'Roll Back',
+              'Must Roll Back',
+              'must roll back',
+              null::date,
+              null::text,
+              null::text,
+              null::text,
+              ${new Date()}::timestamp with time zone
+            )
+          `)
           await appendAuditEventInTransaction(transaction, faultContext, contextA, createDecision, {
             eventType: 'student.create',
             outcome: 'succeeded',
-            targetType: 'student',
-            targetId: ROLLED_BACK_STUDENT_ID,
+            targetType: 'person',
+            targetId: ROLLED_BACK_PERSON_ID,
             dataClasses: ['student_personal'],
             change: { after: { email: 'forbidden@example.test' } },
           })
@@ -235,6 +250,15 @@ async function runProof(): Promise<void> {
       ).length,
       0
     )
+    assert.equal(
+      (
+        await admin
+          .select({ id: people.id })
+          .from(people)
+          .where(eq(people.id, ROLLED_BACK_PERSON_ID))
+      ).length,
+      0
+    )
 
     await assert.rejects(
       updateStudent(
@@ -242,7 +266,7 @@ async function runProof(): Promise<void> {
         contextA,
         updateDecision,
         UNKNOWN_STUDENT_ID,
-        { status: 'archived' }
+        { email: 'missing@example.test' }
       )
     )
 
@@ -600,9 +624,6 @@ async function runProof(): Promise<void> {
     )
   } finally {
     await closeDatabaseExecutionPoolsForProof()
-    if (proofStudentIds.length > 0) {
-      await admin.delete(students).where(inArray(students.id, proofStudentIds))
-    }
     await admin
       .delete(accountSessions)
       .where(inArray(accountSessions.providerSessionId, [SESSION_A, SESSION_B]))

@@ -25,7 +25,7 @@ OpenSchool remains **NO-GO** for real school data and users until every blocking
 - [ ] The target Tenant Placement adapter is implemented and covered by the current threat model and complete Isolation Matrix; bridge/silo placement remains disabled until placement-specific evidence is accepted.
 - [ ] Runtime startup/CI proves `NOBYPASSRLS`, non-ownership, least privilege, and no service-role credential.
 - [ ] The [Isolation Matrix](./security/TENANT_ISOLATION_MATRIX.md) passes across API, query, DB, files, jobs, cache, search, import, export, analytics, and support paths.
-- [ ] `bun run isolation:matrix-poc` records GO for the implemented M1 surface at the exact release commit; every disabled/evidence-only production path is either completed and added to the matrix or remains feature-disabled.
+- [ ] `bun run isolation:matrix-poc` records GO for the implemented surface at the exact release commit; every disabled/evidence-only production path is either completed and added to the matrix or remains feature-disabled.
 - [ ] Every privileged mutation and durable worker path uses the accepted atomic audit/outbox boundary; the first Student and Account Link integrations, immutable runtime boundary, and replay proof are complete.
 - [ ] Audit partition maintenance runs daily, maintains at least 45 days of future coverage, pages on default occupancy or job failure, and has a successful target-environment recovery drill recorded under the [operations runbook](./operations/AUDIT_PARTITIONS.md).
 - [ ] MFA, reauthentication, invitation, session revocation, support, and break-glass controls pass security tests.

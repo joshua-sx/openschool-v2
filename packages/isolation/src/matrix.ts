@@ -6,6 +6,7 @@ export const ISOLATION_EVIDENCE_IDS = [
   'tenant_context',
   'policy_query',
   'api_isolation',
+  'canonical_student_admission',
   'student_rls',
   'audit_ledger',
   'invitation_onboarding',
@@ -46,7 +47,7 @@ export type IsolationMatrixRowId =
 export interface IsolationMatrixRowContract {
   id: IsolationMatrixRowId
   implementation: 'implemented' | 'evidence_only' | 'disabled'
-  m1Blocking: boolean
+  engineeringBlocking: boolean
   positiveEvidence: readonly IsolationEvidenceId[]
   negativeEvidence: readonly IsolationEvidenceId[]
   disabledReason?: string
@@ -63,84 +64,84 @@ export const ISOLATION_MATRIX = Object.freeze([
   row({
     id: 'identity_session',
     implementation: 'implemented',
-    m1Blocking: true,
+    engineeringBlocking: true,
     positiveEvidence: ['identity_foundation', 'identity_revocation'],
     negativeEvidence: ['identity_foundation', 'identity_revocation'],
   }),
   row({
     id: 'context_selection',
     implementation: 'implemented',
-    m1Blocking: true,
+    engineeringBlocking: true,
     positiveEvidence: ['tenant_context'],
     negativeEvidence: ['tenant_context'],
   }),
   row({
     id: 'api_trpc',
     implementation: 'implemented',
-    m1Blocking: true,
+    engineeringBlocking: true,
     positiveEvidence: ['api_isolation'],
     negativeEvidence: ['api_isolation'],
   }),
   row({
     id: 'policy_module',
     implementation: 'implemented',
-    m1Blocking: true,
+    engineeringBlocking: true,
     positiveEvidence: ['policy_query'],
     negativeEvidence: ['policy_query'],
   }),
   row({
     id: 'query_module',
     implementation: 'implemented',
-    m1Blocking: true,
-    positiveEvidence: ['policy_query', 'api_isolation'],
-    negativeEvidence: ['policy_query', 'api_isolation'],
+    engineeringBlocking: true,
+    positiveEvidence: ['policy_query', 'api_isolation', 'canonical_student_admission'],
+    negativeEvidence: ['policy_query', 'api_isolation', 'canonical_student_admission'],
   }),
   row({
     id: 'postgres_rls',
     implementation: 'implemented',
-    m1Blocking: true,
-    positiveEvidence: ['student_rls', 'release_metadata'],
-    negativeEvidence: ['student_rls', 'database_execution'],
+    engineeringBlocking: true,
+    positiveEvidence: ['student_rls', 'canonical_student_admission', 'release_metadata'],
+    negativeEvidence: ['student_rls', 'canonical_student_admission', 'database_execution'],
   }),
   row({
     id: 'organization_tree',
     implementation: 'implemented',
-    m1Blocking: true,
+    engineeringBlocking: true,
     positiveEvidence: ['tenant_foundation'],
     negativeEvidence: ['tenant_foundation'],
   }),
   row({
     id: 'school_class',
     implementation: 'implemented',
-    m1Blocking: true,
-    positiveEvidence: ['policy_query', 'api_isolation'],
-    negativeEvidence: ['policy_query', 'api_isolation'],
+    engineeringBlocking: true,
+    positiveEvidence: ['policy_query', 'api_isolation', 'canonical_student_admission'],
+    negativeEvidence: ['policy_query', 'api_isolation', 'canonical_student_admission'],
   }),
   row({
     id: 'guardian_student',
     implementation: 'implemented',
-    m1Blocking: true,
+    engineeringBlocking: true,
     positiveEvidence: ['policy_query'],
     negativeEvidence: ['policy_query'],
   }),
   row({
     id: 'platform_control_plane',
     implementation: 'implemented',
-    m1Blocking: true,
+    engineeringBlocking: true,
     positiveEvidence: ['platform_tenant_lifecycle'],
     negativeEvidence: ['platform_tenant_lifecycle'],
   }),
   row({
     id: 'support_break_glass',
     implementation: 'implemented',
-    m1Blocking: true,
+    engineeringBlocking: true,
     positiveEvidence: ['support_access'],
     negativeEvidence: ['support_access'],
   }),
   row({
     id: 'files_object_store',
     implementation: 'disabled',
-    m1Blocking: false,
+    engineeringBlocking: false,
     positiveEvidence: [],
     negativeEvidence: ['tenant_boundary_contract'],
     disabledReason: 'No file/object-storage product path is enabled.',
@@ -148,14 +149,14 @@ export const ISOLATION_MATRIX = Object.freeze([
   row({
     id: 'cache',
     implementation: 'implemented',
-    m1Blocking: true,
+    engineeringBlocking: true,
     positiveEvidence: ['tenant_boundary_contract', 'tenant_context'],
     negativeEvidence: ['tenant_boundary_contract', 'identity_revocation'],
   }),
   row({
     id: 'search',
     implementation: 'disabled',
-    m1Blocking: false,
+    engineeringBlocking: false,
     positiveEvidence: [],
     negativeEvidence: [],
     disabledReason: 'No search index or query adapter is enabled.',
@@ -163,7 +164,7 @@ export const ISOLATION_MATRIX = Object.freeze([
   row({
     id: 'jobs_queues',
     implementation: 'implemented',
-    m1Blocking: true,
+    engineeringBlocking: true,
     positiveEvidence: ['invitation_onboarding', 'identity_revocation', 'support_access'],
     negativeEvidence: [
       'tenant_boundary_contract',
@@ -175,14 +176,14 @@ export const ISOLATION_MATRIX = Object.freeze([
   row({
     id: 'notifications',
     implementation: 'implemented',
-    m1Blocking: true,
+    engineeringBlocking: true,
     positiveEvidence: ['support_access'],
     negativeEvidence: ['support_access'],
   }),
   row({
     id: 'import',
     implementation: 'disabled',
-    m1Blocking: false,
+    engineeringBlocking: false,
     positiveEvidence: [],
     negativeEvidence: [],
     disabledReason: 'No bulk import product path is enabled.',
@@ -190,7 +191,7 @@ export const ISOLATION_MATRIX = Object.freeze([
   row({
     id: 'export_report',
     implementation: 'disabled',
-    m1Blocking: false,
+    engineeringBlocking: false,
     positiveEvidence: ['audit_ledger'],
     negativeEvidence: ['audit_ledger'],
     disabledReason:
@@ -199,7 +200,7 @@ export const ISOLATION_MATRIX = Object.freeze([
   row({
     id: 'analytics',
     implementation: 'disabled',
-    m1Blocking: false,
+    engineeringBlocking: false,
     positiveEvidence: [],
     negativeEvidence: [],
     disabledReason: 'No operational or cross-Tenant analytics data product is enabled.',
@@ -207,21 +208,21 @@ export const ISOLATION_MATRIX = Object.freeze([
   row({
     id: 'audit',
     implementation: 'implemented',
-    m1Blocking: true,
-    positiveEvidence: ['audit_ledger', 'audit_partition_lifecycle'],
-    negativeEvidence: ['audit_ledger', 'audit_partition_lifecycle'],
+    engineeringBlocking: true,
+    positiveEvidence: ['audit_ledger', 'canonical_student_admission', 'audit_partition_lifecycle'],
+    negativeEvidence: ['audit_ledger', 'canonical_student_admission', 'audit_partition_lifecycle'],
   }),
   row({
     id: 'backup_restore',
     implementation: 'evidence_only',
-    m1Blocking: true,
+    engineeringBlocking: true,
     positiveEvidence: ['backup_restore'],
     negativeEvidence: ['backup_restore'],
   }),
   row({
     id: 'placement_routing',
     implementation: 'implemented',
-    m1Blocking: true,
+    engineeringBlocking: true,
     positiveEvidence: ['database_execution'],
     negativeEvidence: ['database_execution'],
   }),
@@ -246,7 +247,7 @@ export interface IsolationGateRow {
 }
 
 export interface IsolationEngineeringGate {
-  scope: 'implemented_m1_surface_only'
+  scope: 'implemented_surface_only'
   decision: 'GO' | 'NO_GO'
   rows: readonly Readonly<IsolationGateRow>[]
   successfulEvidence: readonly IsolationEvidenceId[]
@@ -326,7 +327,7 @@ export function evaluateIsolationMatrixGate(
   })
   const blockingRows = rows.filter((result) => {
     const contract = ISOLATION_MATRIX.find(({ id }) => id === result.id)
-    return contract?.m1Blocking && result.status !== 'verified'
+    return contract?.engineeringBlocking && result.status !== 'verified'
   })
   const disabledPaths = rows.filter(({ status }) => status === 'disabled').map(({ id }) => id)
   const evidenceOnlyPaths = ISOLATION_MATRIX.filter(
@@ -334,7 +335,7 @@ export function evaluateIsolationMatrixGate(
   ).map(({ id }) => id)
   return Object.freeze({
     engineering: Object.freeze({
-      scope: 'implemented_m1_surface_only',
+      scope: 'implemented_surface_only',
       decision: blockingRows.length === 0 ? 'GO' : 'NO_GO',
       rows: Object.freeze(rows),
       successfulEvidence: Object.freeze([...successful]),

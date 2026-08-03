@@ -26,6 +26,10 @@ const PROOF_GROUPS: readonly ProofGroup[] = [
   { evidence: 'tenant_context', commands: ['auth:tenant-context-poc'] },
   { evidence: 'policy_query', commands: ['policy:query-poc'] },
   { evidence: 'api_isolation', commands: ['api:isolation-poc'] },
+  {
+    evidence: 'canonical_student_admission',
+    commands: ['canonical:student-admission-poc'],
+  },
   { evidence: 'student_rls', commands: ['db:student-rls-poc'] },
   { evidence: 'audit_ledger', commands: ['audit:poc'] },
   { evidence: 'invitation_onboarding', commands: ['invitation:onboarding-poc'] },
@@ -60,7 +64,7 @@ function fallbackMetadata(): IsolationReleaseMetadata {
   return {
     commit: process.env.GITHUB_SHA ?? 'local-uncommitted',
     ciRun: process.env.GITHUB_RUN_ID ?? 'local',
-    migration: '0027_audit_partition_lifecycle',
+    migration: '0028_greedy_ultimates',
     postgresVersion: 'not-recorded',
     roleEvidenceDigest: '0'.repeat(64),
     policyEvidenceDigest: '0'.repeat(64),
