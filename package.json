@@ -51,7 +51,7 @@
     "@biomejs/biome": "^1.9.4",
     "@openschool/config": "workspace:*",
     "@openschool/isolation": "workspace:*",
-    "@types/node": "^20.19.33",
+    "@types/node": "^26.1.2",
     "dotenv": "^17.2.3",
     "turbo": "^2.10.8",
     "typescript": "^5.9.3"
