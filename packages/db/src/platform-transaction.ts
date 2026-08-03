@@ -270,7 +270,18 @@ async function resolvePlatformAccessInTransaction(
   let rows: PlatformAccessRow[]
   try {
     rows = await transaction.execute<PlatformAccessRow>(
-      sql`select * from openschool_private.resolve_platform_access()`
+      sql`
+        select
+          account_id as "accountId",
+          account_session_id as "accountSessionId",
+          security_version as "securityVersion",
+          platform_access_grant_id as "platformAccessGrantId",
+          role_template_key as "roleTemplateKey",
+          assurance_level as "assuranceLevel",
+          reauthenticated_at as "reauthenticatedAt",
+          expires_at as "expiresAt"
+        from openschool_private.resolve_platform_access()
+      `
     )
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause)
