@@ -54,7 +54,7 @@ Passkeys are not part of this control because the current provider capability is
 
 ## Tenant suspension boundary
 
-Tenant suspension now uses a separately credentialed control plane, global effective-dated access grants, a platform Policy Context with no Person, a narrow private lifecycle authority, and a platform Audit actor. Runtime and worker transactions recheck and lock current Tenant status before product work. Organization and School roles cannot cross into that control plane, and platform roles still receive no implicit Tenant data access. See the dedicated runbook for bootstrap, operation, proof, and rollback rules.
+Tenant suspension now uses a separately credentialed control plane, global effective-dated access grants, a platform Policy Context with no Person, a narrow private lifecycle authority, and a platform Audit actor. Runtime and worker transactions use a separate fixed admission function to recheck and lock current Tenant status before product work without receiving Tenant update authority. Organization and School roles cannot cross into that control plane, and platform roles still receive no implicit Tenant data access. See the dedicated runbook for bootstrap, operation, proof, and rollback rules.
 
 ## Verification
 

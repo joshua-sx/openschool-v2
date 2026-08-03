@@ -250,6 +250,7 @@ describe('database migration baseline', () => {
       'CREATE TABLE "platform_access_grants"',
       'platform_access_grants_no_active_overlap',
       'Platform Access Grant anchors are immutable',
+      'resolve_tenant_admission_status',
       'resolve_platform_access',
       'apply_tenant_lifecycle',
       'SECURITY DEFINER',
@@ -260,9 +261,11 @@ describe('database migration baseline', () => {
       'audit_events_platform_lifecycle_insert',
       'audit_outbox_platform_lifecycle_insert',
       'OWNER TO "openschool_platform_access_resolver"',
+      'OWNER TO "openschool_tenant_admission_resolver"',
       'OWNER TO "openschool_tenant_lifecycle_manager"',
       'TO "openschool_control_plane"',
       'REVOKE ALL ON TABLE public.platform_access_grants',
+      'TO "openschool_runtime", "openschool_worker"',
     ]) {
       assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
     }

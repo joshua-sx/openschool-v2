@@ -82,6 +82,39 @@ CREATE TRIGGER "platform_access_grants_transition_guard"
   BEFORE UPDATE ON "platform_access_grants"
   FOR EACH ROW EXECUTE FUNCTION "openschool_guard_platform_access_grant_transition"();--> statement-breakpoint
 
+CREATE FUNCTION "openschool_private"."resolve_tenant_admission_status"(p_tenant_id uuid)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog
+AS $$
+DECLARE
+  resolved_status text;
+  context_tenant_id uuid;
+BEGIN
+  BEGIN
+    context_tenant_id := nullif(current_setting('app.tenant_id', true), '')::uuid;
+  EXCEPTION WHEN invalid_text_representation THEN
+    RAISE EXCEPTION 'TENANT_ADMISSION_CONTEXT_INVALID' USING ERRCODE = '22023';
+  END;
+
+  IF session_user NOT IN ('openschool_runtime', 'openschool_worker')
+    OR current_user <> 'openschool_tenant_admission_resolver'
+    OR context_tenant_id IS NULL
+    OR context_tenant_id <> p_tenant_id
+  THEN
+    RAISE EXCEPTION 'TENANT_ADMISSION_CONTEXT_INVALID' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT candidate.status INTO resolved_status
+  FROM public.tenants AS candidate
+  WHERE candidate.id = p_tenant_id
+  FOR SHARE;
+
+  RETURN resolved_status;
+END;
+$$;--> statement-breakpoint
+
 CREATE POLICY "audit_events_platform_lifecycle_insert"
   ON "audit_events" AS PERMISSIVE FOR INSERT TO "openschool_tenant_lifecycle_manager"
   WITH CHECK (
@@ -372,6 +405,9 @@ $$;--> statement-breakpoint
 GRANT SELECT ON TABLE public.accounts, public.account_sessions, public.platform_access_grants
   TO "openschool_platform_access_resolver";--> statement-breakpoint
 
+GRANT SELECT ON TABLE public.tenants TO "openschool_tenant_admission_resolver";--> statement-breakpoint
+GRANT UPDATE (status) ON TABLE public.tenants TO "openschool_tenant_admission_resolver";--> statement-breakpoint
+
 GRANT SELECT ON TABLE
   public.accounts, public.account_sessions, public.platform_access_grants, public.tenants
   TO "openschool_tenant_lifecycle_manager";--> statement-breakpoint
@@ -384,16 +420,22 @@ GRANT INSERT ON TABLE public.audit_events, public.audit_outbox
   TO "openschool_tenant_lifecycle_manager";--> statement-breakpoint
 
 GRANT USAGE, CREATE ON SCHEMA "openschool_private"
-  TO "openschool_platform_access_resolver", "openschool_tenant_lifecycle_manager";--> statement-breakpoint
+  TO "openschool_tenant_admission_resolver", "openschool_platform_access_resolver", "openschool_tenant_lifecycle_manager";--> statement-breakpoint
+ALTER FUNCTION "openschool_private"."resolve_tenant_admission_status"(uuid)
+  OWNER TO "openschool_tenant_admission_resolver";--> statement-breakpoint
 ALTER FUNCTION "openschool_private"."resolve_platform_access"()
   OWNER TO "openschool_platform_access_resolver";--> statement-breakpoint
 ALTER FUNCTION "openschool_private"."apply_tenant_lifecycle"(text, uuid, text)
   OWNER TO "openschool_tenant_lifecycle_manager";--> statement-breakpoint
 REVOKE CREATE ON SCHEMA "openschool_private"
-  FROM "openschool_platform_access_resolver", "openschool_tenant_lifecycle_manager";--> statement-breakpoint
+  FROM "openschool_tenant_admission_resolver", "openschool_platform_access_resolver", "openschool_tenant_lifecycle_manager";--> statement-breakpoint
 
+REVOKE ALL ON FUNCTION "openschool_private"."resolve_tenant_admission_status"(uuid) FROM PUBLIC;--> statement-breakpoint
 REVOKE ALL ON FUNCTION "openschool_private"."resolve_platform_access"() FROM PUBLIC;--> statement-breakpoint
 REVOKE ALL ON FUNCTION "openschool_private"."apply_tenant_lifecycle"(text, uuid, text) FROM PUBLIC;--> statement-breakpoint
+GRANT USAGE ON SCHEMA "openschool_private" TO "openschool_runtime", "openschool_worker";--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION "openschool_private"."resolve_tenant_admission_status"(uuid)
+  TO "openschool_runtime", "openschool_worker";--> statement-breakpoint
 GRANT USAGE ON SCHEMA "openschool_private" TO "openschool_control_plane";--> statement-breakpoint
 GRANT EXECUTE ON FUNCTION "openschool_private"."resolve_platform_access"()
   TO "openschool_control_plane";--> statement-breakpoint

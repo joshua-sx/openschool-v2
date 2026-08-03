@@ -142,11 +142,12 @@ async function run(): Promise<void> {
     await ensureNoLoginRole(admin, 'openschool_emergency')
     await ensureNoLoginRole(admin, 'openschool_identity_revoker')
     await ensureNoLoginRole(admin, 'openschool_invitation_acceptor')
+    await ensureNoLoginRole(admin, 'openschool_tenant_admission_resolver')
     await ensureNoLoginRole(admin, 'openschool_platform_access_resolver')
     await ensureNoLoginRole(admin, 'openschool_tenant_lifecycle_manager')
     if (migrationRole !== 'postgres') {
       await admin.unsafe(
-        `grant openschool_identity_revoker, openschool_invitation_acceptor, openschool_platform_access_resolver, openschool_tenant_lifecycle_manager to ${migrationRole}`
+        `grant openschool_identity_revoker, openschool_invitation_acceptor, openschool_tenant_admission_resolver, openschool_platform_access_resolver, openschool_tenant_lifecycle_manager to ${migrationRole}`
       )
     }
 
@@ -200,7 +201,7 @@ async function run(): Promise<void> {
 
     for (const executionRole of [runtimeRole, workerRole, controlPlaneRole]) {
       await admin.unsafe(
-        `revoke openschool_backup, openschool_emergency, openschool_identity_revoker, openschool_invitation_acceptor, openschool_platform_access_resolver, openschool_tenant_lifecycle_manager from ${executionRole}`
+        `revoke openschool_backup, openschool_emergency, openschool_identity_revoker, openschool_invitation_acceptor, openschool_tenant_admission_resolver, openschool_platform_access_resolver, openschool_tenant_lifecycle_manager from ${executionRole}`
       )
       if (migrationRole !== 'postgres') {
         await admin.unsafe(`revoke ${migrationRole} from ${executionRole}`)

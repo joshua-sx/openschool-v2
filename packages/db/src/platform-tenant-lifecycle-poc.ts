@@ -216,7 +216,12 @@ async function run(): Promise<void> {
     )
 
     const [runtimeAuthority] = await directRuntime<
-      Array<{ canApplyLifecycle: boolean; canResolvePlatformAccess: boolean }>
+      Array<{
+        canApplyLifecycle: boolean
+        canResolvePlatformAccess: boolean
+        canResolveTenantAdmission: boolean
+        canUpdateTenants: boolean
+      }>
     >`
       select
         has_function_privilege(
@@ -228,11 +233,19 @@ async function run(): Promise<void> {
           current_user,
           'openschool_private.resolve_platform_access()'::regprocedure,
           'EXECUTE'
-        ) as "canResolvePlatformAccess"
+        ) as "canResolvePlatformAccess",
+        has_function_privilege(
+          current_user,
+          'openschool_private.resolve_tenant_admission_status(uuid)'::regprocedure,
+          'EXECUTE'
+        ) as "canResolveTenantAdmission",
+        has_table_privilege(current_user, 'public.tenants', 'UPDATE') as "canUpdateTenants"
     `
     assert.deepEqual(runtimeAuthority, {
       canApplyLifecycle: false,
       canResolvePlatformAccess: false,
+      canResolveTenantAdmission: true,
+      canUpdateTenants: false,
     })
 
     const aal1Identity = platformIdentity(

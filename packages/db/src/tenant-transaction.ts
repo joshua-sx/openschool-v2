@@ -11,7 +11,6 @@ import {
   people,
   schools,
   tenantPlacements,
-  tenants,
 } from './schema'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -581,27 +580,29 @@ async function assertActivePooledPlacement(
   transaction: DatabaseTransaction,
   tenantId: string
 ): Promise<void> {
+  const tenantAdmission = await transaction.execute<
+    Record<string, unknown> & { status: string | null }
+  >(sql`select openschool_private.resolve_tenant_admission_status(${tenantId}::uuid) as status`)
+  const tenantStatus = tenantAdmission[0]?.status
+  if (tenantStatus === null || tenantStatus === undefined) {
+    deny('TENANT_PLACEMENT_UNKNOWN', 'Tenant placement is not configured')
+  }
+  if (tenantStatus !== 'active') {
+    deny('TENANT_SUSPENDED', 'Tenant is not active')
+  }
+
   const [placement] = await transaction
     .select({
       adapter: tenantPlacements.adapter,
       placementKey: tenantPlacements.placementKey,
       status: tenantPlacements.status,
-      tenantStatus: tenants.status,
     })
     .from(tenantPlacements)
-    .innerJoin(tenants, eq(tenants.id, tenantPlacements.tenantId))
     .where(
       and(eq(tenantPlacements.tenantId, tenantId), eq(tenantPlacements.placementKey, 'primary'))
     )
-    // This lock is the revocation linearization point. Tenant suspension takes
-    // FOR UPDATE on the same row, waits for already-running work, and blocks
-    // every later runtime/worker transaction before product data is exposed.
-    .for('share', { of: tenants })
     .limit(1)
   if (!placement) deny('TENANT_PLACEMENT_UNKNOWN', 'Tenant placement is not configured')
-  if (placement.tenantStatus !== 'active') {
-    deny('TENANT_SUSPENDED', 'Tenant is not active')
-  }
   if (placement.status !== 'active') {
     deny('TENANT_PLACEMENT_DISABLED', 'Tenant placement is not active')
   }

@@ -47,7 +47,7 @@ An expired or revoked grant is rejected on the next control-plane transaction. R
 
 `platform.suspendTenant` changes `active` to `suspended`; `platform.reactivateTenant` changes `suspended` to `active`. Archived Tenants are terminal and cannot be reactivated through this seam. Every request requires a 3–512 character operational reason.
 
-Runtime and worker transactions acquire a shared lock on the canonical Tenant row before exposing product work. Suspension takes the conflicting update lock. Work already admitted is allowed to finish, suspension waits for it, and every transaction beginning after the suspension commit receives `TENANT_SUSPENDED` before reading or mutating product data. Placement state is not repurposed: Tenant lifecycle and infrastructure placement remain independent controls.
+Runtime and worker transactions call `openschool_private.resolve_tenant_admission_status`, whose dedicated `NOLOGIN` owner acquires a shared lock on the canonical Tenant row and returns only its status. Neither execution role receives Tenant update authority. Suspension takes the conflicting update lock. Work already admitted is allowed to finish, suspension waits for it, and every transaction beginning after the suspension commit receives `TENANT_SUSPENDED` before reading or mutating product data. Placement state is not repurposed: Tenant lifecycle and infrastructure placement remain independent controls.
 
 A Tenant suspension does not increment Account security versions because an Account may belong to other Tenants. Tenant status is the authoritative revocation anchor; unaffected Tenants continue operating.
 
