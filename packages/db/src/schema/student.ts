@@ -54,7 +54,8 @@ export const students = pgTable(
         ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
         AND nullif(current_setting('app.policy_capability', true), '') IN (
           'tenant.students.create', 'tenant.students.read',
-          'tenant.students.update', 'tenant.students.delete'
+          'tenant.students.update', 'tenant.students.delete',
+          'identity.context.resolve'
         )
         AND public.openschool_student_scope_allows(
           ${table.tenantId}, ${table.schoolId}, ${table.id}

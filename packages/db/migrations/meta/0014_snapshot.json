@@ -405,7 +405,7 @@
           "as": "PERMISSIVE",
           "for": "SELECT",
           "to": ["openschool_runtime"],
-          "using": "\n        \"schools\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND (\n          \"schools\".\"id\" = nullif(current_setting('app.school_id', true), '')::uuid\n          OR (\n            nullif(current_setting('app.policy_capability', true), '')\n              IN ('tenant.schools.read', 'tenant.students.create')\n            AND public.openschool_school_scope_allows(\n              \"schools\".\"tenant_id\", \"schools\".\"id\"\n            )\n          )\n        )\n      "
+          "using": "\n        \"schools\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND (\n          \"schools\".\"id\" = nullif(current_setting('app.school_id', true), '')::uuid\n          OR (\n            nullif(current_setting('app.policy_capability', true), '')\n              IN (\n                'tenant.schools.read', 'tenant.students.create',\n                'identity.context.resolve'\n              )\n            AND public.openschool_school_scope_allows(\n              \"schools\".\"tenant_id\", \"schools\".\"id\"\n            )\n          )\n        )\n      "
         },
         "schools_worker_select": {
           "name": "schools_worker_select",
@@ -3683,7 +3683,7 @@
           "as": "PERMISSIVE",
           "for": "SELECT",
           "to": ["openschool_runtime"],
-          "using": "\n        \"students\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') IN (\n          'tenant.students.create', 'tenant.students.read',\n          'tenant.students.update', 'tenant.students.delete'\n        )\n        AND public.openschool_student_scope_allows(\n          \"students\".\"tenant_id\", \"students\".\"school_id\", \"students\".\"id\"\n        )\n      "
+          "using": "\n        \"students\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') IN (\n          'tenant.students.create', 'tenant.students.read',\n          'tenant.students.update', 'tenant.students.delete',\n          'identity.context.resolve'\n        )\n        AND public.openschool_student_scope_allows(\n          \"students\".\"tenant_id\", \"students\".\"school_id\", \"students\".\"id\"\n        )\n      "
         },
         "students_runtime_insert": {
           "name": "students_runtime_insert",

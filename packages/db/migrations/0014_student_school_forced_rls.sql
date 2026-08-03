@@ -193,7 +193,10 @@ CREATE POLICY "schools_runtime_select" ON "schools" AS PERMISSIVE FOR SELECT TO 
           "schools"."id" = nullif(current_setting('app.school_id', true), '')::uuid
           OR (
             nullif(current_setting('app.policy_capability', true), '')
-              IN ('tenant.schools.read', 'tenant.students.create')
+              IN (
+                'tenant.schools.read', 'tenant.students.create',
+                'identity.context.resolve'
+              )
             AND public.openschool_school_scope_allows(
               "schools"."tenant_id", "schools"."id"
             )
@@ -211,7 +214,8 @@ CREATE POLICY "students_runtime_select" ON "students" AS PERMISSIVE FOR SELECT T
         "students"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid
         AND nullif(current_setting('app.policy_capability', true), '') IN (
           'tenant.students.create', 'tenant.students.read',
-          'tenant.students.update', 'tenant.students.delete'
+          'tenant.students.update', 'tenant.students.delete',
+          'identity.context.resolve'
         )
         AND public.openschool_student_scope_allows(
           "students"."tenant_id", "students"."school_id", "students"."id"

@@ -4,6 +4,7 @@ import {
   accountSessions,
   accounts,
   affiliations,
+  bindIdentityTenantResolutionContext,
   classes,
   educationOrganizations,
   organizationTreeClosure,
@@ -350,6 +351,11 @@ async function loadGuardianSchoolIds(
   at: Date,
   limit = MAX_GUARDIAN_SCHOOLS + 1
 ): Promise<string[]> {
+  await bindIdentityTenantResolutionContext(db, {
+    tenantId,
+    personId: guardianPersonId,
+    queryConstraints: [{ kind: 'linked_student', tenantId, guardianPersonId }],
+  })
   const relationships = await db
     .selectDistinct({ schoolId: students.schoolId })
     .from(personRelationships)
@@ -382,6 +388,36 @@ async function loadGuardianSchoolIds(
     .limit(limit)
 
   return relationships.map(({ schoolId }) => schoolId)
+}
+
+async function loadActiveSchoolNames(
+  db: Database,
+  tenantId: string,
+  personId: string,
+  schoolIds: readonly string[]
+): Promise<Array<{ id: string; name: string }>> {
+  const rows: Array<{ id: string; name: string }> = []
+  for (let offset = 0; offset < schoolIds.length; offset += 16) {
+    const batch = schoolIds.slice(offset, offset + 16)
+    await bindIdentityTenantResolutionContext(db, {
+      tenantId,
+      personId,
+      queryConstraints: batch.map((schoolId) => ({ kind: 'school', tenantId, schoolId })),
+    })
+    rows.push(
+      ...(await db
+        .select({ id: schools.id, name: schools.name })
+        .from(schools)
+        .where(
+          and(
+            eq(schools.tenantId, tenantId),
+            inArray(schools.id, batch),
+            eq(schools.status, 'active')
+          )
+        ))
+    )
+  }
+  return rows
 }
 
 async function loadLegacyRoleKeys(
@@ -651,6 +687,11 @@ async function resolveTenantRequestContextInTransaction(
 
   let schoolGovernanceOrganizationId: string | null = null
   if (selectedSchoolId) {
+    await bindIdentityTenantResolutionContext(db, {
+      tenantId: link.tenantId,
+      personId: link.personId,
+      queryConstraints: [{ kind: 'school', tenantId: link.tenantId, schoolId: selectedSchoolId }],
+    })
     const [school] = await db
       .select({ name: schools.name, status: schools.status })
       .from(schools)
@@ -1022,9 +1063,9 @@ async function listAvailableTenantContextsInTransaction(
     const schoolIds = [...optionRoles.keys()]
       .filter((key) => key.startsWith('school:'))
       .map((key) => key.slice(7))
-    const [organizationRows, schoolRows] = await Promise.all([
+    const organizationRows =
       organizationIds.length > 0
-        ? db
+        ? await db
             .select({ id: educationOrganizations.id, name: educationOrganizations.name })
             .from(educationOrganizations)
             .where(
@@ -1034,20 +1075,8 @@ async function listAvailableTenantContextsInTransaction(
                 eq(educationOrganizations.status, 'active')
               )
             )
-        : Promise.resolve([]),
-      schoolIds.length > 0
-        ? db
-            .select({ id: schools.id, name: schools.name })
-            .from(schools)
-            .where(
-              and(
-                eq(schools.tenantId, link.tenantId),
-                inArray(schools.id, schoolIds),
-                eq(schools.status, 'active')
-              )
-            )
-        : Promise.resolve([]),
-    ])
+        : []
+    const schoolRows = await loadActiveSchoolNames(db, link.tenantId, link.personId, schoolIds)
     const organizationNames = new Map(organizationRows.map((row) => [row.id, row.name]))
     const schoolNames = new Map(schoolRows.map((row) => [row.id, row.name]))
 

@@ -68,7 +68,10 @@ export const schools = pgTable(
           ${table.id} = nullif(current_setting('app.school_id', true), '')::uuid
           OR (
             nullif(current_setting('app.policy_capability', true), '')
-              IN ('tenant.schools.read', 'tenant.students.create')
+              IN (
+                'tenant.schools.read', 'tenant.students.create',
+                'identity.context.resolve'
+              )
             AND public.openschool_school_scope_allows(
               ${table.tenantId}, ${table.id}
             )

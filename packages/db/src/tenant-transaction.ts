@@ -81,6 +81,15 @@ export interface DatabasePolicyContext {
   queryConstraints: readonly DatabasePolicyQueryConstraint[]
 }
 
+export interface IdentityTenantResolutionContext {
+  tenantId: string
+  personId: string
+  queryConstraints: readonly (
+    | Extract<DatabasePolicyQueryConstraint, { kind: 'school' }>
+    | Extract<DatabasePolicyQueryConstraint, { kind: 'linked_student' }>
+  )[]
+}
+
 export type TenantPlacementDenialReason =
   | 'DATABASE_CONTEXT_INVALID'
   | 'DATABASE_ROLE_UNSAFE'
@@ -386,6 +395,46 @@ async function setContext(
   // Reviewed raw-SQL allowlist: every key/value is bound and `true` makes all
   // settings transaction-local so pooled sessions cannot inherit context.
   await transaction.execute(sql`select ${sql.join(setters, sql`, `)}`)
+}
+
+/**
+ * Narrows a verified identity-bootstrap transaction to context-resolution rows.
+ * Callers must derive every scope from current Account Link and Affiliation data.
+ */
+export async function bindIdentityTenantResolutionContext(
+  transaction: DatabaseTransaction,
+  context: IdentityTenantResolutionContext
+): Promise<void> {
+  requireUuid('tenantId', context.tenantId)
+  requireUuid('personId', context.personId)
+  if (context.queryConstraints.length < 1 || context.queryConstraints.length > 16) {
+    deny('DATABASE_CONTEXT_INVALID', 'Identity resolution needs between 1 and 16 scopes')
+  }
+  for (const constraint of context.queryConstraints) {
+    requireUuid('queryConstraint.tenantId', constraint.tenantId)
+    if (constraint.tenantId !== context.tenantId) {
+      deny('DATABASE_CONTEXT_INVALID', 'Identity resolution scope has a different Tenant')
+    }
+    if (constraint.kind === 'school') {
+      requireUuid('queryConstraint.schoolId', constraint.schoolId)
+    } else {
+      requireUuid('queryConstraint.guardianPersonId', constraint.guardianPersonId)
+      if (constraint.guardianPersonId !== context.personId) {
+        deny('DATABASE_CONTEXT_INVALID', 'Guardian resolution scope has a different Person')
+      }
+      if (constraint.studentId) requireUuid('queryConstraint.studentId', constraint.studentId)
+      if (constraint.classId) requireUuid('queryConstraint.classId', constraint.classId)
+    }
+  }
+  await setContext(transaction, {
+    'app.person_id': context.personId,
+    'app.tenant_id': context.tenantId,
+    'app.education_organization_id': undefined,
+    'app.school_id': undefined,
+    'app.policy_capability': 'identity.context.resolve',
+    'app.policy_version': 'identity-context.v1',
+    'app.policy_constraints': JSON.stringify(context.queryConstraints),
+  })
 }
 
 async function withIdentityUsing<T>(
