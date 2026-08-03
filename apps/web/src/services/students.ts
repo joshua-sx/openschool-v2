@@ -115,13 +115,8 @@ export type StudentValidationError = { field: string; message: string }
 
 function studentAuditSnapshot(student: CanonicalStudent): Record<string, AuditSummaryValue> {
   return {
-    personId: student.personId,
-    legacyStudentId: student.legacyStudentId,
-    schoolEnrollmentId: student.schoolEnrollmentId,
     schoolId: student.schoolId,
-    schoolName: student.schoolName,
     status: student.status,
-    parityStatus: student.parityStatus,
   }
 }
 
