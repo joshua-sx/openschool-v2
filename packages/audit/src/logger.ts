@@ -59,8 +59,11 @@ function assertAuditInput(input: AuditEventInput): void {
   if (input.occurredAt && Number.isNaN(input.occurredAt.getTime())) {
     throw new Error('AUDIT_OCCURRED_AT_INVALID')
   }
-  for (const value of [input.correlationId, input.outbox?.topic, input.outbox?.deduplicationKey]) {
+  for (const value of [input.correlationId, input.outbox?.deduplicationKey]) {
     if (value && !SAFE_REFERENCE.test(value)) throw new Error('AUDIT_REFERENCE_INVALID')
+  }
+  if (input.outbox && !EVENT_TYPE.test(input.outbox.topic)) {
+    throw new Error('AUDIT_OUTBOX_TOPIC_INVALID')
   }
   if (input.source === 'support' && !input.supportGrantId) {
     throw new Error('AUDIT_SUPPORT_GRANT_REQUIRED')

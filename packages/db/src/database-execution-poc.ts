@@ -267,6 +267,7 @@ async function run(): Promise<void> {
             tenantId: string
             jobId: string
             canUpdateStudents: boolean
+            canInsertAuditEvents: boolean
             canUpdateAuditEvents: boolean
             canDeleteAuditEvents: boolean
             canUpdateAuditOutbox: boolean
@@ -279,6 +280,7 @@ async function run(): Promise<void> {
             current_setting('app.tenant_id') as "tenantId",
             current_setting('app.job_id') as "jobId",
             has_table_privilege(current_user, 'public.students', 'UPDATE') as "canUpdateStudents",
+            has_table_privilege(current_user, 'public.audit_events', 'INSERT') as "canInsertAuditEvents",
             has_table_privilege(current_user, 'public.audit_events', 'UPDATE') as "canUpdateAuditEvents",
             has_table_privilege(current_user, 'public.audit_events', 'DELETE') as "canDeleteAuditEvents",
             has_table_privilege(current_user, 'public.audit_outbox', 'UPDATE') as "canUpdateAuditOutbox",
@@ -290,6 +292,7 @@ async function run(): Promise<void> {
         assert.equal(evidence.tenantId, TENANT_A)
         assert.equal(evidence.jobId, JOB)
         assert.equal(evidence.canUpdateStudents, false)
+        assert.equal(evidence.canInsertAuditEvents, true)
         assert.equal(evidence.canUpdateAuditEvents, false)
         assert.equal(evidence.canDeleteAuditEvents, false)
         assert.equal(evidence.canUpdateAuditOutbox, true)

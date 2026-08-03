@@ -34,6 +34,11 @@ export interface AccountLinkLifecycleResult {
   tenantId: string
 }
 
+interface AccountLinkAuditAppendInput {
+  actorAccountId: string
+  audit: AccountLinkLifecycleAuditContext
+}
+
 export type AccountLinkLifecycleErrorCode =
   | 'account_disabled'
   | 'audit_context_invalid'
@@ -91,7 +96,7 @@ function validateAuditContext(context: AccountLinkLifecycleAuditContext): void {
 
 async function appendAccountLinkAuditEvent(
   tx: DatabaseTransaction,
-  input: ActivateAccountLinkInput,
+  input: AccountLinkAuditAppendInput,
   link: { id: string; tenantId: string; status: string },
   membershipVersion: number,
   eventType: 'account_link.activate' | 'account_link.revoke',

@@ -62,6 +62,8 @@ describe('database migration baseline', () => {
     )
     for (const expected of [
       'PARTITION BY RANGE ("occurred_at")',
+      'CREATE TABLE "audit_events_2026_q4" PARTITION OF "audit_events"',
+      'CREATE TABLE "audit_events_2027_q1" PARTITION OF "audit_events"',
       'CREATE TABLE "audit_events_default" PARTITION OF "audit_events" DEFAULT',
       'ALTER TABLE "audit_events" FORCE ROW LEVEL SECURITY',
       'ALTER TABLE "audit_outbox" FORCE ROW LEVEL SECURITY',

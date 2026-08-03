@@ -10,7 +10,7 @@ import {
   recordAuditAttempt,
   toAuditDatabasePolicyContext,
 } from './logger'
-import type { AuditEventInput, AuditReadPage } from './types'
+import type { AuditAppendResult, AuditEventInput, AuditReadPage } from './types'
 
 async function throwAfterRecordingAttempt(
   error: unknown,
@@ -129,7 +129,7 @@ export async function requestAuditExport(
   context: PolicyContext,
   decision: PolicyDecision,
   input: { format: 'jsonl' | 'csv'; deduplicationKey: string; purpose: string }
-) {
+): Promise<AuditAppendResult> {
   try {
     assertAuditReadDecision(decision)
   } catch (error) {

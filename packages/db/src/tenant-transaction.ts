@@ -241,6 +241,8 @@ interface RuntimeRoleEvidence extends Record<string, unknown> {
   canTruncateStudents: boolean
   canUpdateAuditEvents: boolean
   canDeleteAuditEvents: boolean
+  canInsertAuditEvents: boolean
+  canInsertAuditOutbox: boolean
   canUpdateAuditOutbox: boolean
   canDeleteAuditOutbox: boolean
   canAccessAuditArchiveManifests: boolean
@@ -278,6 +280,8 @@ async function assertSafeExecutionRole(
       has_table_privilege(current_user, 'public.students', 'TRUNCATE') as "canTruncateStudents",
       has_table_privilege(current_user, 'public.audit_events', 'UPDATE') as "canUpdateAuditEvents",
       has_table_privilege(current_user, 'public.audit_events', 'DELETE') as "canDeleteAuditEvents",
+      has_table_privilege(current_user, 'public.audit_events', 'INSERT') as "canInsertAuditEvents",
+      has_table_privilege(current_user, 'public.audit_outbox', 'INSERT') as "canInsertAuditOutbox",
       has_table_privilege(current_user, 'public.audit_outbox', 'UPDATE') as "canUpdateAuditOutbox",
       has_table_privilege(current_user, 'public.audit_outbox', 'DELETE') as "canDeleteAuditOutbox",
       has_table_privilege(
@@ -335,6 +339,8 @@ async function assertSafeExecutionRole(
     evidence.canTruncateStudents ||
     evidence.canUpdateAuditEvents ||
     evidence.canDeleteAuditEvents ||
+    !evidence.canInsertAuditEvents ||
+    evidence.canInsertAuditOutbox !== !canProcessAuditOutbox ||
     evidence.canUpdateAuditOutbox !== canProcessAuditOutbox ||
     evidence.canDeleteAuditOutbox ||
     evidence.canAccessAuditArchiveManifests ||

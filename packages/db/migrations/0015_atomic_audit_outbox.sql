@@ -152,6 +152,10 @@ ALTER TABLE "audit_events" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE "audit_events" FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "audit_events_2026_q3" PARTITION OF "audit_events"
 	FOR VALUES FROM ('2026-07-01T00:00:00Z') TO ('2026-10-01T00:00:00Z');--> statement-breakpoint
+CREATE TABLE "audit_events_2026_q4" PARTITION OF "audit_events"
+	FOR VALUES FROM ('2026-10-01T00:00:00Z') TO ('2027-01-01T00:00:00Z');--> statement-breakpoint
+CREATE TABLE "audit_events_2027_q1" PARTITION OF "audit_events"
+	FOR VALUES FROM ('2027-01-01T00:00:00Z') TO ('2027-04-01T00:00:00Z');--> statement-breakpoint
 CREATE TABLE "audit_events_default" PARTITION OF "audit_events" DEFAULT;--> statement-breakpoint
 CREATE TABLE "audit_outbox" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,

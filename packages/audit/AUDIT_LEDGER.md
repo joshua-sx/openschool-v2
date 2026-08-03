@@ -80,10 +80,12 @@ collisions. An invalid transition or anchor change raises SQLSTATE `55000`.
 ## Partition, retention, legal hold, and archive procedure
 
 `audit_events` is range-partitioned on `occurred_at` with a current quarterly partition and a
-default safety partition. Migration `0015_atomic_audit_outbox.sql` hand-maintains the partition
+default safety partition. Q4 2026 and Q1 2027 are created ahead of use. Migration
+`0015_atomic_audit_outbox.sql` hand-maintains the partition
 clauses, attached partitions, triggers, and FORCE RLS details that Drizzle cannot model; schema
 generation must never replace that SQL. Operations must create the next partition before each
-quarter and alert on any rows entering the default partition.
+quarter and alert on any rows entering the default partition; automation and alert evidence are
+tracked in issue #99.
 
 Retention class is a routing label, not an authorization to delete. Before production, qualified
 privacy/legal owners must approve jurisdiction-specific schedules for operational, security,
