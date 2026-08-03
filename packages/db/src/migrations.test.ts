@@ -116,6 +116,23 @@ describe('database migration baseline', () => {
     ]) {
       assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
     }
+
+    const invitationRead = migration.indexOf('SELECT candidate.* INTO invitation')
+    const identityMismatch = migration.indexOf(
+      'IF invitation.identity_provider <> verified_identity_provider'
+    )
+    const eligibilityLock = migration.indexOf(
+      'PERFORM 1\n\tFROM public.account_invitations AS candidate'
+    )
+    assert.ok(invitationRead >= 0 && invitationRead < identityMismatch)
+    assert.ok(identityMismatch < eligibilityLock)
+    assert.equal(migration.slice(invitationRead, identityMismatch).includes('FOR UPDATE'), false)
+    assert.equal(
+      migration
+        .slice(eligibilityLock, migration.indexOf('IF NOT EXISTS (', eligibilityLock))
+        .includes('FOR UPDATE'),
+      true
+    )
   })
 
   it('allows invitation capabilities to resolve Schools through the existing scope guard', () => {

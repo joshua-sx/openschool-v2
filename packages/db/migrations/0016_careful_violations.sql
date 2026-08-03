@@ -563,8 +563,7 @@ BEGIN
 
 	SELECT candidate.* INTO invitation
 	FROM public.account_invitations AS candidate
-	WHERE candidate.token_hash = p_token_hash
-	FOR UPDATE;
+	WHERE candidate.token_hash = p_token_hash;
 
 	IF NOT FOUND THEN
 		RAISE EXCEPTION 'INVITATION_INVALID' USING ERRCODE = 'P0001';
@@ -610,6 +609,22 @@ BEGIN
 	THEN
 		RETURN QUERY SELECT
 			'denied'::text, 'INVITATION_IDENTITY_MISMATCH'::text,
+			invitation.id, invitation.tenant_id, NULL::uuid, invitation.person_id,
+			NULL::bigint, NULL::bigint, invitation.education_organization_id, resolved_school_id;
+		RETURN;
+	END IF;
+
+	-- Row-locking reads must satisfy the UPDATE policy as well as SELECT RLS.
+	-- Classify immutable terminal and identity-mismatch evidence before taking
+	-- that lock, then re-check eligibility while acquiring it so a concurrent
+	-- acceptance, cancellation, or expiry resolves as unavailable.
+	PERFORM 1
+	FROM public.account_invitations AS candidate
+	WHERE candidate.token_hash = p_token_hash
+	FOR UPDATE;
+	IF NOT FOUND THEN
+		RETURN QUERY SELECT
+			'denied'::text, 'INVITATION_UNAVAILABLE'::text,
 			invitation.id, invitation.tenant_id, NULL::uuid, invitation.person_id,
 			NULL::bigint, NULL::bigint, invitation.education_organization_id, resolved_school_id;
 		RETURN;
