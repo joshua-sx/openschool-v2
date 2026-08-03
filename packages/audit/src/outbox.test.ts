@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import type { DatabaseTransaction } from '@openschool/db'
-import { completeAuditOutbox } from './outbox'
+import { claimAuditOutbox, completeAuditOutbox } from './outbox'
 
 const transaction = {} as DatabaseTransaction
 const base = {
   tenantId: '00000000-0000-4000-8000-000000000001',
   id: '00000000-0000-4000-8000-000000000002',
+  expectedAttemptCount: 1,
 }
 
 describe('Audit Outbox completion validation', () => {
@@ -37,6 +38,13 @@ describe('Audit Outbox completion validation', () => {
         retryAt: new Date(Date.now() + 1_000),
       }),
       /AUDIT_OUTBOX_RETRY_AT_FORBIDDEN/
+    )
+  })
+
+  it('rejects unsafe lease durations before database access', async () => {
+    await assert.rejects(
+      claimAuditOutbox(transaction, base.tenantId, { leaseDurationMs: 999 }),
+      /AUDIT_OUTBOX_LEASE_DURATION_INVALID/
     )
   })
 })

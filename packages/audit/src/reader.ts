@@ -162,6 +162,7 @@ export async function requestAuditExport(
             outbox: {
               topic: 'audit.export.requested',
               deduplicationKey: input.deduplicationKey,
+              deduplicationMode: 'return_existing',
             },
           },
           { requireObligation: false }

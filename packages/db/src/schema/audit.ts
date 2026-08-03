@@ -303,7 +303,8 @@ export const auditOutbox = pgTable(
       to: 'openschool_runtime',
       using: sql`
         ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
-        AND ${table.context} ->> 'requestId' = nullif(current_setting('app.request_id', true), '')
+        AND ${table.context} ->> 'actorAccountId' = nullif(current_setting('app.account_id', true), '')
+        AND ${table.context} ->> 'actorPersonId' = nullif(current_setting('app.person_id', true), '')
       `,
     }),
     pgPolicy('audit_outbox_runtime_insert', {
@@ -312,6 +313,8 @@ export const auditOutbox = pgTable(
       withCheck: sql`
         ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
         AND ${table.context} ->> 'requestId' = nullif(current_setting('app.request_id', true), '')
+        AND ${table.context} ->> 'actorAccountId' = nullif(current_setting('app.account_id', true), '')
+        AND ${table.context} ->> 'actorPersonId' = nullif(current_setting('app.person_id', true), '')
       `,
     }),
     pgPolicy('audit_outbox_runtime_update_deny', {

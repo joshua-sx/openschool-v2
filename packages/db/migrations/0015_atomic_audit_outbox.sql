@@ -214,11 +214,14 @@ CREATE POLICY "audit_events_worker_update_deny" ON "audit_events" AS PERMISSIVE 
 CREATE POLICY "audit_events_worker_delete_deny" ON "audit_events" AS PERMISSIVE FOR DELETE TO "openschool_worker" USING (false);--> statement-breakpoint
 CREATE POLICY "audit_outbox_runtime_select" ON "audit_outbox" AS PERMISSIVE FOR SELECT TO "openschool_runtime" USING (
         "audit_outbox"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid
-        AND "audit_outbox"."context" ->> 'requestId' = nullif(current_setting('app.request_id', true), '')
+        AND "audit_outbox"."context" ->> 'actorAccountId' = nullif(current_setting('app.account_id', true), '')
+        AND "audit_outbox"."context" ->> 'actorPersonId' = nullif(current_setting('app.person_id', true), '')
       );--> statement-breakpoint
 CREATE POLICY "audit_outbox_runtime_insert" ON "audit_outbox" AS PERMISSIVE FOR INSERT TO "openschool_runtime" WITH CHECK (
         "audit_outbox"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid
         AND "audit_outbox"."context" ->> 'requestId' = nullif(current_setting('app.request_id', true), '')
+        AND "audit_outbox"."context" ->> 'actorAccountId' = nullif(current_setting('app.account_id', true), '')
+        AND "audit_outbox"."context" ->> 'actorPersonId' = nullif(current_setting('app.person_id', true), '')
       );--> statement-breakpoint
 CREATE POLICY "audit_outbox_runtime_update_deny" ON "audit_outbox" AS PERMISSIVE FOR UPDATE TO "openschool_runtime" USING (false) WITH CHECK (false);--> statement-breakpoint
 CREATE POLICY "audit_outbox_runtime_delete_deny" ON "audit_outbox" AS PERMISSIVE FOR DELETE TO "openschool_runtime" USING (false);--> statement-breakpoint
@@ -434,6 +437,7 @@ BEGIN
 
 	IF NOT (
 		(OLD.status IN ('pending', 'failed') AND NEW.status = 'processing')
+		OR (OLD.status = 'processing' AND NEW.status = 'processing')
 		OR (OLD.status = 'processing' AND NEW.status IN ('published', 'failed', 'dead_letter'))
 	) THEN
 		RAISE EXCEPTION 'Invalid Audit Outbox status transition: % to %', OLD.status, NEW.status
@@ -450,6 +454,10 @@ BEGIN
 			OR NEW.last_error_code IS NOT NULL
 		THEN
 			RAISE EXCEPTION 'Audit Outbox claim evidence is invalid'
+				USING ERRCODE = '55000';
+		END IF;
+		IF OLD.status = 'processing' AND NEW.locked_at <= OLD.locked_at THEN
+			RAISE EXCEPTION 'Reclaimed Audit Outbox lease must advance'
 				USING ERRCODE = '55000';
 		END IF;
 	ELSIF NEW.attempt_count <> OLD.attempt_count OR NEW.locked_at IS NOT NULL THEN

@@ -316,6 +316,19 @@ async function runProof(): Promise<void> {
       }
     )
     assert.equal(exportResult.outboxCreated, true)
+    const duplicateExport = await requestAuditExport(
+      databaseContext(contextA, `audit-poc-${PROOF_RUN_ID}-export-retry`),
+      contextA,
+      auditReadDecisionA,
+      {
+        format: 'jsonl',
+        deduplicationKey: exportDeduplicationKey,
+        purpose: 'security.review',
+      }
+    )
+    assert.equal(duplicateExport.outboxCreated, false)
+    assert.equal(duplicateExport.eventId, exportResult.eventId)
+    assert.equal(duplicateExport.outboxId, exportResult.outboxId)
 
     const auditReadDecisionB = allow(contextB, CAPABILITIES.AUDIT_READ, {
       kind: 'audit_log',
@@ -349,6 +362,8 @@ async function runProof(): Promise<void> {
     assert.equal(exportOutbox.correlationId, exportRequestId)
     assert.equal(exportOutbox.context.tenantId, TENANT_A)
     assert.equal(exportOutbox.context.requestId, exportRequestId)
+    assert.equal(exportOutbox.context.actorAccountId, ACCOUNT_A)
+    assert.equal(exportOutbox.context.actorPersonId, PERSON_A)
 
     const retryAt = new Date(Date.now() + 1_000)
     await withWorkerTenantTransaction(
@@ -363,6 +378,7 @@ async function runProof(): Promise<void> {
           tenantId: TENANT_A,
           id: exportOutbox.id,
           outcome: 'failed',
+          expectedAttemptCount: exportOutbox.attemptCount,
           errorCode: 'PROOF_RETRY',
           retryAt,
         })
@@ -396,6 +412,7 @@ async function runProof(): Promise<void> {
           tenantId: TENANT_A,
           id: exportOutbox.id,
           outcome: 'published',
+          expectedAttemptCount: retriedExport.attemptCount,
           at: publishedAt,
         })
     )
@@ -411,12 +428,51 @@ async function runProof(): Promise<void> {
           tenantId: TENANT_A,
           id: exportOutbox.id,
           outcome: 'published',
+          expectedAttemptCount: retriedExport.attemptCount,
         })
     )
     assert.equal(publishedAgain.id, published.id)
     assert.equal(publishedAgain.payloadHash, published.payloadHash)
 
-    for (const pending of claimed.filter(({ id }) => id !== exportOutbox.id)) {
+    const reclaimAt = new Date(publishedAt.getTime() + 2_000)
+    const reclaimed = await withWorkerTenantTransaction(
+      {
+        tenantId: TENANT_A,
+        jobId: WORKER_JOB_ID,
+        jobType: 'audit_outbox_delivery',
+        requestId: `audit-poc-${PROOF_RUN_ID}-worker-reclaim`,
+      },
+      (transaction) =>
+        claimAuditOutbox(transaction, TENANT_A, {
+          limit: 100,
+          at: reclaimAt,
+          leaseDurationMs: 1_000,
+        })
+    )
+    const staleClaim = claimed.find(({ id }) => id !== exportOutbox.id)
+    assert.ok(staleClaim)
+    const reclaimedStaleClaim = reclaimed.find(({ id }) => id === staleClaim.id)
+    assert.ok(reclaimedStaleClaim)
+    assert.equal(reclaimedStaleClaim.attemptCount, staleClaim.attemptCount + 1)
+    await assert.rejects(
+      withWorkerTenantTransaction(
+        {
+          tenantId: TENANT_A,
+          jobId: WORKER_JOB_ID,
+          jobType: 'audit_outbox_delivery',
+          requestId: `audit-poc-${PROOF_RUN_ID}-worker-stale`,
+        },
+        (transaction) =>
+          completeAuditOutbox(transaction, {
+            tenantId: TENANT_A,
+            id: staleClaim.id,
+            outcome: 'published',
+            expectedAttemptCount: staleClaim.attemptCount,
+          })
+      ),
+      /AUDIT_OUTBOX_NOT_PROCESSING/
+    )
+    for (const pending of reclaimed) {
       await withWorkerTenantTransaction(
         {
           tenantId: TENANT_A,
@@ -429,6 +485,8 @@ async function runProof(): Promise<void> {
             tenantId: TENANT_A,
             id: pending.id,
             outcome: 'published',
+            expectedAttemptCount: pending.attemptCount,
+            at: new Date(reclaimAt.getTime() + 1),
           })
       )
     }

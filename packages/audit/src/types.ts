@@ -45,6 +45,7 @@ export interface AuditEventInput {
   outbox?: {
     topic: string
     deduplicationKey: string
+    deduplicationMode?: 'reject' | 'return_existing'
   }
 }
 

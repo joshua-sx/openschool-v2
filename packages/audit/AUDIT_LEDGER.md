@@ -64,9 +64,12 @@ pending -> processing -> published
                      -> dead_letter
 ```
 
-Claims use `FOR UPDATE SKIP LOCKED`. Every claim increments the attempt count. Completion is
-idempotent after `published`; retries retain the original event, Tenant, request, correlation,
-payload, and hash. An invalid transition or anchor change raises SQLSTATE `55000`.
+Claims use `FOR UPDATE SKIP LOCKED` and a bounded lease. Every initial or expired-lease claim
+increments the attempt count; completion must present that attempt as a fencing token, so a stale
+worker cannot complete work reclaimed after a crash. Completion is idempotent after `published`;
+retries retain the original event, Tenant, request, correlation, payload, and hash. Export requests
+use an explicit serialized `return_existing` deduplication mode; mutation evidence rejects key
+collisions. An invalid transition or anchor change raises SQLSTATE `55000`.
 
 ## Partition, retention, legal hold, and archive procedure
 

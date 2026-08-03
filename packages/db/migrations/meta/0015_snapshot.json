@@ -5361,14 +5361,14 @@
           "as": "PERMISSIVE",
           "for": "SELECT",
           "to": ["openschool_runtime"],
-          "using": "\n        \"audit_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND \"audit_outbox\".\"context\" ->> 'requestId' = nullif(current_setting('app.request_id', true), '')\n      "
+          "using": "\n        \"audit_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND \"audit_outbox\".\"context\" ->> 'actorAccountId' = nullif(current_setting('app.account_id', true), '')\n        AND \"audit_outbox\".\"context\" ->> 'actorPersonId' = nullif(current_setting('app.person_id', true), '')\n      "
         },
         "audit_outbox_runtime_insert": {
           "name": "audit_outbox_runtime_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
           "to": ["openschool_runtime"],
-          "withCheck": "\n        \"audit_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND \"audit_outbox\".\"context\" ->> 'requestId' = nullif(current_setting('app.request_id', true), '')\n      "
+          "withCheck": "\n        \"audit_outbox\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND \"audit_outbox\".\"context\" ->> 'requestId' = nullif(current_setting('app.request_id', true), '')\n        AND \"audit_outbox\".\"context\" ->> 'actorAccountId' = nullif(current_setting('app.account_id', true), '')\n        AND \"audit_outbox\".\"context\" ->> 'actorPersonId' = nullif(current_setting('app.person_id', true), '')\n      "
         },
         "audit_outbox_runtime_update_deny": {
           "name": "audit_outbox_runtime_update_deny",

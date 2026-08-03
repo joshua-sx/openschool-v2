@@ -72,6 +72,8 @@ describe('database migration baseline', () => {
       'openschool_hash_audit_event_on_insert',
       'openschool_guard_audit_event_insert',
       'openschool_guard_audit_outbox_change',
+      "OLD.status = 'processing' AND NEW.status = 'processing'",
+      "context\" ->> 'actorAccountId' = nullif(current_setting('app.account_id'",
       'audit_archive_manifest_delete_rejected',
       'REVOKE ALL ON FUNCTION "openschool_audit_scope_allows"',
     ]) {
