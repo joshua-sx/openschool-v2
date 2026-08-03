@@ -53,6 +53,7 @@
       "dependencies": {
         "@openschool/db": "workspace:*",
         "@openschool/rbac": "workspace:*",
+        "drizzle-orm": "^0.45.2",
       },
       "devDependencies": {
         "typescript": "^5.7.0",
@@ -62,6 +63,7 @@
       "name": "@openschool/auth",
       "version": "0.0.1",
       "dependencies": {
+        "@openschool/audit": "workspace:*",
         "@openschool/config": "workspace:*",
         "@openschool/db": "workspace:*",
         "@openschool/rbac": "workspace:*",

@@ -87,4 +87,34 @@ describe('database migration baseline', () => {
     assert.equal(migration.includes('to_jsonb(NEW)'), false)
     assert.equal(migration.includes('to_jsonb(event)'), false)
   })
+
+  it('installs invitation-only onboarding with forced RLS and a private acceptance seam', () => {
+    const migration = readFileSync(join(migrationsDirectory, '0016_careful_violations.sql'), 'utf8')
+    for (const expected of [
+      'ALTER TABLE "account_invitations" FORCE ROW LEVEL SECURITY',
+      'ALTER TABLE "invitation_delivery_outbox" FORCE ROW LEVEL SECURITY',
+      'account_invitations_pending_person_unique',
+      'accounts_primary_email_normalized_unique',
+      'openschool_invitation_scope_allows',
+      'openschool_guard_account_invitation_change',
+      'openschool_guard_invitation_delivery_change',
+      'CREATE SCHEMA IF NOT EXISTS "openschool_private"',
+      'account_invitations_acceptance_select',
+      'account_invitations_acceptance_update',
+      'audit_events_invitation_denial_insert',
+      'audit_outbox_invitation_denial_insert',
+      "current_user = 'openschool_invitation_acceptor'",
+      'SECURITY DEFINER',
+      'OWNER TO "openschool_invitation_acceptor"',
+      'TO "openschool_invitation_acceptor"',
+      'Terminal invitation delivery must erase credential material',
+      'SET search_path = pg_catalog',
+      "session_user <> 'openschool_runtime'",
+      'INVITATION_IDENTITY_MISMATCH',
+      'REVOKE ALL ON FUNCTION "openschool_private"."accept_account_invitation"',
+      'GRANT EXECUTE ON FUNCTION "openschool_private"."accept_account_invitation"',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+  })
 })

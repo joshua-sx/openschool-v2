@@ -217,6 +217,33 @@ export const auditEvents = pgTable(
         )
       `,
     }),
+    pgPolicy('audit_events_invitation_denial_insert', {
+      for: 'insert',
+      to: 'openschool_runtime',
+      withCheck: sql`
+        ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND ${table.actorType} = 'system'
+        AND ${table.actorAccountId} IS NULL
+        AND ${table.actorPersonId} IS NULL
+        AND ${table.requestId} = nullif(current_setting('app.request_id', true), '')
+        AND ${table.educationOrganizationId} IS NOT DISTINCT FROM nullif(current_setting('app.education_organization_id', true), '')::uuid
+        AND ${table.schoolId} IS NOT DISTINCT FROM nullif(current_setting('app.school_id', true), '')::uuid
+        AND ${table.eventType} = 'account.invitation.accept'
+        AND ${table.outcome} = 'denied'
+        AND ${table.capability} = 'identity.invitation.accept'
+        AND ${table.policyVersion} = 'identity-invitation.v1'
+        AND ${table.policyDecision} ->> 'effect' = 'deny'
+        AND ${table.policyDecision} ->> 'reason' IN (
+          'INVITATION_UNAVAILABLE', 'INVITATION_IDENTITY_MISMATCH', 'INVITATION_ACCOUNT_CONFLICT'
+        )
+        AND ${table.targetType} = 'account.invitation'
+        AND ${table.targetId} IS NOT NULL
+        AND ${table.dataClasses} = '["credential"]'::jsonb
+        AND ${table.purpose} = 'account_onboarding'
+        AND ${table.source} = 'web'
+        AND ${table.retentionClass} = 'security'
+      `,
+    }),
     pgPolicy('audit_events_runtime_update_deny', {
       for: 'update',
       to: 'openschool_runtime',
@@ -325,6 +352,24 @@ export const auditOutbox = pgTable(
         AND ${table.context} ->> 'requestId' = nullif(current_setting('app.request_id', true), '')
         AND ${table.context} ->> 'actorAccountId' = nullif(current_setting('app.account_id', true), '')
         AND ${table.context} ->> 'actorPersonId' = nullif(current_setting('app.person_id', true), '')
+      `,
+    }),
+    pgPolicy('audit_outbox_invitation_denial_insert', {
+      for: 'insert',
+      to: 'openschool_runtime',
+      withCheck: sql`
+        ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND ${table.context} ->> 'requestId' = nullif(current_setting('app.request_id', true), '')
+        AND ${table.context} ->> 'actorAccountId' IS NULL
+        AND ${table.context} ->> 'actorPersonId' IS NULL
+        AND ${table.topic} = 'audit.event.committed'
+        AND ${table.payload} ->> 'eventType' = 'account.invitation.accept'
+        AND ${table.payload} ->> 'outcome' = 'denied'
+        AND ${table.payload} ->> 'targetType' = 'account.invitation'
+        AND nullif(${table.payload} ->> 'targetId', '') IS NOT NULL
+        AND ${table.deduplicationKey} =
+          'account.invitation.accept.denied:' || (${table.payload} ->> 'targetId') || ':' ||
+          nullif(current_setting('app.request_id', true), '')
       `,
     }),
     pgPolicy('audit_outbox_runtime_update_deny', {

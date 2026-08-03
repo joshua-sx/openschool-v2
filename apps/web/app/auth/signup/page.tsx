@@ -1,94 +1,40 @@
-'use client'
-
-import { createBrowserClient } from '@openschool/auth'
-import { getPublicEnv } from '@openschool/config/public'
-import { Auth } from '@supabase/auth-ui-react'
-import { ThemeSupa } from '@supabase/auth-ui-shared'
+import { isOpenSignupAllowed } from '@openschool/config/server'
 import { BookOpen } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect, useState, useSyncExternalStore } from 'react'
-
-// Auth theme colors - matches CSS variables in globals.css
-const AUTH_THEME_COLORS = {
-  brand: '#000000',
-  brandAccent: '#1f1f1f',
-} as const
-
-const subscribeToClient = () => () => undefined
-
-function useIsMounted() {
-  return useSyncExternalStore(
-    subscribeToClient,
-    () => true,
-    () => false
-  )
-}
+import { OpenSignupForm } from './signup-form'
 
 export default function SignupPage() {
-  const { NEXT_PUBLIC_APP_URL: appUrl } = getPublicEnv()
-  const [supabase] = useState(() => createBrowserClient())
-  const isMounted = useIsMounted()
-
-  useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        window.location.href = `${appUrl}/dashboard`
-      }
-    })
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [appUrl, supabase])
-
-  if (!isMounted) {
-    return null
-  }
+  if (isOpenSignupAllowed()) return <OpenSignupForm />
 
   return (
-    <div className="min-h-screen bg-surface-primary flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link
-            href="/"
-            className="inline-flex items-center space-x-2 mb-6 hover:opacity-80 transition-opacity"
-          >
-            <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center">
-              <BookOpen className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-lg font-bold tracking-tight">OpenSchool</span>
-          </Link>
-          <h1 className="text-2xl font-bold text-text-primary mb-2">Create your account</h1>
-          <p className="text-text-secondary">Get started with OpenSchool today</p>
-        </div>
-
-        <div className="bg-surface-primary border border-border-default rounded-xl p-6 shadow-sm">
-          <Auth
-            supabaseClient={supabase}
-            appearance={{
-              theme: ThemeSupa,
-              variables: {
-                default: {
-                  colors: AUTH_THEME_COLORS,
-                },
-              },
-            }}
-            providers={[]}
-            redirectTo={`${appUrl}/auth/callback`}
-            view="sign_up"
-            onlyThirdPartyProviders={false}
-          />
-        </div>
-
-        <p className="text-center text-sm text-text-secondary mt-6">
-          Already have an account?{' '}
-          <Link href="/auth/login" className="text-brand font-medium hover:underline">
-            Sign in
-          </Link>
+    <main className="min-h-screen bg-surface-secondary flex items-center justify-center px-4 py-12">
+      <section className="w-full max-w-md rounded-2xl border border-border-default bg-surface-primary p-8 text-center shadow-sm">
+        <Link
+          href="/"
+          className="mb-8 inline-flex items-center gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-4"
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand">
+            <BookOpen aria-hidden="true" className="h-5 w-5 text-white" />
+          </span>
+          <span className="text-lg font-bold tracking-tight text-text-primary">OpenSchool</span>
+        </Link>
+        <h1 className="text-2xl font-bold tracking-tight text-text-primary">
+          An invitation is required
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-text-secondary">
+          Your school administrator creates your account and sends a secure sign-in link to your
+          verified email address.
         </p>
-      </div>
-    </div>
+        <Link
+          href="/auth/login"
+          className="mt-8 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          Sign in to an existing account
+        </Link>
+        <p className="mt-4 text-xs leading-5 text-text-muted">
+          If you expected an invitation, ask your school administrator to resend it.
+        </p>
+      </section>
+    </main>
   )
 }

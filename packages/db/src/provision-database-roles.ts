@@ -4,7 +4,12 @@ import postgres from 'postgres'
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]'])
 const ROLE_NAME = /^[a-z_][a-z0-9_]{0,62}$/
 const LOCAL_PASSWORD = /^[A-Za-z0-9_-]{16,128}$/
-const RESERVED_EXECUTION_ROLES = new Set(['postgres', 'openschool_backup', 'openschool_emergency'])
+const RESERVED_EXECUTION_ROLES = new Set([
+  'postgres',
+  'openschool_backup',
+  'openschool_emergency',
+  'openschool_invitation_acceptor',
+])
 const PROVISIONING_PHASES = new Set(['all', 'identities', 'grants'])
 
 function databaseIdentity(url: URL): string {
@@ -98,6 +103,9 @@ async function run(): Promise<void> {
       'Role provisioning refused: migration URL username does not match DATABASE_MIGRATION_ROLE.'
     )
   }
+  if (migrationRole !== 'postgres' && !ROLE_NAME.test(migrationRole)) {
+    throw new Error('Role provisioning refused: migration role name must be safe.')
+  }
   const databaseName = decodeURIComponent(migration.pathname.slice(1))
   const admin = postgres(migration.toString(), { max: 1, prepare: false })
   const phase = process.env.ROLE_PROVISIONING_PHASE ?? 'all'
@@ -110,6 +118,10 @@ async function run(): Promise<void> {
     await ensureExecutionRole(admin, workerRole, decodeURIComponent(worker.password))
     await ensureNoLoginRole(admin, 'openschool_backup')
     await ensureNoLoginRole(admin, 'openschool_emergency')
+    await ensureNoLoginRole(admin, 'openschool_invitation_acceptor')
+    if (migrationRole !== 'postgres') {
+      await admin.unsafe(`grant openschool_invitation_acceptor to ${migrationRole}`)
+    }
 
     if (phase === 'identities') {
       console.log(
@@ -145,18 +157,22 @@ async function run(): Promise<void> {
       to ${runtimeRole}
     `)
     await admin.unsafe(`grant select, insert, update on account_sessions to ${runtimeRole}`)
+    await admin.unsafe(`grant select, insert, update on account_invitations to ${runtimeRole}`)
+    await admin.unsafe(`grant insert on invitation_delivery_outbox to ${runtimeRole}`)
     await admin.unsafe(`grant insert, update, delete on students to ${runtimeRole}`)
     await admin.unsafe(`grant select, insert on audit_events, audit_outbox to ${runtimeRole}`)
 
-    await admin.unsafe(`grant select on tenant_placements, students, audit_outbox to ${workerRole}`)
+    await admin.unsafe(
+      `grant select on tenant_placements, students, audit_outbox, account_invitations, invitation_delivery_outbox to ${workerRole}`
+    )
     await admin.unsafe(`grant select, insert on audit_events to ${workerRole}`)
     await admin.unsafe(`grant update on audit_outbox to ${workerRole}`)
+    await admin.unsafe(`grant update on invitation_delivery_outbox to ${workerRole}`)
 
-    if (migrationRole !== 'postgres' && !ROLE_NAME.test(migrationRole)) {
-      throw new Error('Role provisioning refused: migration role name must be safe.')
-    }
     for (const executionRole of [runtimeRole, workerRole]) {
-      await admin.unsafe(`revoke openschool_backup, openschool_emergency from ${executionRole}`)
+      await admin.unsafe(
+        `revoke openschool_backup, openschool_emergency, openschool_invitation_acceptor from ${executionRole}`
+      )
       if (migrationRole !== 'postgres') {
         await admin.unsafe(`revoke ${migrationRole} from ${executionRole}`)
       }
