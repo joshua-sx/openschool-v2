@@ -52,7 +52,7 @@ flowchart LR
   Q -->|"transaction-scoped adapter"| D["PostgreSQL runtime role and RLS"]
   Q -->|"atomic event/outbox"| A["Audit and job pipeline"]
   Q --> F["Tenant-keyed files, cache, search, export"]
-  O["Control plane"] -->|"placement only"| C
+  O["Control plane"] -->|"isolated lifecycle function"| D
   S["Support grant"] --> C
 ```
 
@@ -86,6 +86,8 @@ Every arrow is a validation seam. Browser selectors, JWT payloads before verific
 | T22 | Dependency/CI compromise steals secrets | platform compromise | least-privilege CI, pinned actions/images, secret scanning, provenance, rotation | supply-chain controls |
 | T23 | Denial-of-service through expensive hierarchical RLS | availability loss | closure tables, tenant-leading/indexed policy columns, query limits, plan regression tests | representative EXPLAIN/load tests |
 | T24 | School transfer changes historical record visibility | integrity/disclosure | effective-dated governance and record context, privileged migration | historical access tests |
+| T25 | Platform role becomes an implicit Tenant data bypass | national-scale disclosure | global grant store, Person-free policy context, no-table control-plane login, separate support grants | role and real-login negative tests |
+| T26 | Tenant suspension races an admitted request or worker | post-suspension access | shared Tenant row lock on admission; conflicting lifecycle update; current status check | concurrent runtime/worker proof |
 
 ## Known residual risks
 

@@ -33,6 +33,8 @@ Onboarding is a state machine rather than an auth callback side effect. Schools 
 
 The invitation slice is implemented by migration 0016, the invitation services/router, a durable encrypted delivery adapter, the acceptance page, and the guarded PostgreSQL proof. Its private function is owned by a dedicated `NOLOGIN`, `NOBYPASSRLS` role so forced RLS does not depend on a superuser migration owner. Known-invitation denials are redacted Tenant audit events; invalid random tokens remain aggregate security telemetry because no Tenant can be derived safely.
 
+Platform Tenant suspension is implemented by migration 0023, a global maximum-90-day access-grant store, a distinct no-table-access control-plane login, separate `NOLOGIN` resolver and lifecycle owners, a Person-free platform Policy Context, and an atomic Tenant/audit/invalidation transaction. Runtime and worker transactions lock the Tenant status anchor, so a suspension waits for admitted work and denies every later transaction. This authority does not provide support access to Tenant records.
+
 ## Migration path and rollback
 
 Disable production open sign-up before onboarding real users. Add invitation and session-version records, migrate existing development Accounts as explicitly accepted fixtures, then enforce MFA by privilege tier. Rollback can pause new invitations but must preserve revocations and audit evidence.
