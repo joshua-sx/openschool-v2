@@ -170,6 +170,16 @@ async function loadAuthorizedSchools(
   return [...unique.values()].slice(0, schoolId ? 1 : MAX_ACCESSIBLE_SCHOOLS)
 }
 
+export async function getAccessibleSchoolsInTransaction(
+  db: DatabaseTransaction,
+  context: PolicyContext,
+  decision: AllowedPolicyDecision,
+  expectedCapability: Capability,
+  schoolId?: string
+): Promise<School[]> {
+  return loadAuthorizedSchools(db, context, decision, expectedCapability, schoolId)
+}
+
 /** Lists Schools through the exact constraints returned by the Policy Decision. */
 export async function getAccessibleSchools(
   databaseContext: TenantDatabaseContext,

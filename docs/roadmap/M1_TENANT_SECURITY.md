@@ -54,4 +54,4 @@ flowchart TD
 
 - #100 invitation-only onboarding: implementation candidate complete; live PostgreSQL/CI and review evidence required before closure.
 - #101 privileged MFA and immediate revocation: implementation candidate complete, including Tenant administrator Account/session/MFA/Affiliation/role controls, isolated platform Tenant suspension/reactivation, and durable provider MFA reconciliation; clean live PostgreSQL/CI and review evidence are required before closure.
-- #102 tenant-approved support and break-glass access: not started and remains blocking.
+- #102 tenant-approved support and break-glass access: implementation candidate complete, including Person-free grant-bound context, exact-scope read diagnostics, separate break-glass authority, visible Tenant/operator workflows, durable notifications, expiry/delivery worker seams, and a guarded PostgreSQL proof; clean live PostgreSQL/CI, external provider/scheduler rehearsal, and review evidence are required before closure.

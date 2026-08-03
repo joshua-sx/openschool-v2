@@ -7,6 +7,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   Settings,
+  ShieldCheck,
   Users,
 } from 'lucide-react'
 import Link from 'next/link'
@@ -23,8 +24,17 @@ const navigation = [
 
 const secondaryNavigation = [{ name: 'Settings', href: '/settings/security', icon: Settings }]
 
-export function Sidebar() {
+export function Sidebar({ roleTemplateKeys = [] }: { roleTemplateKeys?: readonly string[] }) {
   const pathname = usePathname()
+  const canManageSupport = roleTemplateKeys.some((role) =>
+    ['org_admin', 'school_admin'].includes(role)
+  )
+  const visibleSecondaryNavigation = canManageSupport
+    ? [
+        ...secondaryNavigation,
+        { name: 'Support access', href: '/settings/support-access', icon: ShieldCheck },
+      ]
+    : secondaryNavigation
 
   return (
     <aside
@@ -65,7 +75,7 @@ export function Sidebar() {
 
       {/* Secondary Navigation */}
       <div className="px-3 py-4 border-t border-gray-200">
-        {secondaryNavigation.map((item) => {
+        {visibleSecondaryNavigation.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
           return (
             <Link
