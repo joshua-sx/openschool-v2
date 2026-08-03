@@ -35,13 +35,24 @@ interface RevocationRow extends Record<string, unknown> {
   membershipVersion: number | string
   securityVersion: number | string
   affectedSessionCount: number | string
-  occurredAt: Date
+  occurredAt: Date | string
 }
 
 function positiveVersion(name: string, value: number | string): number {
   const parsed = Number(value)
   if (!Number.isSafeInteger(parsed) || parsed < 1) {
     throw new Error(`IDENTITY_REVOCATION_${name}_INVALID`)
+  }
+  return parsed
+}
+
+function revocationTime(value: unknown): Date {
+  if (!(value instanceof Date) && (typeof value !== 'string' || value.trim().length === 0)) {
+    throw new Error('IDENTITY_REVOCATION_TIME_INVALID')
+  }
+  const parsed = value instanceof Date ? new Date(value.getTime()) : new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error('IDENTITY_REVOCATION_TIME_INVALID')
   }
   return parsed
 }
@@ -78,14 +89,12 @@ export async function applyIdentityRevocation(
   return Object.freeze(
     rows.map((row) => {
       const affectedSessionCount = Number(row.affectedSessionCount)
+      const occurredAt = revocationTime(row.occurredAt)
       if (!UUID.test(row.affectedAccountId)) {
         throw new Error('IDENTITY_REVOCATION_ACCOUNT_INVALID')
       }
       if (!Number.isSafeInteger(affectedSessionCount) || affectedSessionCount < 0) {
         throw new Error('IDENTITY_REVOCATION_SESSION_COUNT_INVALID')
-      }
-      if (!(row.occurredAt instanceof Date) || Number.isNaN(row.occurredAt.getTime())) {
-        throw new Error('IDENTITY_REVOCATION_TIME_INVALID')
       }
       return Object.freeze({
         affectedAccountId: row.affectedAccountId,
@@ -93,7 +102,7 @@ export async function applyIdentityRevocation(
         membershipVersion: positiveVersion('MEMBERSHIP_VERSION', row.membershipVersion),
         securityVersion: positiveVersion('SECURITY_VERSION', row.securityVersion),
         affectedSessionCount,
-        occurredAt: row.occurredAt,
+        occurredAt,
       })
     })
   )
