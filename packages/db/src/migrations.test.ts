@@ -122,8 +122,8 @@ describe('database migration baseline', () => {
     const identityMismatch = migration.indexOf(
       'IF invitation.identity_provider <> verified_identity_provider'
     )
-    const eligibilityLock = migration.indexOf(
-      'PERFORM 1\n\tFROM public.account_invitations AS candidate'
+    const eligibilityLock = migration.search(
+      /PERFORM\s+1\s+FROM\s+public\.account_invitations\s+AS\s+candidate/
     )
     assert.ok(invitationRead >= 0 && invitationRead < identityMismatch)
     assert.ok(identityMismatch < eligibilityLock)
@@ -180,5 +180,36 @@ describe('database migration baseline', () => {
     ]) {
       assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
     }
+  })
+
+  it('hardens invitation integrity and throttles unaffiliated acceptance', () => {
+    const integrityMigration = readFileSync(
+      join(migrationsDirectory, '0020_reflective_nuke.sql'),
+      'utf8'
+    )
+    const acceptancePolicyMigration = readFileSync(
+      join(migrationsDirectory, '0021_gray_vance_astro.sql'),
+      'utf8'
+    )
+    for (const expected of [
+      'account_invitations_affiliation_kind_check',
+      'jsonb_array_length("account_invitations"."role_template_keys") = 1',
+      'invitation_delivery_status_evidence_check',
+      '"encryption_key_id" IS NOT NULL',
+      'invitation.intended_email = "invitation_delivery_outbox"."recipient_email"',
+      'ALTER TABLE "invitation_acceptance_rate_limits" FORCE ROW LEVEL SECURITY',
+      'consume_invitation_acceptance_rate_limit',
+      'current_attempt_count <= 10',
+      'REVOKE UPDATE ON TABLE public.account_invitations',
+      'app.invitation_token_hash',
+    ]) {
+      assert.equal(
+        integrityMigration.includes(expected),
+        true,
+        `integrity migration must include ${expected}`
+      )
+    }
+    assert.equal(acceptancePolicyMigration.includes('app.invitation_token_hash'), true)
+    assert.equal(acceptancePolicyMigration.includes('app.tenant_id'), true)
   })
 })

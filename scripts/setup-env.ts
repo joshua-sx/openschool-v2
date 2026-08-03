@@ -30,7 +30,7 @@ function setup(): void {
   copyFileSync(examplePath, localPath)
   console.log('Created .env.local from .env.example.')
   console.log(
-    'Replace the Supabase URL and publishable-key placeholders, then run `bun run env:check`.'
+    'Replace the Supabase and invitation-encryption placeholders, then run `bun run env:check`.'
   )
 }
 

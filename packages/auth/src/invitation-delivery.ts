@@ -8,11 +8,16 @@ import {
   withWorkerTenantTransaction,
 } from '@openschool/db'
 import { createClient } from '@supabase/supabase-js'
-import { openInvitationToken } from './invitation-token'
+import {
+  type SealedInvitationToken,
+  createInvitationContinuation,
+  openInvitationToken,
+} from './invitation-token'
 
 const MAX_DELIVERY_ATTEMPTS = 5
 
 export interface InvitationDeliveryRequest {
+  idempotencyKey: string
   recipientEmail: string
   redirectTo: string
   existingProviderSubject: string | null
@@ -71,13 +76,10 @@ export function resolveInvitationDeliveryCompletionTime(clock: () => Date, claim
   return completedAt < claimedAt ? claimedAt : completedAt
 }
 
-function deliveryRedirect(appOrigin: string, token: string): string {
-  const callback = new URL('/auth/callback', appOrigin)
-  callback.searchParams.set('next', '/auth/invitation')
-  // URI fragments are preserved by the browser across the callback redirect
-  // but never sent in HTTP request targets or application access logs.
-  callback.hash = new URLSearchParams({ invitation_token: token }).toString()
-  return callback.toString()
+function confirmationRedirect(appOrigin: string, continuation: string): string {
+  const confirmation = new URL('/auth/confirm', appOrigin)
+  confirmation.searchParams.set('invitation_continuation', continuation)
+  return confirmation.toString()
 }
 
 async function deliverOne(
@@ -112,27 +114,30 @@ async function deliverOne(
     ) {
       throw new Error('INVITATION_DELIVERY_CREDENTIAL_MISSING')
     }
-    const token = openInvitationToken(
-      {
-        encryptionKeyId: claimed.delivery.encryptionKeyId,
-        tokenCiphertext: claimed.delivery.tokenCiphertext,
-        tokenIv: claimed.delivery.tokenIv,
-        tokenAuthTag: claimed.delivery.tokenAuthTag,
-      },
-      {
-        tenantId: claimed.delivery.tenantId,
-        invitationId: claimed.delivery.invitationId,
-        deliveryId: claimed.delivery.id,
-      },
-      {
-        activeKeyId: keyring.INVITATION_TOKEN_ENCRYPTION_KEY_ID,
-        keys: keyring.INVITATION_TOKEN_ENCRYPTION_KEYS,
-      }
-    )
+    const sealed: SealedInvitationToken = {
+      encryptionKeyId: claimed.delivery.encryptionKeyId,
+      tokenCiphertext: claimed.delivery.tokenCiphertext,
+      tokenIv: claimed.delivery.tokenIv,
+      tokenAuthTag: claimed.delivery.tokenAuthTag,
+    }
+    const tokenContext = {
+      tenantId: claimed.delivery.tenantId,
+      invitationId: claimed.delivery.invitationId,
+      deliveryId: claimed.delivery.id,
+    }
+    const invitationKeyring = {
+      activeKeyId: keyring.INVITATION_TOKEN_ENCRYPTION_KEY_ID,
+      keys: keyring.INVITATION_TOKEN_ENCRYPTION_KEYS,
+    }
+    // Authenticate the ciphertext before asking the provider to send it. The
+    // callback later opens the same encrypted continuation after OTP proof.
+    openInvitationToken(sealed, tokenContext, invitationKeyring)
+    const continuation = createInvitationContinuation(sealed, tokenContext)
     failureCode = 'PROVIDER_DELIVERY_FAILED'
     await adapter.deliver({
+      idempotencyKey: claimed.delivery.id,
       recipientEmail: claimed.delivery.recipientEmail,
-      redirectTo: deliveryRedirect(getPublicEnv().NEXT_PUBLIC_APP_URL, token),
+      redirectTo: confirmationRedirect(getPublicEnv().NEXT_PUBLIC_APP_URL, continuation),
       existingProviderSubject: claimed.invitation.intendedProviderSubject,
       expiresAt: claimed.invitation.expiresAt,
     })

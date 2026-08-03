@@ -176,7 +176,7 @@ export function parseInvitationDeliveryEnv(
     )
   }
 
-  const keys: Record<string, string> = {}
+  const keys: Record<string, string> = Object.create(null)
   for (const [keyId, key] of Object.entries(parsed)) {
     if (
       !ENCRYPTION_KEY_ID.test(keyId) ||
@@ -190,7 +190,7 @@ export function parseInvitationDeliveryEnv(
     }
     keys[keyId] = key
   }
-  if (!keys[activeKeyId]) {
+  if (!Object.hasOwn(keys, activeKeyId)) {
     throw new EnvironmentValidationError(
       'INVITATION_TOKEN_ENCRYPTION_KEY_ID',
       'must identify a key present in INVITATION_TOKEN_ENCRYPTION_KEYS'
@@ -206,6 +206,8 @@ export function parseSupabaseAdminEnv(
   source: EnvironmentSource
 ): Readonly<SupabaseAdminEnvironment> {
   const secretKey = requireValue(source, 'SUPABASE_SECRET_KEY')
+  // Three dot-separated segments support legacy Supabase service-role JWTs;
+  // this is format validation, not token signature verification.
   if (
     /replace[_-]?with|your[_-]?project/i.test(secretKey) ||
     (!secretKey.startsWith('sb_secret_') && secretKey.split('.').length !== 3)

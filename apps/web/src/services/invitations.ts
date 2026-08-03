@@ -7,7 +7,6 @@ import {
 } from '@openschool/auth/server'
 import { getInvitationDeliveryEnv } from '@openschool/config/server'
 import {
-  type AccountInvitation,
   type DatabaseTransaction,
   type TenantDatabaseContext,
   accountInvitations,
@@ -68,6 +67,15 @@ export interface IssuedAccountInvitation {
   deliveryId: string
   expiresAt: Date
   status: 'pending'
+}
+
+export interface CancelledAccountInvitation {
+  id: string
+  tenantId: string
+  personId: string
+  status: 'pending' | 'accepted' | 'cancelled' | 'expired'
+  cancelledAt: Date | null
+  cancellationReason: string | null
 }
 
 const ROLE_SCOPE: Readonly<Record<InvitationRoleTemplateKey, InvitationScope['type']>> = {
@@ -358,7 +366,7 @@ export async function cancelAccountInvitation(
   invitationId: string,
   reason: string,
   at = new Date()
-): Promise<AccountInvitation> {
+): Promise<CancelledAccountInvitation> {
   assertDatabasePolicyContext(databaseContext, context)
   if (decision.capability !== CAPABILITIES.ACCOUNTS_MANAGE) {
     invitationDenied('INVITATION_CAPABILITY_MISMATCH')
@@ -397,8 +405,20 @@ export async function cancelAccountInvitation(
             cancellationReason,
             updatedAt: at,
           })
-          .where(eq(accountInvitations.id, invitationId))
-          .returning()
+          .where(
+            and(
+              eq(accountInvitations.tenantId, databaseContext.tenantId),
+              eq(accountInvitations.id, invitationId)
+            )
+          )
+          .returning({
+            id: accountInvitations.id,
+            tenantId: accountInvitations.tenantId,
+            personId: accountInvitations.personId,
+            status: accountInvitations.status,
+            cancelledAt: accountInvitations.cancelledAt,
+            cancellationReason: accountInvitations.cancellationReason,
+          })
         if (!cancelled) throw new TRPCError({ code: 'CONFLICT', message: 'INVITATION_CHANGED' })
         await appendAuditEventInTransaction(tx, databaseContext, context, decision, {
           eventType: 'account.manage',

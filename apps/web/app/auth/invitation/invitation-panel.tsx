@@ -42,7 +42,7 @@ export function InvitationPanel() {
   }, [acceptance, token])
 
   const retry = () => {
-    if (!token) return
+    if (!token || acceptance.isPending) return
     setState('loading')
     acceptance.mutate({ token })
   }
@@ -110,6 +110,7 @@ export function InvitationPanel() {
               <button
                 type="button"
                 onClick={retry}
+                disabled={acceptance.isPending}
                 className="mt-8 inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-border-dark px-4 py-2.5 text-sm font-semibold text-text-primary hover:bg-surface-secondary focus-visible:outline-2 focus-visible:outline-offset-2"
               >
                 Try again

@@ -188,16 +188,18 @@ describe('server environment validation', () => {
 
   it('validates a rotatable invitation-token encryption keyring', () => {
     const key = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
-    assert.deepEqual(
-      parseInvitationDeliveryEnv({
-        INVITATION_TOKEN_ENCRYPTION_KEY_ID: 'local-v1',
-        INVITATION_TOKEN_ENCRYPTION_KEYS: JSON.stringify({ 'local-v1': key }),
-      }),
-      {
-        INVITATION_TOKEN_ENCRYPTION_KEY_ID: 'local-v1',
-        INVITATION_TOKEN_ENCRYPTION_KEYS: { 'local-v1': key },
-      }
-    )
+    const environment = parseInvitationDeliveryEnv({
+      INVITATION_TOKEN_ENCRYPTION_KEY_ID: 'local-v1',
+      INVITATION_TOKEN_ENCRYPTION_KEYS: JSON.stringify({ 'local-v1': key }),
+    })
+    assert.equal(environment.INVITATION_TOKEN_ENCRYPTION_KEY_ID, 'local-v1')
+    assert.equal(environment.INVITATION_TOKEN_ENCRYPTION_KEYS['local-v1'], key)
+    assert.equal(Object.getPrototypeOf(environment.INVITATION_TOKEN_ENCRYPTION_KEYS), null)
+    const prototypeNamedKeyring = parseInvitationDeliveryEnv({
+      INVITATION_TOKEN_ENCRYPTION_KEY_ID: '__proto__',
+      INVITATION_TOKEN_ENCRYPTION_KEYS: `{"__proto__":"${key}"}`,
+    })
+    assert.equal(prototypeNamedKeyring.INVITATION_TOKEN_ENCRYPTION_KEYS.__proto__, key)
     assert.throws(
       () =>
         parseInvitationDeliveryEnv({
@@ -224,6 +226,13 @@ describe('server environment validation', () => {
       () => parseSupabaseAdminEnv({ SUPABASE_SECRET_KEY: 'sb_secret_replace_with_project_key' }),
       /must be a server-only Supabase secret key/
     )
+    assert.throws(
+      () => parseSupabaseAdminEnv({ SUPABASE_SECRET_KEY: 'anon-key' }),
+      /must be a server-only Supabase secret key/
+    )
+    assert.deepEqual(parseSupabaseAdminEnv({ SUPABASE_SECRET_KEY: 'header.payload.signature' }), {
+      SUPABASE_SECRET_KEY: 'header.payload.signature',
+    })
   })
 
   it('allows open signup only through an explicit non-production override', () => {

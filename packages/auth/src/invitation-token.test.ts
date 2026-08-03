@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
+  createInvitationContinuation,
   generateInvitationToken,
   hashInvitationToken,
   normalizeInvitationEmail,
+  openInvitationContinuation,
   openInvitationToken,
   sealInvitationToken,
 } from './invitation-token'
@@ -37,8 +39,27 @@ describe('invitation token security', () => {
     )
   })
 
+  it('carries only encrypted invitation material through the identity-provider redirect', () => {
+    const token = generateInvitationToken()
+    const sealed = sealInvitationToken(token, context, keyring)
+    const continuation = createInvitationContinuation(sealed, context)
+    assert.equal(continuation.includes(token), false)
+    assert.deepEqual(openInvitationContinuation(continuation, keyring), { token, context })
+    const decoded = JSON.parse(Buffer.from(continuation, 'base64url').toString('utf8'))
+    decoded.i = crypto.randomUUID()
+    const tampered = Buffer.from(JSON.stringify(decoded), 'utf8').toString('base64url')
+    assert.throws(
+      () => openInvitationContinuation(tampered, keyring),
+      /authenticate data|unable to authenticate/i
+    )
+  })
+
   it('rejects malformed tokens, email addresses, and unknown encryption keys', () => {
     assert.throws(() => hashInvitationToken('raw-token'), /INVITATION_TOKEN_INVALID/)
+    assert.throws(
+      () => openInvitationContinuation('not-a-continuation', keyring),
+      /INVITATION_CONTINUATION_INVALID/
+    )
     assert.throws(() => normalizeInvitationEmail('not-an-email'), /INVITATION_EMAIL_INVALID/)
     assert.equal(normalizeInvitationEmail(' Admin@School.Test '), 'admin@school.test')
     const sealed = sealInvitationToken(generateInvitationToken(), context, keyring)

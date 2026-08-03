@@ -1,4 +1,9 @@
-import { InvitationAcceptanceError, acceptAccountInvitation } from '@openschool/auth/server'
+import {
+  InvitationAcceptanceError,
+  InvitationAcceptanceRateLimitError,
+  acceptAccountInvitation,
+  enforceInvitationAcceptanceRateLimit,
+} from '@openschool/auth/server'
 import { CAPABILITIES } from '@openschool/rbac'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
@@ -18,18 +23,18 @@ const scope = z.discriminatedUnion('type', [
   z.object({ type: z.literal('tenant') }),
   z.object({
     type: z.literal('education_organization'),
-    educationOrganizationId: z.string().uuid(),
+    educationOrganizationId: z.uuid(),
   }),
-  z.object({ type: z.literal('school'), schoolId: z.string().uuid() }),
-  z.object({ type: z.literal('class'), classId: z.string().uuid() }),
+  z.object({ type: z.literal('school'), schoolId: z.uuid() }),
+  z.object({ type: z.literal('class'), classId: z.uuid() }),
 ])
 
 export const invitationsRouter = router({
   issue: protectedProcedure(CAPABILITIES.ACCOUNTS_INVITE)
     .input(
       z.object({
-        personId: z.string().uuid(),
-        intendedEmail: z.string().email().max(320),
+        personId: z.uuid(),
+        intendedEmail: z.email().max(320),
         affiliationKind: z.enum([
           'student',
           'guardian',
@@ -51,7 +56,7 @@ export const invitationsRouter = router({
   cancel: protectedProcedure(CAPABILITIES.ACCOUNTS_MANAGE)
     .input(
       z.object({
-        invitationId: z.string().uuid(),
+        invitationId: z.uuid(),
         reason: z.string().trim().min(3).max(512),
       })
     )
@@ -68,8 +73,16 @@ export const invitationsRouter = router({
     .input(z.object({ token: z.string().min(50).max(64) }))
     .mutation(async ({ ctx, input }) => {
       try {
+        await enforceInvitationAcceptanceRateLimit(ctx.identity)
         return await acceptAccountInvitation(ctx.identity, input.token)
       } catch (error) {
+        if (error instanceof InvitationAcceptanceRateLimitError) {
+          throw new TRPCError({
+            code: 'TOO_MANY_REQUESTS',
+            message: error.message,
+            cause: error,
+          })
+        }
         if (error instanceof InvitationAcceptanceError) {
           throw new TRPCError({
             code:

@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict'
 import {
   InvitationAcceptanceError,
+  InvitationAcceptanceRateLimitError,
   type InvitationDeliveryAdapter,
   type VerifiedAccountIdentity,
   acceptAccountInvitation,
+  enforceInvitationAcceptanceRateLimit,
   generateInvitationToken,
   hashInvitationToken,
+  openInvitationContinuation,
   openInvitationToken,
   processInvitationDeliveryBatch,
 } from '@openschool/auth/server'
@@ -193,6 +196,21 @@ async function runProof(): Promise<void> {
     assert.equal(acceptorRole?.bypassesRls, false)
     assert.equal(acceptorRole?.functionOwner, 'openschool_invitation_acceptor')
 
+    const rateLimitedIdentity = verifiedIdentity(emailFor('rate-limit'), 'rate-limit', now)
+    for (let attempt = 1; attempt <= 10; attempt += 1) {
+      await enforceInvitationAcceptanceRateLimit(
+        rateLimitedIdentity,
+        `invitation-poc-${RUN_ID}-rate-limit-${attempt}`
+      )
+    }
+    await assert.rejects(
+      enforceInvitationAcceptanceRateLimit(
+        rateLimitedIdentity,
+        `invitation-poc-${RUN_ID}-rate-limit-blocked`
+      ),
+      InvitationAcceptanceRateLimitError
+    )
+
     await admin.insert(accountSessions).values({
       accountId: ADMIN_ACCOUNT,
       providerSessionId: ADMIN_SESSION,
@@ -212,6 +230,26 @@ async function runProof(): Promise<void> {
         normalizedEmail: emails[suffix as keyof typeof emails],
         source: 'native' as const,
       }))
+    )
+
+    await assert.rejects(
+      admin.insert(accountInvitations).values({
+        id: crypto.randomUUID(),
+        tenantId: TENANT_A,
+        personId: personIds.approvalDenied,
+        intendedEmail: emails.approvalDenied,
+        tokenHash: hashInvitationToken(generateInvitationToken()),
+        affiliationKind: 'guardian',
+        scopeType: 'school',
+        schoolId: SCHOOL_A,
+        roleTemplateKeys: ['student'],
+        expiresAt,
+        issuedByAccountId: ADMIN_ACCOUNT,
+        issuanceReason: 'Database role-to-affiliation denial proof',
+        createdAt: now,
+        updatedAt: now,
+      }),
+      /account_invitations_roles_check/
     )
 
     const approvalDeniedRequestId = `invitation-poc-${RUN_ID}-approval-denied`
@@ -273,6 +311,7 @@ async function runProof(): Promise<void> {
     let deliveredRedirect: string | undefined
     const adapter: InvitationDeliveryAdapter = {
       async deliver(request) {
+        assert.equal(request.idempotencyKey, success.deliveryId)
         assert.equal(request.recipientEmail, emails.success)
         deliveredRedirect = request.redirectTo
       },
@@ -299,12 +338,14 @@ async function runProof(): Promise<void> {
     assert.equal(terminalDelivery?.tokenIv, null)
     assert.equal(terminalDelivery?.tokenAuthTag, null)
     assert.ok(deliveredRedirect)
-    const next = new URL(deliveredRedirect).searchParams.get('next')
-    assert.equal(next, '/auth/invitation')
-    const successToken = new URLSearchParams(new URL(deliveredRedirect).hash.slice(1)).get(
-      'invitation_token'
-    )
-    assert.ok(successToken)
+    const deliveryRedirect = new URL(deliveredRedirect)
+    assert.equal(deliveryRedirect.pathname, '/auth/confirm')
+    const continuation = deliveryRedirect.searchParams.get('invitation_continuation')
+    assert.ok(continuation)
+    const successToken = openInvitationContinuation(continuation, {
+      activeKeyId: getInvitationDeliveryEnv().INVITATION_TOKEN_ENCRYPTION_KEY_ID,
+      keys: getInvitationDeliveryEnv().INVITATION_TOKEN_ENCRYPTION_KEYS,
+    }).token
     assert.equal(hashInvitationToken(successToken), storedInvitation.tokenHash)
 
     const successIdentity = verifiedIdentity(emails.success, 'success', now)
@@ -422,6 +463,19 @@ async function runProof(): Promise<void> {
       createdAt: now,
       updatedAt: now,
     })
+    await assert.rejects(
+      admin.insert(invitationDeliveryOutbox).values({
+        id: poisonDeliveryId,
+        tenantId: TENANT_A,
+        invitationId: poisonInvitationId,
+        recipientEmail: emails.deliveryPoison,
+        status: 'pending',
+        availableAt: now,
+        createdAt: now,
+        updatedAt: now,
+      }),
+      /invitation_delivery_encryption_check/
+    )
     await admin.insert(invitationDeliveryOutbox).values({
       id: poisonDeliveryId,
       tenantId: TENANT_A,
@@ -647,14 +701,23 @@ async function runProof(): Promise<void> {
       updatedAt: now,
     })
     const rollbackIdentity = verifiedIdentity(emails.rollback, 'rollback', now)
+    await admin.insert(accountSessions).values({
+      accountId: ADMIN_ACCOUNT,
+      providerSessionId: rollbackIdentity.sessionId,
+      status: 'active',
+      assuranceLevel: 'aal1',
+      securityVersion: 1,
+      authenticatedAt: now,
+      expiresAt,
+    })
     await expectAcceptanceReason(
       acceptAccountInvitation(
         rollbackIdentity,
         rollbackToken,
         `invitation-poc-${RUN_ID}-rollback`,
-        new Date(Number.NaN)
+        now
       ),
-      'INVITATION_INVALID'
+      'INVITATION_ACCOUNT_CONFLICT'
     )
     assert.equal(
       (

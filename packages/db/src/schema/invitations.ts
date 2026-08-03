@@ -7,6 +7,7 @@ import {
   jsonb,
   pgPolicy,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -140,15 +141,21 @@ export const accountInvitations = pgTable(
     check(
       'account_invitations_roles_check',
       sql`jsonb_typeof(${table.roleTemplateKeys}) = 'array'
-          AND jsonb_array_length(${table.roleTemplateKeys}) BETWEEN 1 AND 8
+          AND jsonb_array_length(${table.roleTemplateKeys}) = 1
           AND NOT jsonb_path_exists(${table.roleTemplateKeys}, '$[*] ? (@.type() != "string")')
-          AND ${table.roleTemplateKeys} <@ '["org_admin", "org_viewer", "school_admin", "staff", "teacher", "parent", "student"]'::jsonb
           AND (
-            (${table.scopeType} = 'tenant' AND ${table.roleTemplateKeys} <@ '["parent"]'::jsonb)
-            OR (${table.scopeType} = 'education_organization' AND ${table.roleTemplateKeys} <@ '["org_admin", "org_viewer"]'::jsonb)
-            OR (${table.scopeType} = 'school' AND ${table.roleTemplateKeys} <@ '["school_admin", "staff", "parent", "student"]'::jsonb)
-            OR (${table.scopeType} = 'class' AND ${table.roleTemplateKeys} <@ '["teacher"]'::jsonb)
+            (${table.scopeType} = 'education_organization' AND ${table.affiliationKind} = 'administrator' AND ${table.roleTemplateKeys} = '["org_admin"]'::jsonb)
+            OR (${table.scopeType} = 'education_organization' AND ${table.affiliationKind} = 'member' AND ${table.roleTemplateKeys} = '["org_viewer"]'::jsonb)
+            OR (${table.scopeType} = 'school' AND ${table.affiliationKind} = 'administrator' AND ${table.roleTemplateKeys} = '["school_admin"]'::jsonb)
+            OR (${table.scopeType} = 'school' AND ${table.affiliationKind} = 'employee' AND ${table.roleTemplateKeys} = '["staff"]'::jsonb)
+            OR (${table.scopeType} = 'school' AND ${table.affiliationKind} = 'guardian' AND ${table.roleTemplateKeys} = '["parent"]'::jsonb)
+            OR (${table.scopeType} = 'school' AND ${table.affiliationKind} = 'student' AND ${table.roleTemplateKeys} = '["student"]'::jsonb)
+            OR (${table.scopeType} = 'class' AND ${table.affiliationKind} = 'teacher' AND ${table.roleTemplateKeys} = '["teacher"]'::jsonb)
           )`
+    ),
+    check(
+      'account_invitations_affiliation_kind_check',
+      sql`${table.affiliationKind} IN ('student', 'guardian', 'employee', 'teacher', 'administrator', 'member')`
     ),
     check(
       'account_invitations_period_check',
@@ -229,6 +236,7 @@ export const accountInvitations = pgTable(
       using: sql`
         session_user = 'openschool_runtime'
         AND current_user = 'openschool_invitation_acceptor'
+        AND ${table.tokenHash} = nullif(current_setting('app.invitation_token_hash', true), '')
       `,
     }),
     pgPolicy('account_invitations_acceptance_update', {
@@ -237,6 +245,8 @@ export const accountInvitations = pgTable(
       using: sql`
         session_user = 'openschool_runtime'
         AND current_user = 'openschool_invitation_acceptor'
+        AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND ${table.tokenHash} = nullif(current_setting('app.invitation_token_hash', true), '')
         AND ${table.status} = 'pending'
         AND ${table.expiresAt} > now()
         AND ${table.identityProvider} = nullif(current_setting('app.identity_provider', true), '')
@@ -249,6 +259,8 @@ export const accountInvitations = pgTable(
       withCheck: sql`
         session_user = 'openschool_runtime'
         AND current_user = 'openschool_invitation_acceptor'
+        AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND ${table.tokenHash} = nullif(current_setting('app.invitation_token_hash', true), '')
         AND ${table.status} = 'accepted'
         AND ${table.acceptedProviderSubject} = nullif(current_setting('app.provider_subject', true), '')
         AND EXISTS (
@@ -309,10 +321,14 @@ export const invitationDeliveryOutbox = pgTable(
       'invitation_delivery_encryption_check',
       sql`(
             ${table.status} IN ('pending', 'processing', 'failed')
+            AND ${table.encryptionKeyId} IS NOT NULL
             AND ${table.encryptionKeyId} ~ '^[A-Za-z0-9_.-]{1,64}$'
+            AND ${table.tokenCiphertext} IS NOT NULL
             AND ${table.tokenCiphertext} ~ '^[A-Za-z0-9_-]+$'
             AND char_length(${table.tokenCiphertext}) BETWEEN 16 AND 1024
+            AND ${table.tokenIv} IS NOT NULL
             AND ${table.tokenIv} ~ '^[A-Za-z0-9_-]{16}$'
+            AND ${table.tokenAuthTag} IS NOT NULL
             AND ${table.tokenAuthTag} ~ '^[A-Za-z0-9_-]{22}$'
           ) OR (
             ${table.status} IN ('delivered', 'dead_letter')
@@ -327,6 +343,14 @@ export const invitationDeliveryOutbox = pgTable(
       'invitation_delivery_status_check',
       sql`${table.status} IN ('pending', 'processing', 'delivered', 'failed', 'dead_letter')`
     ),
+    check(
+      'invitation_delivery_status_evidence_check',
+      sql`(${table.status} = 'pending' AND ${table.attemptCount} = 0 AND ${table.lockedAt} IS NULL AND ${table.deliveredAt} IS NULL AND ${table.lastErrorCode} IS NULL)
+          OR (${table.status} = 'processing' AND ${table.attemptCount} > 0 AND ${table.lockedAt} IS NOT NULL AND ${table.deliveredAt} IS NULL AND ${table.lastErrorCode} IS NULL)
+          OR (${table.status} = 'delivered' AND ${table.attemptCount} > 0 AND ${table.lockedAt} IS NULL AND ${table.deliveredAt} IS NOT NULL AND ${table.lastErrorCode} IS NULL)
+          OR (${table.status} = 'failed' AND ${table.attemptCount} > 0 AND ${table.lockedAt} IS NULL AND ${table.deliveredAt} IS NULL AND ${table.lastErrorCode} ~ '^[A-Z][A-Z0-9_]{2,63}$')
+          OR (${table.status} = 'dead_letter' AND ${table.attemptCount} > 0 AND ${table.lockedAt} IS NULL AND ${table.deliveredAt} IS NULL AND ${table.lastErrorCode} ~ '^[A-Z][A-Z0-9_]{2,63}$')`
+    ),
     pgPolicy('invitation_delivery_runtime_insert', {
       for: 'insert',
       to: 'openschool_runtime',
@@ -337,6 +361,7 @@ export const invitationDeliveryOutbox = pgTable(
           SELECT 1 FROM public.account_invitations AS invitation
           WHERE invitation.tenant_id = ${table.tenantId}
             AND invitation.id = ${table.invitationId}
+            AND invitation.intended_email = ${table.recipientEmail}
             AND invitation.issued_by_account_id = nullif(current_setting('app.account_id', true), '')::uuid
             AND invitation.status = 'pending'
         )
@@ -378,6 +403,44 @@ export const invitationDeliveryOutbox = pgTable(
       for: 'delete',
       to: 'openschool_worker',
       using: sql`false`,
+    }),
+  ]
+).enableRLS()
+
+export const invitationAcceptanceRateLimits = pgTable(
+  'invitation_acceptance_rate_limits',
+  {
+    keyHash: text('key_hash').notNull(),
+    windowStartedAt: timestamp('window_started_at', { withTimezone: true }).notNull(),
+    attemptCount: integer('attempt_count').default(1).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ name: 'invitation_acceptance_rate_limits_pkey', columns: [table.keyHash] }),
+    check('invitation_acceptance_rate_limits_key_check', sql`${table.keyHash} ~ '^[0-9a-f]{64}$'`),
+    check(
+      'invitation_acceptance_rate_limits_count_check',
+      sql`${table.attemptCount} BETWEEN 1 AND 1000000`
+    ),
+    check(
+      'invitation_acceptance_rate_limits_time_check',
+      sql`${table.updatedAt} >= ${table.windowStartedAt}`
+    ),
+    pgPolicy('invitation_acceptance_rate_limits_acceptor_select', {
+      for: 'select',
+      to: 'public',
+      using: sql`session_user = 'openschool_runtime' AND current_user = 'openschool_invitation_acceptor'`,
+    }),
+    pgPolicy('invitation_acceptance_rate_limits_acceptor_insert', {
+      for: 'insert',
+      to: 'public',
+      withCheck: sql`session_user = 'openschool_runtime' AND current_user = 'openschool_invitation_acceptor'`,
+    }),
+    pgPolicy('invitation_acceptance_rate_limits_acceptor_update', {
+      for: 'update',
+      to: 'public',
+      using: sql`session_user = 'openschool_runtime' AND current_user = 'openschool_invitation_acceptor'`,
+      withCheck: sql`session_user = 'openschool_runtime' AND current_user = 'openschool_invitation_acceptor'`,
     }),
   ]
 ).enableRLS()

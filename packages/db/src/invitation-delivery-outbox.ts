@@ -7,7 +7,7 @@ import {
 import type { DatabaseTransaction } from './tenant-transaction'
 
 const ERROR_CODE = /^[A-Z][A-Z0-9_]{2,63}$/
-const DEFAULT_LEASE_DURATION_MS = 60_000
+const DEFAULT_LEASE_DURATION_MS = 5 * 60_000
 const MIN_LEASE_DURATION_MS = 1_000
 const MAX_LEASE_DURATION_MS = 15 * 60_000
 

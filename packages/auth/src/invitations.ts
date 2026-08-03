@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import {
   appendInvitationAcceptanceAudit,
   appendInvitationAcceptanceDenialAudit,
@@ -21,6 +22,13 @@ export class InvitationAcceptanceError extends Error {
   ) {
     super(message)
     this.name = 'InvitationAcceptanceError'
+  }
+}
+
+export class InvitationAcceptanceRateLimitError extends Error {
+  constructor() {
+    super('INVITATION_ACCEPTANCE_RATE_LIMITED')
+    this.name = 'InvitationAcceptanceRateLimitError'
   }
 }
 
@@ -48,6 +56,40 @@ interface AcceptanceRow extends Record<string, unknown> {
   securityVersion: number | string | null
   educationOrganizationId: string | null
   schoolId: string | null
+}
+
+interface RateLimitRow extends Record<string, unknown> {
+  allowed: boolean
+}
+
+function identityTransactionContext(identity: VerifiedAccountIdentity, requestId: string) {
+  return {
+    identityProvider: identity.provider,
+    providerSubject: identity.subject,
+    providerSessionId: identity.sessionId,
+    identityEmail: identity.email?.trim().toLowerCase(),
+    requestId,
+    assuranceLevel: identity.assuranceLevel,
+  }
+}
+
+export async function enforceInvitationAcceptanceRateLimit(
+  identity: VerifiedAccountIdentity,
+  requestId = crypto.randomUUID()
+): Promise<void> {
+  const keyHash = createHash('sha256')
+    .update(JSON.stringify([identity.provider, identity.subject]))
+    .digest('hex')
+  const result = await withIdentityTransaction(
+    identityTransactionContext(identity, requestId),
+    (tx) =>
+      tx.execute<RateLimitRow>(sql`
+        select openschool_private.consume_invitation_acceptance_rate_limit(
+          ${keyHash}
+        ) as "allowed"
+      `)
+  )
+  if (result[0]?.allowed !== true) throw new InvitationAcceptanceRateLimitError()
 }
 
 function mapAcceptanceError(error: unknown): InvitationAcceptanceError {
@@ -152,15 +194,9 @@ export async function acceptAccountInvitation(
 
   try {
     const accepted = await withIdentityTransaction(
-      {
-        identityProvider: identity.provider,
-        providerSubject: identity.subject,
-        providerSessionId: identity.sessionId,
-        identityEmail: identity.email.trim().toLowerCase(),
-        requestId,
-        assuranceLevel: identity.assuranceLevel,
-      },
+      identityTransactionContext(identity, requestId),
       async (tx) => {
+        await tx.execute(sql`select set_config('app.invitation_token_hash', ${tokenHash}, true)`)
         const result = await tx.execute<AcceptanceRow>(sql`
           select
             accepted.acceptance_outcome as "acceptanceOutcome",
