@@ -4,6 +4,7 @@
 - Epic: [#81](https://github.com/joshua-sx/openschool-v2/issues/81)
 - Governing decision package: #68
 - Product state throughout: pre-production; no real school data
+- Closure review: [M1 tenant-security review](../security/M1_SECURITY_REVIEW.md)
 
 ## Dependency graph
 
@@ -67,8 +68,17 @@ flowchart TD
 
 ## Phase 7 status
 
-- #90 full Isolation Matrix: the system-proof candidate orchestrates every implemented M1 boundary,
+- #90 full Isolation Matrix: the merged system proof orchestrates every implemented M1 boundary,
   adds actual tRPC IDOR/error/batch-equivalent evidence, Tenant-bound cache/job/file contracts, a
   wrong-Tenant/RLS-filtered backup detector, and release metadata capture. Its engineering decision
   is scoped to implemented M1 surfaces; disabled product paths and named production approvals stay
   NO-GO.
+
+## Closure status
+
+All stories in #81 are merged. Exact-commit Quality run
+[30827678302](https://github.com/joshua-sx/openschool-v2/actions/runs/30827678302) records
+implemented-M1 GO on PostgreSQL 17.10 for `75aec59`; the production decision remains NO-GO. The
+internal M1 review found no open Critical or High issue and retains target-provider operations,
+cross-node invalidation, production recovery, independent assessment, disabled data paths, and
+named human approvals as production blockers.

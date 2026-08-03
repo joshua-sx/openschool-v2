@@ -1,6 +1,6 @@
 # Invitation-only account onboarding
 
-This runbook covers the first production-shaped onboarding slice. It does not make OpenSchool ready for real school users: privileged MFA and revocation (#101), support/break-glass access (#102), the full Isolation Matrix, operational recovery, and human legal/security approval remain blocking.
+This runbook covers the first production-shaped onboarding slice. Privileged MFA/revocation, support/break-glass, and the implemented-M1 Isolation Matrix are now merged, but OpenSchool is not ready for real school users: target-provider rehearsal, operational recovery, independent review, and named legal/security approval remain blocking.
 
 ## Security model
 
@@ -110,4 +110,4 @@ It proves the non-login/non-bypass acceptor owner, forced-RLS issuance and deliv
 - [ ] The delivery scheduler, dead-letter alert, and provider outage drill pass.
 - [ ] Administrator issue/cancel UX is implemented and accessibility-tested; the current backend API is not sufficient for customer launch.
 - [ ] Invitee acceptance works on mobile, expired/cancelled/replayed links show safe generic recovery guidance, and URLs are scrubbed immediately.
-- [ ] #101 and #102 are complete; invitation onboarding alone is not a privileged-identity launch approval.
+- [x] #101 and #102 code boundaries are complete; invitation onboarding alone is not a privileged-identity launch approval.

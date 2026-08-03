@@ -1,6 +1,6 @@
 # Account, Person, and affiliation foundation
 
-This package implements the additive identity-record foundation governed by ADR-0003 and ADR-0008. It does not yet establish a trusted request context, capability authorization, forced RLS, production invitations, MFA, or the final audit/outbox. Those controls remain blocking work in #84 through #90.
+This package implements the additive identity-record foundation governed by ADR-0003 and ADR-0008. The repository now composes it with verified Request Context, capability authorization, first-slice forced RLS, invitation-only onboarding, MFA/revocation, support access, and atomic audit/outbox controls. Those later boundaries do not remove the staged legacy compatibility or make the platform production-approved.
 
 ## Domain and privacy boundaries
 
@@ -22,7 +22,7 @@ An Account Link, Affiliation, Role Template assignment, or Relationship is curre
 2. `valid_from <= evaluation_time`;
 3. `valid_until IS NULL OR evaluation_time < valid_until`.
 
-Periods are half-open: `[valid_from, valid_until)`. Pending, future, expired, suspended, and revoked rows never authorize. Authorization must evaluate every current affiliation and assignment in the selected Tenant; it must not choose the first row. Story #84 will load these authoritative records into Tenant Request Context, and #85 will convert them into Policy Decisions.
+Periods are half-open: `[valid_from, valid_until)`. Pending, future, expired, suspended, and revoked rows never authorize. Authorization evaluates every current affiliation and assignment in the selected Tenant; it does not choose the first row. The Tenant Request Context and Policy Decision modules load and constrain these authoritative records.
 
 PostgreSQL exclusion constraints reject overlapping active Account Links and duplicate effective assignments for the same identity/scope. Tenant and identity anchor columns are immutable. A grant is ended and replaced instead of being repointed. `identity_migration_events` is append-only and validates that its Account, Person, Tenant, and link agree.
 
@@ -36,7 +36,7 @@ PostgreSQL exclusion constraints reject overlapping active Account Links and dup
 4. increments `accounts.membership_version`;
 5. inserts the matching append-only identity migration event.
 
-Any failure rolls back all five effects. The interim event is deliberately narrow; #88 replaces it with the complete atomic audit/outbox contract without deleting this migration evidence.
+Any failure rolls back all five effects. The interim event remains narrow migration evidence; the merged Audit Ledger adds the complete atomic audit/outbox contract without deleting it.
 
 ## Staged migration
 
@@ -57,7 +57,7 @@ Legacy `users`, `students`, `users_on_org`, `users_on_school`, `teachers_on_clas
 - student profiles to Account Links, proving login is optional;
 - every Account Link Person reference to its Tenant.
 
-Cutover is allowed only after the comparison remains green for the intended environment and #84 provides verified Tenant Request Context. During the comparison window, callers may keep using the legacy read path while the Person directory is exercised in shadow mode.
+Cutover is allowed only after the comparison remains green for the intended environment and verified Tenant Request Context is enabled there. During the comparison window, callers may keep using the legacy read path while the Person directory is exercised in shadow mode.
 
 Rollback switches the read feature flag back to the unchanged legacy path. It does **not** drop new tables, delete migration events, decrement membership versions, or merge People. New rows remain reconciliation evidence for a corrected forward migration. Because this story performs no destructive legacy rewrite, no down migration is required for application rollback.
 

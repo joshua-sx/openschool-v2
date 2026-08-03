@@ -52,4 +52,4 @@ Set `OPENSCHOOL_STUDENT_SLICE_MODE=forced_rls` to expose the slice. `disabled` i
 - positive and negative runtime `SELECT`, `INSERT`, `UPDATE`, and `DELETE`, plus worker read/write limits;
 - representative data volume, use of `students_tenant_school_idx`, and a 1,000 ms CI execution-time budget (53.224 ms in the acceptance run).
 
-The service-level `policy:query-poc` separately proves that application predicates agree with database scope. The complete platform Isolation Matrix remains #90.
+The service-level `policy:query-poc` separately proves that application predicates agree with database scope. The automated Isolation Matrix now composes this proof with the API, identity, audit, privileged-operation, backup, and release-evidence boundaries for every implemented M1 path.

@@ -91,7 +91,7 @@ The proof covers MFA and recent-login denials, atomic rollback of mutation and r
 - [ ] Security invalidation publishing meets the approved latency objective across every application node.
 - [ ] Audit failure, stale-context race, provider outage, and shared-Account recovery drills pass.
 - [x] Platform Tenant suspension has a separate access store, database role, atomic lifecycle authority, and guarded real-role proof.
-- [ ] Story #102 support/break-glass controls are complete.
+- [x] Story #102 support/break-glass has a separate Tenant-approved, purpose-bound, audited path; target-environment operations remain a production gate.
 - [ ] Accessibility testing covers keyboard, screen reader, zoom, mobile, and authenticator recovery flows.
 
 Safe rollback may hide new MFA enrollment UI or pause new lifecycle operations. It must not weaken existing MFA/recent-auth obligations, re-enable direct runtime mutation, ignore local session/version state, delete audit evidence, or accept stale JWT authorization.
