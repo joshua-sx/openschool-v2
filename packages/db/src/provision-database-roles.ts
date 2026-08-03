@@ -1,4 +1,9 @@
-import { getMigrationEnv, getServerEnv, getWorkerEnv } from '@openschool/config/server'
+import {
+  getControlPlaneEnv,
+  getMigrationEnv,
+  getServerEnv,
+  getWorkerEnv,
+} from '@openschool/config/server'
 import postgres from 'postgres'
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]'])
@@ -10,6 +15,8 @@ const RESERVED_EXECUTION_ROLES = new Set([
   'openschool_emergency',
   'openschool_identity_revoker',
   'openschool_invitation_acceptor',
+  'openschool_platform_access_resolver',
+  'openschool_tenant_lifecycle_manager',
 ])
 const PROVISIONING_PHASES = new Set(['all', 'identities', 'grants'])
 
@@ -17,7 +24,12 @@ function databaseIdentity(url: URL): string {
   return `${url.hostname}:${url.port || '5432'}${url.pathname}`
 }
 
-function assertGuardedLocalProvisioning(migration: URL, runtime: URL, worker: URL): void {
+function assertGuardedLocalProvisioning(
+  migration: URL,
+  runtime: URL,
+  worker: URL,
+  controlPlane: URL
+): void {
   if (process.env.ALLOW_ROLE_PROVISIONING !== 'true') {
     throw new Error('Role provisioning refused: ALLOW_ROLE_PROVISIONING must be exactly "true".')
   }
@@ -26,14 +38,20 @@ function assertGuardedLocalProvisioning(migration: URL, runtime: URL, worker: UR
   }
   if (
     databaseIdentity(migration) !== databaseIdentity(runtime) ||
-    databaseIdentity(migration) !== databaseIdentity(worker)
+    databaseIdentity(migration) !== databaseIdentity(worker) ||
+    databaseIdentity(migration) !== databaseIdentity(controlPlane)
   ) {
     throw new Error('Role provisioning refused: all local roles must target the same database.')
   }
-  if (decodeURIComponent(runtime.username) === decodeURIComponent(worker.username)) {
-    throw new Error('Role provisioning refused: runtime and worker roles must be distinct.')
+  if (
+    new Set([runtime.username, worker.username, controlPlane.username].map(decodeURIComponent))
+      .size !== 3
+  ) {
+    throw new Error(
+      'Role provisioning refused: runtime, worker, and control-plane roles must be distinct.'
+    )
   }
-  for (const url of [runtime, worker]) {
+  for (const url of [runtime, worker, controlPlane]) {
     const username = decodeURIComponent(url.username)
     const password = decodeURIComponent(url.password)
     if (
@@ -94,10 +112,12 @@ async function run(): Promise<void> {
   const migration = new URL(getMigrationEnv().DATABASE_MIGRATION_URL)
   const runtime = new URL(environment.DATABASE_RUNTIME_URL)
   const worker = new URL(getWorkerEnv().DATABASE_WORKER_URL)
-  assertGuardedLocalProvisioning(migration, runtime, worker)
+  const controlPlane = new URL(getControlPlaneEnv().DATABASE_CONTROL_PLANE_URL)
+  assertGuardedLocalProvisioning(migration, runtime, worker, controlPlane)
 
   const runtimeRole = decodeURIComponent(runtime.username)
   const workerRole = decodeURIComponent(worker.username)
+  const controlPlaneRole = decodeURIComponent(controlPlane.username)
   const migrationRole = decodeURIComponent(migration.username)
   if (migrationRole !== environment.DATABASE_MIGRATION_ROLE) {
     throw new Error(
@@ -117,25 +137,28 @@ async function run(): Promise<void> {
   try {
     await ensureExecutionRole(admin, runtimeRole, decodeURIComponent(runtime.password))
     await ensureExecutionRole(admin, workerRole, decodeURIComponent(worker.password))
+    await ensureExecutionRole(admin, controlPlaneRole, decodeURIComponent(controlPlane.password))
     await ensureNoLoginRole(admin, 'openschool_backup')
     await ensureNoLoginRole(admin, 'openschool_emergency')
     await ensureNoLoginRole(admin, 'openschool_identity_revoker')
     await ensureNoLoginRole(admin, 'openschool_invitation_acceptor')
+    await ensureNoLoginRole(admin, 'openschool_platform_access_resolver')
+    await ensureNoLoginRole(admin, 'openschool_tenant_lifecycle_manager')
     if (migrationRole !== 'postgres') {
       await admin.unsafe(
-        `grant openschool_identity_revoker, openschool_invitation_acceptor to ${migrationRole}`
+        `grant openschool_identity_revoker, openschool_invitation_acceptor, openschool_platform_access_resolver, openschool_tenant_lifecycle_manager to ${migrationRole}`
       )
     }
 
     if (phase === 'identities') {
       console.log(
-        `Provisioned PostgreSQL role identities before migration: runtime=${runtimeRole}, worker=${workerRole}.`
+        `Provisioned PostgreSQL role identities before migration: runtime=${runtimeRole}, worker=${workerRole}, control-plane=${controlPlaneRole}.`
       )
       return
     }
 
     await admin.unsafe('revoke create on schema public from public')
-    for (const executionRole of [runtimeRole, workerRole]) {
+    for (const executionRole of [runtimeRole, workerRole, controlPlaneRole]) {
       await admin.unsafe(`revoke all privileges on database ${databaseName} from ${executionRole}`)
       await admin.unsafe(`revoke all privileges on schema public from ${executionRole}`)
       await admin.unsafe(
@@ -145,7 +168,9 @@ async function run(): Promise<void> {
         `revoke all privileges on all sequences in schema public from ${executionRole}`
       )
     }
-    await admin.unsafe(`grant connect on database ${databaseName} to ${runtimeRole}, ${workerRole}`)
+    await admin.unsafe(
+      `grant connect on database ${databaseName} to ${runtimeRole}, ${workerRole}, ${controlPlaneRole}`
+    )
     await admin.unsafe(`grant usage on schema public to ${runtimeRole}, ${workerRole}`)
 
     // Reviewed infrastructure allowlist: every interpolated identifier passed
@@ -173,9 +198,9 @@ async function run(): Promise<void> {
     await admin.unsafe(`grant update on audit_outbox to ${workerRole}`)
     await admin.unsafe(`grant update on invitation_delivery_outbox to ${workerRole}`)
 
-    for (const executionRole of [runtimeRole, workerRole]) {
+    for (const executionRole of [runtimeRole, workerRole, controlPlaneRole]) {
       await admin.unsafe(
-        `revoke openschool_backup, openschool_emergency, openschool_identity_revoker, openschool_invitation_acceptor from ${executionRole}`
+        `revoke openschool_backup, openschool_emergency, openschool_identity_revoker, openschool_invitation_acceptor, openschool_platform_access_resolver, openschool_tenant_lifecycle_manager from ${executionRole}`
       )
       if (migrationRole !== 'postgres') {
         await admin.unsafe(`revoke ${migrationRole} from ${executionRole}`)
@@ -183,7 +208,7 @@ async function run(): Promise<void> {
     }
 
     console.log(
-      `Provisioned local PostgreSQL ${phase} phase: migration=${migrationRole}, runtime=${runtimeRole}, worker=${workerRole}.`
+      `Provisioned local PostgreSQL ${phase} phase: migration=${migrationRole}, runtime=${runtimeRole}, worker=${workerRole}, control-plane=${controlPlaneRole}.`
     )
   } finally {
     await admin.end()

@@ -8,11 +8,13 @@ import {
 const DATABASE_ROLE_PATTERN = /^[a-z_][a-z0-9_]{0,62}$/
 export const DATABASE_RUNTIME_ROLE_NAME = 'openschool_runtime'
 export const DATABASE_WORKER_ROLE_NAME = 'openschool_worker'
+export const DATABASE_CONTROL_PLANE_ROLE_NAME = 'openschool_control_plane'
 
 export interface DatabaseRoleEnvironment {
   DATABASE_MIGRATION_ROLE: string
   DATABASE_RUNTIME_ROLE: string
   DATABASE_WORKER_ROLE: string
+  DATABASE_CONTROL_PLANE_ROLE: string
 }
 
 export interface ServerEnvironment extends DatabaseRoleEnvironment {
@@ -21,6 +23,10 @@ export interface ServerEnvironment extends DatabaseRoleEnvironment {
 
 export interface WorkerEnvironment extends DatabaseRoleEnvironment {
   DATABASE_WORKER_URL: string
+}
+
+export interface ControlPlaneEnvironment extends DatabaseRoleEnvironment {
+  DATABASE_CONTROL_PLANE_URL: string
 }
 
 export interface MigrationEnvironment {
@@ -54,6 +60,7 @@ function parseDatabaseRoles(source: EnvironmentSource): Readonly<DatabaseRoleEnv
     DATABASE_MIGRATION_ROLE: requireValue(source, 'DATABASE_MIGRATION_ROLE'),
     DATABASE_RUNTIME_ROLE: requireValue(source, 'DATABASE_RUNTIME_ROLE'),
     DATABASE_WORKER_ROLE: requireValue(source, 'DATABASE_WORKER_ROLE'),
+    DATABASE_CONTROL_PLANE_ROLE: requireValue(source, 'DATABASE_CONTROL_PLANE_ROLE'),
   }
   for (const [variable, role] of Object.entries(roles)) {
     if (!DATABASE_ROLE_PATTERN.test(role)) {
@@ -66,7 +73,7 @@ function parseDatabaseRoles(source: EnvironmentSource): Readonly<DatabaseRoleEnv
   if (new Set(Object.values(roles)).size !== Object.values(roles).length) {
     throw new EnvironmentValidationError(
       'DATABASE_RUNTIME_ROLE',
-      'migration, runtime, and worker database roles must be distinct'
+      'migration, runtime, worker, and control-plane database roles must be distinct'
     )
   }
   if (roles.DATABASE_RUNTIME_ROLE !== DATABASE_RUNTIME_ROLE_NAME) {
@@ -79,6 +86,12 @@ function parseDatabaseRoles(source: EnvironmentSource): Readonly<DatabaseRoleEnv
     throw new EnvironmentValidationError(
       'DATABASE_WORKER_ROLE',
       `must be ${DATABASE_WORKER_ROLE_NAME} for named RLS policies`
+    )
+  }
+  if (roles.DATABASE_CONTROL_PLANE_ROLE !== DATABASE_CONTROL_PLANE_ROLE_NAME) {
+    throw new EnvironmentValidationError(
+      'DATABASE_CONTROL_PLANE_ROLE',
+      `must be ${DATABASE_CONTROL_PLANE_ROLE_NAME} for the isolated platform control plane`
     )
   }
   return Object.freeze(roles)
@@ -124,6 +137,24 @@ export function parseWorkerEnv(source: EnvironmentSource): Readonly<WorkerEnviro
     environment.DATABASE_WORKER_URL,
     'DATABASE_WORKER_ROLE',
     environment.DATABASE_WORKER_ROLE
+  )
+  return Object.freeze(environment)
+}
+
+export function parseControlPlaneEnv(source: EnvironmentSource): Readonly<ControlPlaneEnvironment> {
+  const roles = parseDatabaseRoles(source)
+  const environment = {
+    DATABASE_CONTROL_PLANE_URL: parseUrl(source, 'DATABASE_CONTROL_PLANE_URL', [
+      'postgres:',
+      'postgresql:',
+    ]),
+    ...roles,
+  }
+  requireUrlRole(
+    'DATABASE_CONTROL_PLANE_URL',
+    environment.DATABASE_CONTROL_PLANE_URL,
+    'DATABASE_CONTROL_PLANE_ROLE',
+    environment.DATABASE_CONTROL_PLANE_ROLE
   )
   return Object.freeze(environment)
 }
@@ -240,6 +271,7 @@ export function getServerEnv(): Readonly<ServerEnvironment> {
     DATABASE_MIGRATION_ROLE: process.env.DATABASE_MIGRATION_ROLE,
     DATABASE_RUNTIME_ROLE: process.env.DATABASE_RUNTIME_ROLE,
     DATABASE_WORKER_ROLE: process.env.DATABASE_WORKER_ROLE,
+    DATABASE_CONTROL_PLANE_ROLE: process.env.DATABASE_CONTROL_PLANE_ROLE,
   })
 }
 
@@ -249,6 +281,17 @@ export function getWorkerEnv(): Readonly<WorkerEnvironment> {
     DATABASE_MIGRATION_ROLE: process.env.DATABASE_MIGRATION_ROLE,
     DATABASE_RUNTIME_ROLE: process.env.DATABASE_RUNTIME_ROLE,
     DATABASE_WORKER_ROLE: process.env.DATABASE_WORKER_ROLE,
+    DATABASE_CONTROL_PLANE_ROLE: process.env.DATABASE_CONTROL_PLANE_ROLE,
+  })
+}
+
+export function getControlPlaneEnv(): Readonly<ControlPlaneEnvironment> {
+  return parseControlPlaneEnv({
+    DATABASE_CONTROL_PLANE_URL: process.env.DATABASE_CONTROL_PLANE_URL,
+    DATABASE_MIGRATION_ROLE: process.env.DATABASE_MIGRATION_ROLE,
+    DATABASE_RUNTIME_ROLE: process.env.DATABASE_RUNTIME_ROLE,
+    DATABASE_WORKER_ROLE: process.env.DATABASE_WORKER_ROLE,
+    DATABASE_CONTROL_PLANE_ROLE: process.env.DATABASE_CONTROL_PLANE_ROLE,
   })
 }
 

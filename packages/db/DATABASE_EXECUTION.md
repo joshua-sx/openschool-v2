@@ -10,8 +10,10 @@ OpenSchool separates schema ownership from product and background execution:
 | `DATABASE_RUNTIME_ROLE` | non-secret role-separation assertion | fixed `openschool_runtime` role used by named RLS policies |
 | `DATABASE_WORKER_URL` | explicitly typed Tenant jobs | distinct login with the same safety attributes and narrower table grants |
 | `DATABASE_WORKER_ROLE` | non-secret role-separation assertion | fixed `openschool_worker` role used by named RLS policies |
-| `openschool_backup` | future restore delegation | `NOLOGIN`; never granted to runtime or worker |
-| `openschool_emergency` | future controlled break-glass delegation | `NOLOGIN`; never granted to runtime or worker |
+| `DATABASE_CONTROL_PLANE_URL` | global platform administration | fixed non-owner login with no direct table grants; only reviewed private control-plane functions are executable |
+| `DATABASE_CONTROL_PLANE_ROLE` | non-secret role-separation assertion | fixed `openschool_control_plane` role, distinct from every Tenant execution identity |
+| `openschool_backup` | future restore delegation | `NOLOGIN`; never granted to an execution identity |
+| `openschool_emergency` | future controlled break-glass delegation | `NOLOGIN`; never granted to an execution identity |
 | `openschool_identity_revoker` | private Account/session/Affiliation/role transitions | `NOLOGIN`, `NOBYPASSRLS`; runtime may execute its reviewed function but cannot assume the role |
 
 Migration, runtime, and worker configuration are parsed separately so the web process never needs the owner or worker credential. Local validation/provisioning rejects reused database usernames. Runtime startup also checks the connected PostgreSQL role, ownership, schema creation, truncation, privileged memberships, and the configured migration-role relationship before exposing an operation callback.

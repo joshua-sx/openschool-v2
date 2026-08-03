@@ -3,9 +3,11 @@
   "globalDependencies": [".env.local", ".env"],
   "globalEnv": [
     "DATABASE_RUNTIME_URL",
+    "DATABASE_CONTROL_PLANE_URL",
     "DATABASE_MIGRATION_ROLE",
     "DATABASE_RUNTIME_ROLE",
     "DATABASE_WORKER_ROLE",
+    "DATABASE_CONTROL_PLANE_ROLE",
     "OPENSCHOOL_STUDENT_SLICE_MODE",
     "OPENSCHOOL_POLICY_VERSION",
     "NEXT_PUBLIC_APP_URL",
@@ -51,7 +53,8 @@
         "DATABASE_MIGRATION_URL",
         "DATABASE_MIGRATION_ROLE",
         "DATABASE_RUNTIME_URL",
-        "DATABASE_WORKER_URL"
+        "DATABASE_WORKER_URL",
+        "DATABASE_CONTROL_PLANE_URL"
       ]
     },
     "db:execution-poc": {

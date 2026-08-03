@@ -26,6 +26,8 @@ jobs:
       DATABASE_RUNTIME_ROLE: openschool_runtime
       DATABASE_WORKER_URL: postgresql://openschool_worker:ci@127.0.0.1:5432/openschool
       DATABASE_WORKER_ROLE: openschool_worker
+      DATABASE_CONTROL_PLANE_URL: postgresql://openschool_control_plane:ci@127.0.0.1:5432/openschool
+      DATABASE_CONTROL_PLANE_ROLE: openschool_control_plane
       OPENSCHOOL_STUDENT_SLICE_MODE: forced_rls
       INVITATION_TOKEN_ENCRYPTION_KEY_ID: ci-v1
       INVITATION_TOKEN_ENCRYPTION_KEYS: '{"ci-v1":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}'
@@ -106,6 +108,8 @@ jobs:
       DATABASE_RUNTIME_ROLE: openschool_runtime
       DATABASE_WORKER_URL: postgresql://openschool_worker:worker-ci-only-1@127.0.0.1:5432/openschool
       DATABASE_WORKER_ROLE: openschool_worker
+      DATABASE_CONTROL_PLANE_URL: postgresql://openschool_control_plane:control-plane-ci-only-1@127.0.0.1:5432/openschool
+      DATABASE_CONTROL_PLANE_ROLE: openschool_control_plane
       OPENSCHOOL_STUDENT_SLICE_MODE: forced_rls
       INVITATION_TOKEN_ENCRYPTION_KEY_ID: ci-v1
       INVITATION_TOKEN_ENCRYPTION_KEYS: '{"ci-v1":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}'
@@ -206,6 +210,8 @@ jobs:
       DATABASE_RUNTIME_ROLE: openschool_runtime
       DATABASE_WORKER_URL: postgresql://openschool_worker:worker-ci-only-1@127.0.0.1:5432/openschool
       DATABASE_WORKER_ROLE: openschool_worker
+      DATABASE_CONTROL_PLANE_URL: postgresql://openschool_control_plane:control-plane-ci-only-1@127.0.0.1:5432/openschool
+      DATABASE_CONTROL_PLANE_ROLE: openschool_control_plane
       OPENSCHOOL_STUDENT_SLICE_MODE: forced_rls
 
     steps:

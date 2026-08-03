@@ -96,6 +96,8 @@ their separately operated tasks/processes.
 - `DATABASE_RUNTIME_ROLE` (non-secret runtime-role assertion)
 - `DATABASE_WORKER_URL` (non-owner background role; worker processes only)
 - `DATABASE_WORKER_ROLE` (non-secret worker-role assertion)
+- `DATABASE_CONTROL_PLANE_URL` (non-owner platform-administration role; server only)
+- `DATABASE_CONTROL_PLANE_ROLE` (non-secret control-plane role assertion)
 - `OPENSCHOOL_STUDENT_SLICE_MODE` (`forced_rls` or fail-closed `disabled`)
 - `OPENSCHOOL_POLICY_VERSION` (optional server-only rollback selector)
 - `NEXT_PUBLIC_APP_URL`
