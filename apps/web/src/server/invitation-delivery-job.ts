@@ -4,10 +4,10 @@ import {
 } from '@openschool/auth/server'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-const tenantId = process.env.INVITATION_DELIVERY_TENANT_ID?.trim()
+const tenantId = process.argv[2]?.trim() || process.env.INVITATION_DELIVERY_TENANT_ID?.trim()
 
 if (!tenantId || !UUID_PATTERN.test(tenantId)) {
-  throw new Error('INVITATION_DELIVERY_TENANT_ID must be a valid Tenant UUID')
+  throw new Error('Pass a valid Tenant UUID as the first argument or INVITATION_DELIVERY_TENANT_ID')
 }
 
 const result = await processInvitationDeliveryBatch(

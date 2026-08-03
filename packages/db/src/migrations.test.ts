@@ -95,6 +95,7 @@ describe('database migration baseline', () => {
       'ALTER TABLE "invitation_delivery_outbox" FORCE ROW LEVEL SECURITY',
       'account_invitations_pending_person_unique',
       'accounts_primary_email_normalized_unique',
+      'ACCOUNT_EMAIL_NORMALIZATION_CONFLICT',
       'openschool_invitation_scope_allows',
       'openschool_guard_account_invitation_change',
       'openschool_guard_invitation_delivery_change',
@@ -132,6 +133,10 @@ describe('database migration baseline', () => {
         .slice(eligibilityLock, migration.indexOf('IF NOT EXISTS (', eligibilityLock))
         .includes('FOR UPDATE'),
       true
+    )
+    assert.ok(
+      migration.indexOf('ACCOUNT_EMAIL_NORMALIZATION_CONFLICT') <
+        migration.indexOf('CREATE UNIQUE INDEX "accounts_primary_email_normalized_unique"')
     )
   })
 

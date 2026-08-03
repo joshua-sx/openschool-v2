@@ -233,22 +233,22 @@ export async function issueAccountInvitation(
   at = new Date()
 ): Promise<IssuedAccountInvitation> {
   assertDatabasePolicyContext(databaseContext, context)
-  const approval = validateInvitationApproval(context, decision, input, at)
-  const environment = getInvitationDeliveryEnv()
   const invitationId = crypto.randomUUID()
   const deliveryId = crypto.randomUUID()
-  const token = generateInvitationToken()
-  const tokenHash = hashInvitationToken(token)
-  const sealed = sealInvitationToken(
-    token,
-    { tenantId: databaseContext.tenantId, invitationId, deliveryId },
-    {
-      activeKeyId: environment.INVITATION_TOKEN_ENCRYPTION_KEY_ID,
-      keys: environment.INVITATION_TOKEN_ENCRYPTION_KEYS,
-    }
-  )
 
   try {
+    const approval = validateInvitationApproval(context, decision, input, at)
+    const environment = getInvitationDeliveryEnv()
+    const token = generateInvitationToken()
+    const tokenHash = hashInvitationToken(token)
+    const sealed = sealInvitationToken(
+      token,
+      { tenantId: databaseContext.tenantId, invitationId, deliveryId },
+      {
+        activeKeyId: environment.INVITATION_TOKEN_ENCRYPTION_KEY_ID,
+        keys: environment.INVITATION_TOKEN_ENCRYPTION_KEYS,
+      }
+    )
     return await withPolicyTenantTransaction(
       databaseContext,
       toDatabasePolicyContext(decision),

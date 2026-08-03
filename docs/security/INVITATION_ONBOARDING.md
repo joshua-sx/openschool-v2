@@ -11,7 +11,7 @@ The flow has four boundaries:
 1. The capability Policy Decision and forced-RLS runtime transaction validate issuer, delegation, Tenant scope, Person, and expiry.
 2. PostgreSQL stores a SHA-256 token hash. A delivery outbox temporarily stores an AES-256-GCM ciphertext bound to Tenant, invitation, and delivery IDs; it never stores plaintext.
 3. A separately credentialed worker decrypts only a claimed delivery and asks the identity provider to send the verified-email link. The invitation credential travels in a URI fragment, so browsers do not send it in application request targets or access logs; the acceptance page removes the fragment immediately. Successful or terminal delivery erases the ciphertext, IV, tag, and key ID.
-4. A verified identity invokes a private `SECURITY DEFINER` function owned by the `NOLOGIN`, `NOBYPASSRLS` `openschool_invitation_acceptor` role. The function locks the token row, verifies identity and lifecycle state, and atomically creates the Account if needed, Account Link, Affiliation, exact Role Template assignment, session anchor, invitation evidence, and redacted audit/outbox evidence.
+4. A verified identity invokes a private `SECURITY DEFINER` function owned by the `NOLOGIN`, `NOBYPASSRLS` `openschool_invitation_acceptor` role. The function classifies immutable terminal and identity evidence, locks an eligible token row, and atomically creates the Account if needed, Account Link, Affiliation, exact Role Template assignment, session anchor, invitation evidence, and redacted audit/outbox evidence.
 
 Known-invitation theft, replay, expiry, cancellation, and Account-conflict denials create Tenant-scoped system audit evidence without storing the attempted email, provider subject, session identifier, or token. Random invalid tokens cannot be attributed to a Tenant and belong in aggregate security telemetry rather than a Tenant ledger.
 
@@ -41,9 +41,20 @@ Organization administrators may delegate the listed Tenant roles within their se
 
 Generate keys with an approved secret manager or cryptographically secure 32-byte generator. Do not place real key material in `.env.example`, source control, CI logs, tickets, or documentation.
 
+Before applying the invitation migration to existing data, identify Accounts whose emails collide after trimming and case normalization:
+
+```sql
+SELECT lower(btrim(primary_email)) AS normalized_email, array_agg(id ORDER BY id) AS account_ids
+FROM accounts
+GROUP BY lower(btrim(primary_email))
+HAVING count(*) > 1;
+```
+
+Every result is a deployment blocker. Reconcile it from verified provider identity, Account Link, and Person evidence under the approved account-recovery/merge procedure. Do not automatically delete, rename, or merge an Account based on email casing alone. The migration fails closed with `ACCOUNT_EMAIL_NORMALIZATION_CONFLICT` until no conflicts remain.
+
 ## Delivery operation
 
-Run `bun run invitation:deliver -- <tenant-id>` from a protected scheduler or worker deployment for each active Tenant. The command emits aggregate counts only. Schedule often enough to meet the approved email service objective and prevent concurrent duplicate schedulers for the same Tenant where practical; row leases and attempt fencing still protect concurrency.
+Run `bun run invitation:deliver -- <tenant-id>` from a protected scheduler or worker deployment for each active Tenant. `INVITATION_DELIVERY_TENANT_ID=<tenant-id> bun run invitation:deliver` is also supported. The command emits aggregate counts only. Schedule often enough to meet the approved email service objective and prevent concurrent duplicate schedulers for the same Tenant where practical; row leases and attempt fencing still protect concurrency.
 
 The worker retries provider failures with bounded exponential delay and dead-letters after five attempts. Alert on:
 

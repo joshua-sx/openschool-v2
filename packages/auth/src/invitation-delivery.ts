@@ -79,7 +79,9 @@ async function deliverOne(
   context: WorkerDatabaseContext,
   claimed: ClaimedInvitationDelivery,
   adapter: InvitationDeliveryAdapter,
-  at: Date
+  at: Date,
+  keyring: ReturnType<typeof getInvitationDeliveryEnv>,
+  clock: () => Date
 ): Promise<'delivered' | 'failed' | 'dead_letter'> {
   if (claimed.invitation.status !== 'pending' || claimed.invitation.expiresAt <= at) {
     await withWorkerTenantTransaction(context, (tx) =>
@@ -94,51 +96,43 @@ async function deliverOne(
     )
     return 'dead_letter'
   }
-  if (
-    !claimed.delivery.encryptionKeyId ||
-    !claimed.delivery.tokenCiphertext ||
-    !claimed.delivery.tokenIv ||
-    !claimed.delivery.tokenAuthTag
-  ) {
-    throw new Error('INVITATION_DELIVERY_CREDENTIAL_MISSING')
-  }
-  const environment = getInvitationDeliveryEnv()
-  const token = openInvitationToken(
-    {
-      encryptionKeyId: claimed.delivery.encryptionKeyId,
-      tokenCiphertext: claimed.delivery.tokenCiphertext,
-      tokenIv: claimed.delivery.tokenIv,
-      tokenAuthTag: claimed.delivery.tokenAuthTag,
-    },
-    {
-      tenantId: claimed.delivery.tenantId,
-      invitationId: claimed.delivery.invitationId,
-      deliveryId: claimed.delivery.id,
-    },
-    {
-      activeKeyId: environment.INVITATION_TOKEN_ENCRYPTION_KEY_ID,
-      keys: environment.INVITATION_TOKEN_ENCRYPTION_KEYS,
-    }
-  )
 
+  let failureCode = 'INVITATION_CREDENTIAL_UNAVAILABLE'
   try {
+    if (
+      !claimed.delivery.encryptionKeyId ||
+      !claimed.delivery.tokenCiphertext ||
+      !claimed.delivery.tokenIv ||
+      !claimed.delivery.tokenAuthTag
+    ) {
+      throw new Error('INVITATION_DELIVERY_CREDENTIAL_MISSING')
+    }
+    const token = openInvitationToken(
+      {
+        encryptionKeyId: claimed.delivery.encryptionKeyId,
+        tokenCiphertext: claimed.delivery.tokenCiphertext,
+        tokenIv: claimed.delivery.tokenIv,
+        tokenAuthTag: claimed.delivery.tokenAuthTag,
+      },
+      {
+        tenantId: claimed.delivery.tenantId,
+        invitationId: claimed.delivery.invitationId,
+        deliveryId: claimed.delivery.id,
+      },
+      {
+        activeKeyId: keyring.INVITATION_TOKEN_ENCRYPTION_KEY_ID,
+        keys: keyring.INVITATION_TOKEN_ENCRYPTION_KEYS,
+      }
+    )
+    failureCode = 'PROVIDER_DELIVERY_FAILED'
     await adapter.deliver({
       recipientEmail: claimed.delivery.recipientEmail,
       redirectTo: deliveryRedirect(getPublicEnv().NEXT_PUBLIC_APP_URL, token),
       existingProviderSubject: claimed.invitation.intendedProviderSubject,
       expiresAt: claimed.invitation.expiresAt,
     })
-    await withWorkerTenantTransaction(context, (tx) =>
-      completeInvitationDelivery(tx, {
-        tenantId: context.tenantId,
-        id: claimed.delivery.id,
-        outcome: 'delivered',
-        expectedAttemptCount: claimed.delivery.attemptCount,
-        at,
-      })
-    )
-    return 'delivered'
   } catch {
+    const failedAt = clock()
     const deadLetter = claimed.delivery.attemptCount >= MAX_DELIVERY_ATTEMPTS
     await withWorkerTenantTransaction(context, (tx) =>
       completeInvitationDelivery(tx, {
@@ -146,29 +140,48 @@ async function deliverOne(
         id: claimed.delivery.id,
         outcome: deadLetter ? 'dead_letter' : 'failed',
         expectedAttemptCount: claimed.delivery.attemptCount,
-        errorCode: 'PROVIDER_DELIVERY_FAILED',
+        errorCode: failureCode,
         ...(!deadLetter
-          ? { retryAt: new Date(at.getTime() + retryDelayMs(claimed.delivery.attemptCount)) }
+          ? {
+              retryAt: new Date(failedAt.getTime() + retryDelayMs(claimed.delivery.attemptCount)),
+            }
           : {}),
-        at,
+        at: failedAt,
       })
     )
     return deadLetter ? 'dead_letter' : 'failed'
   }
+
+  const deliveredAt = clock()
+  await withWorkerTenantTransaction(context, (tx) =>
+    completeInvitationDelivery(tx, {
+      tenantId: context.tenantId,
+      id: claimed.delivery.id,
+      outcome: 'delivered',
+      expectedAttemptCount: claimed.delivery.attemptCount,
+      at: deliveredAt,
+    })
+  )
+  return 'delivered'
 }
 
 export async function processInvitationDeliveryBatch(
   context: WorkerDatabaseContext,
   adapter: InvitationDeliveryAdapter,
-  options: { limit?: number; at?: Date } = {}
+  options: { limit?: number; at?: Date; clock?: () => Date } = {}
 ): Promise<{ claimed: number; delivered: number; failed: number; deadLetter: number }> {
   const at = options.at ?? new Date()
+  const clock = options.clock ?? (() => new Date())
+  // Validate the deployed keyring once. A missing worker configuration is a
+  // batch-level deployment error; a missing historical key or corrupt row is
+  // isolated per delivery below and cannot poison later claims.
+  const keyring = getInvitationDeliveryEnv()
   const claimed = await withWorkerTenantTransaction(context, (tx) =>
     claimInvitationDeliveries(tx, context.tenantId, { limit: options.limit, at })
   )
   const results = []
   for (const delivery of claimed) {
-    results.push(await deliverOne(context, delivery, adapter, at))
+    results.push(await deliverOne(context, delivery, adapter, at, keyring, clock))
   }
   return {
     claimed: claimed.length,

@@ -184,6 +184,26 @@ CREATE INDEX "account_invitations_tenant_person_status_idx" ON "account_invitati
 CREATE UNIQUE INDEX "account_invitations_pending_person_unique"
 	ON "account_invitations" ("tenant_id", "person_id")
 	WHERE "status" = 'pending';--> statement-breakpoint
+DO $$
+DECLARE
+	conflict_group_count bigint;
+BEGIN
+	SELECT count(*) INTO conflict_group_count
+	FROM (
+		SELECT lower(btrim(primary_email))
+		FROM public.accounts
+		GROUP BY lower(btrim(primary_email))
+		HAVING count(*) > 1
+	) AS normalized_email_conflicts;
+
+	IF conflict_group_count > 0 THEN
+		RAISE EXCEPTION 'ACCOUNT_EMAIL_NORMALIZATION_CONFLICT'
+			USING ERRCODE = '23505',
+			DETAIL = format('%s normalized email group(s) require Account reconciliation', conflict_group_count),
+			HINT = 'Reconcile conflicting Accounts from verified identity evidence before applying this migration';
+	END IF;
+END;
+$$;--> statement-breakpoint
 CREATE UNIQUE INDEX "accounts_primary_email_normalized_unique"
 	ON "accounts" (lower(btrim("primary_email")));--> statement-breakpoint
 CREATE INDEX "invitation_delivery_claim_idx" ON "invitation_delivery_outbox" USING btree ("tenant_id","status","available_at","id");--> statement-breakpoint

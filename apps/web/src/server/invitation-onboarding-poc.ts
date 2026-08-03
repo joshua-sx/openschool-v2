@@ -158,6 +158,9 @@ async function runProof(): Promise<void> {
     duplicate: crypto.randomUUID(),
     expired: crypto.randomUUID(),
     rollback: crypto.randomUUID(),
+    approvalDenied: crypto.randomUUID(),
+    deliveryPoison: crypto.randomUUID(),
+    deliveryValid: crypto.randomUUID(),
   }
   const emails = {
     success: emailFor('success'),
@@ -166,6 +169,9 @@ async function runProof(): Promise<void> {
     duplicate: emailFor('duplicate'),
     expired: emailFor('expired'),
     rollback: emailFor('rollback'),
+    approvalDenied: emailFor('approval-denied'),
+    deliveryPoison: emailFor('delivery-poison'),
+    deliveryValid: emailFor('delivery-valid'),
   }
 
   try {
@@ -207,6 +213,33 @@ async function runProof(): Promise<void> {
         source: 'native' as const,
       }))
     )
+
+    const approvalDeniedRequestId = `invitation-poc-${RUN_ID}-approval-denied`
+    await assert.rejects(
+      issueAccountInvitation(
+        adminDatabaseContext(approvalDeniedRequestId),
+        policyContext,
+        inviteDecision,
+        {
+          personId: personIds.approvalDenied,
+          intendedEmail: emails.approvalDenied,
+          affiliationKind: 'guardian',
+          scope: { type: 'school', schoolId: SCHOOL_A },
+          roleTemplateKeys: ['student'],
+          issuanceReason: 'Approval-time denial audit proof',
+        },
+        now
+      ),
+      (error: unknown) =>
+        error instanceof TRPCError && error.message === 'INVITATION_AFFILIATION_MISMATCH'
+    )
+    const [approvalDenialAudit] = await admin
+      .select({ outcome: auditEvents.outcome, targetId: auditEvents.targetId })
+      .from(auditEvents)
+      .where(eq(auditEvents.requestId, approvalDeniedRequestId))
+      .limit(1)
+    assert.equal(approvalDenialAudit?.outcome, 'failed')
+    assert.ok(approvalDenialAudit?.targetId)
 
     const success = await issueAccountInvitation(
       adminDatabaseContext(`invitation-poc-${RUN_ID}-issue-success`),
@@ -354,6 +387,97 @@ async function runProof(): Promise<void> {
       ),
       'INVITATION_UNAVAILABLE'
     )
+
+    const validIsolationDelivery = await issueAccountInvitation(
+      adminDatabaseContext(`invitation-poc-${RUN_ID}-issue-delivery-valid`),
+      policyContext,
+      inviteDecision,
+      {
+        personId: personIds.deliveryValid,
+        intendedEmail: emails.deliveryValid,
+        affiliationKind: 'guardian',
+        scope: { type: 'school', schoolId: SCHOOL_A },
+        roleTemplateKeys: ['parent'],
+        issuanceReason: 'Delivery poison-row isolation proof',
+      },
+      now
+    )
+    const poisonInvitationId = crypto.randomUUID()
+    const poisonDeliveryId = crypto.randomUUID()
+    const poisonToken = generateInvitationToken()
+    const deliveryEnvironment = getInvitationDeliveryEnv()
+    await admin.insert(accountInvitations).values({
+      id: poisonInvitationId,
+      tenantId: TENANT_A,
+      personId: personIds.deliveryPoison,
+      intendedEmail: emails.deliveryPoison,
+      tokenHash: hashInvitationToken(poisonToken),
+      affiliationKind: 'guardian',
+      scopeType: 'school',
+      schoolId: SCHOOL_A,
+      roleTemplateKeys: ['parent'],
+      expiresAt,
+      issuedByAccountId: ADMIN_ACCOUNT,
+      issuanceReason: 'Corrupt delivery isolation proof',
+      createdAt: now,
+      updatedAt: now,
+    })
+    await admin.insert(invitationDeliveryOutbox).values({
+      id: poisonDeliveryId,
+      tenantId: TENANT_A,
+      invitationId: poisonInvitationId,
+      recipientEmail: emails.deliveryPoison,
+      encryptionKeyId: deliveryEnvironment.INVITATION_TOKEN_ENCRYPTION_KEY_ID,
+      tokenCiphertext: 'A'.repeat(80),
+      tokenIv: 'A'.repeat(16),
+      tokenAuthTag: 'A'.repeat(22),
+      status: 'pending',
+      availableAt: now,
+      createdAt: now,
+      updatedAt: now,
+    })
+    const deliveryCompletionTime = new Date(now.getTime() + 5 * 60 * 1000)
+    const isolatedRecipients: string[] = []
+    const isolatedDeliveryResult = await processInvitationDeliveryBatch(
+      {
+        tenantId: TENANT_A,
+        jobId: crypto.randomUUID(),
+        jobType: 'invitation_delivery',
+        requestId: `invitation-poc-${RUN_ID}-delivery-isolation`,
+      },
+      {
+        async deliver(request) {
+          isolatedRecipients.push(request.recipientEmail)
+        },
+      },
+      {
+        limit: 2,
+        at: new Date(now.getTime() + 4_000),
+        clock: () => deliveryCompletionTime,
+      }
+    )
+    assert.deepEqual(isolatedDeliveryResult, {
+      claimed: 2,
+      delivered: 1,
+      failed: 1,
+      deadLetter: 0,
+    })
+    assert.deepEqual(isolatedRecipients, [emails.deliveryValid])
+    const [poisonDelivery] = await admin
+      .select()
+      .from(invitationDeliveryOutbox)
+      .where(eq(invitationDeliveryOutbox.id, poisonDeliveryId))
+      .limit(1)
+    assert.equal(poisonDelivery?.status, 'failed')
+    assert.equal(poisonDelivery?.lastErrorCode, 'INVITATION_CREDENTIAL_UNAVAILABLE')
+    assert.ok(poisonDelivery?.availableAt && poisonDelivery.availableAt > deliveryCompletionTime)
+    const [validTerminalDelivery] = await admin
+      .select()
+      .from(invitationDeliveryOutbox)
+      .where(eq(invitationDeliveryOutbox.id, validIsolationDelivery.deliveryId))
+      .limit(1)
+    assert.equal(validTerminalDelivery?.status, 'delivered')
+    assert.equal(validTerminalDelivery?.tokenCiphertext, null)
 
     const stolen = await issueAccountInvitation(
       adminDatabaseContext(`invitation-poc-${RUN_ID}-issue-stolen`),
