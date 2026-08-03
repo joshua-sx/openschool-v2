@@ -310,6 +310,12 @@ describe('database migration baseline', () => {
     )
     assert.equal(tableDefinition.includes('provider_subject'), false)
     assert.equal(tableDefinition.includes('identity_provider'), false)
+    assert.equal(
+      migration.includes(
+        'ON CONFLICT (tenant_id, account_id, action, expected_security_version) DO NOTHING'
+      ),
+      false
+    )
   })
 
   it('blocks new identity sessions until the latest provider MFA reset completes', () => {

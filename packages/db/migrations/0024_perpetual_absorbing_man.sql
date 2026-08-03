@@ -184,8 +184,6 @@ BEGIN
       nullif(current_setting('app.person_id', true), '')::uuid
     FROM effects AS effect
     WHERE p_action = 'account_mfa_reset'
-    ON CONFLICT (tenant_id, account_id, action, expected_security_version) DO NOTHING
-    RETURNING id
   )
   SELECT
     effect.affected_account_id,
@@ -194,8 +192,7 @@ BEGIN
     effect.security_version,
     effect.affected_session_count,
     effect.occurred_at
-  FROM effects AS effect
-  LEFT JOIN (SELECT count(*) AS queued_count FROM queued) AS queue_evidence ON true;
+  FROM effects AS effect;
 END;
 $$;--> statement-breakpoint
 
