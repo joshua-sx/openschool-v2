@@ -257,6 +257,8 @@ interface RuntimeRoleEvidence extends Record<string, unknown> {
   canInsertInvitationDelivery: boolean
   canUpdateInvitationDelivery: boolean
   canDeleteInvitationDelivery: boolean
+  canUseInvitationSchema: boolean
+  canCreateInInvitationSchema: boolean
   canExecuteInvitationAcceptance: boolean
   canAssumeMigrationRole: boolean
   canAssumeOtherExecutionRole: boolean
@@ -318,11 +320,19 @@ async function assertSafeExecutionRole(
         as "canUpdateInvitationDelivery",
       has_table_privilege(current_user, 'public.invitation_delivery_outbox', 'DELETE')
         as "canDeleteInvitationDelivery",
-      has_function_privilege(
-        current_user,
-        'openschool_private.accept_account_invitation(text,timestamp with time zone,timestamp with time zone)',
-        'EXECUTE'
-      ) as "canExecuteInvitationAcceptance",
+      has_schema_privilege(current_user, 'openschool_private', 'USAGE')
+        as "canUseInvitationSchema",
+      has_schema_privilege(current_user, 'openschool_private', 'CREATE')
+        as "canCreateInInvitationSchema",
+      -- Resolve by catalog OID so the worker can prove denial without private-schema USAGE.
+      coalesce((
+        select has_function_privilege(current_user, procedure.oid, 'EXECUTE')
+        from pg_proc procedure
+        inner join pg_namespace namespace on namespace.oid = procedure.pronamespace
+        where namespace.nspname = 'openschool_private'
+          and procedure.proname = 'accept_account_invitation'
+          and procedure.proargtypes = '25 1184 1184'::oidvector
+      ), false) as "canExecuteInvitationAcceptance",
       exists (
         select 1 from pg_roles candidate
         where candidate.rolname = ${migrationUsername}
@@ -391,6 +401,8 @@ async function assertSafeExecutionRole(
     evidence.canInsertInvitationDelivery !== !canProcessAuditOutbox ||
     evidence.canUpdateInvitationDelivery !== canProcessAuditOutbox ||
     evidence.canDeleteInvitationDelivery ||
+    evidence.canUseInvitationSchema !== !canProcessAuditOutbox ||
+    evidence.canCreateInInvitationSchema ||
     evidence.canExecuteInvitationAcceptance !== !canProcessAuditOutbox ||
     evidence.canAssumeMigrationRole ||
     evidence.canAssumeOtherExecutionRole ||
