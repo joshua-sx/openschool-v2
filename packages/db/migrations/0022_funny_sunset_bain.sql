@@ -52,7 +52,7 @@ DECLARE
   context_tenant_id uuid;
   context_session_id text;
   context_security_version bigint;
-  reauthenticated_at timestamp with time zone;
+  verified_reauthenticated_at timestamp with time zone;
   reauthenticated_at_text text;
   normalized_reason text := btrim(p_reason);
   target_account public.accounts%ROWTYPE;
@@ -70,7 +70,7 @@ BEGIN
     context_session_id := nullif(current_setting('app.session_id', true), '');
     context_security_version := nullif(current_setting('app.security_version', true), '')::bigint;
     reauthenticated_at_text := nullif(current_setting('app.reauthenticated_at', true), '');
-    reauthenticated_at := reauthenticated_at_text::timestamp with time zone;
+    verified_reauthenticated_at := reauthenticated_at_text::timestamp with time zone;
   EXCEPTION WHEN invalid_text_representation OR datetime_field_overflow THEN
     RAISE EXCEPTION 'IDENTITY_REVOCATION_CONTEXT_INVALID' USING ERRCODE = '22023';
   END;
@@ -86,9 +86,9 @@ BEGIN
     OR nullif(current_setting('app.policy_capability', true), '') <> 'tenant.accounts.manage'
     OR nullif(current_setting('app.policy_version', true), '') IS NULL
     OR jsonb_array_length(public.openschool_policy_constraints()) < 1
-    OR reauthenticated_at IS NULL
-    OR reauthenticated_at < changed_at - interval '15 minutes'
-    OR reauthenticated_at > changed_at + interval '1 minute'
+    OR verified_reauthenticated_at IS NULL
+    OR verified_reauthenticated_at < changed_at - interval '15 minutes'
+    OR verified_reauthenticated_at > changed_at + interval '1 minute'
     OR normalized_reason IS NULL
     OR char_length(normalized_reason) NOT BETWEEN 3 AND 512
     OR p_action NOT IN (
@@ -112,7 +112,7 @@ BEGIN
       AND actor_session.status = 'active'
       AND actor_session.security_version = actor.security_version
       AND actor_session.assurance_level = 'aal2'
-      AND actor_session.reauthenticated_at = reauthenticated_at
+      AND actor_session.reauthenticated_at = verified_reauthenticated_at
       AND actor_session.expires_at > changed_at
     INNER JOIN public.account_links AS actor_link
       ON actor_link.account_id = actor.id
