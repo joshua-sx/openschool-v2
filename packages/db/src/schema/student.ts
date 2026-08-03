@@ -66,42 +66,67 @@ export const students = pgTable(
     pgPolicy('students_runtime_insert', {
       for: 'insert',
       to: 'openschool_runtime',
-      withCheck: sql`
-        ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
-        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.students.create'
-        AND public.openschool_student_scope_allows(
-          ${table.tenantId}, ${table.schoolId}, ${table.id}
-        )
-      `,
+      withCheck: sql`false`,
     }),
     pgPolicy('students_runtime_update', {
       for: 'update',
       to: 'openschool_runtime',
-      using: sql`
-        ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
-        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.students.update'
-        AND public.openschool_student_scope_allows(
-          ${table.tenantId}, ${table.schoolId}, ${table.id}
-        )
-      `,
-      withCheck: sql`
-        ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
-        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.students.update'
-        AND public.openschool_student_scope_allows(
-          ${table.tenantId}, ${table.schoolId}, ${table.id}
-        )
-      `,
+      using: sql`false`,
+      withCheck: sql`false`,
     }),
     pgPolicy('students_runtime_delete', {
       for: 'delete',
       to: 'openschool_runtime',
+      using: sql`false`,
+    }),
+    pgPolicy('students_admitter_select', {
+      for: 'select',
+      to: 'openschool_student_admitter',
       using: sql`
-        ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
-        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.students.delete'
-        AND public.openschool_student_scope_allows(
-          ${table.tenantId}, ${table.schoolId}, ${table.id}
-        )
+        session_user = 'openschool_runtime'
+        AND current_user = 'openschool_student_admitter'
+        AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND nullif(current_setting('app.policy_capability', true), '')
+          IN ('tenant.students.create', 'tenant.students.update')
+        AND public.openschool_school_scope_allows(${table.tenantId}, ${table.schoolId})
       `,
+    }),
+    pgPolicy('students_admitter_insert', {
+      for: 'insert',
+      to: 'openschool_student_admitter',
+      withCheck: sql`
+        session_user = 'openschool_runtime'
+        AND current_user = 'openschool_student_admitter'
+        AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND nullif(current_setting('app.policy_capability', true), '')
+          = 'tenant.students.create'
+        AND public.openschool_school_scope_allows(${table.tenantId}, ${table.schoolId})
+      `,
+    }),
+    pgPolicy('students_admitter_update', {
+      for: 'update',
+      to: 'openschool_student_admitter',
+      using: sql`
+        session_user = 'openschool_runtime'
+        AND current_user = 'openschool_student_admitter'
+        AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND nullif(current_setting('app.policy_capability', true), '')
+          = 'tenant.students.update'
+        AND public.openschool_school_scope_allows(${table.tenantId}, ${table.schoolId})
+      `,
+      withCheck: sql`
+        session_user = 'openschool_runtime'
+        AND current_user = 'openschool_student_admitter'
+        AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND nullif(current_setting('app.policy_capability', true), '')
+          = 'tenant.students.update'
+        AND public.openschool_school_scope_allows(${table.tenantId}, ${table.schoolId})
+      `,
+    }),
+    pgPolicy('students_admitter_delete_deny', {
+      for: 'delete',
+      to: 'openschool_student_admitter',
+      using: sql`false`,
     }),
     pgPolicy('students_worker_select', {
       for: 'select',

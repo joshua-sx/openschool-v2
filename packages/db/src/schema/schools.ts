@@ -95,6 +95,18 @@ export const schools = pgTable(
       to: 'openschool_worker',
       using: sql`${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid`,
     }),
+    pgPolicy('schools_student_admitter_select', {
+      for: 'select',
+      to: 'openschool_student_admitter',
+      using: sql`
+        session_user = 'openschool_runtime'
+        AND current_user = 'openschool_student_admitter'
+        AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND nullif(current_setting('app.policy_capability', true), '')
+          IN ('tenant.students.create', 'tenant.students.update')
+        AND public.openschool_school_scope_allows(${table.tenantId}, ${table.id})
+      `,
+    }),
     pgPolicy('schools_runtime_insert_deny', {
       for: 'insert',
       to: 'openschool_runtime',

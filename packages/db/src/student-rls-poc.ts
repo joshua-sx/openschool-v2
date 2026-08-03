@@ -32,7 +32,6 @@ const UNKNOWN_ID = '00000000-0000-4000-8000-000000000499'
 const POLICY_VERSION = 'student-rls-poc.v1'
 const PROOF_RUN_ID = crypto.randomUUID()
 const PROOF_STUDENT_ACCOUNT = crypto.randomUUID()
-const PROOF_STUDENT_ID = crypto.randomUUID()
 const PROOF_EMAIL = `student-rls-${PROOF_RUN_ID}@proof.test`
 const PROOF_ACCOUNTS = [
   '00000000-0000-4000-8000-000000000201',
@@ -433,25 +432,8 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
       tenantId: TENANT_A,
       schoolId: SCHOOL_A_PRIMARY,
     })
-    const [created] = await runtime.withPolicyTenantTransaction(
-      schoolAdmin,
-      createPolicy,
-      (transaction) =>
-        transaction
-          .insert(students)
-          .values({
-            id: PROOF_STUDENT_ID,
-            tenantId: TENANT_A,
-            schoolId: SCHOOL_A_PRIMARY,
-            firstName: 'Forced',
-            lastName: 'RLS Proof',
-            email: PROOF_EMAIL,
-          })
-          .returning({ id: students.id })
-    )
-    assert.equal(created?.id, PROOF_STUDENT_ID)
-
     for (const target of [
+      { tenantId: TENANT_A, schoolId: SCHOOL_A_PRIMARY },
       { tenantId: TENANT_A, schoolId: SCHOOL_A_HIGH },
       { tenantId: TENANT_A, schoolId: UNKNOWN_ID },
       { tenantId: TENANT_B, schoolId: SCHOOL_B },
@@ -474,36 +456,12 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
       tenantId: TENANT_A,
       schoolId: SCHOOL_A_PRIMARY,
     })
-    const [updated] = await runtime.withPolicyTenantTransaction(
-      schoolAdmin,
-      updatePolicy,
-      (transaction) =>
-        transaction
-          .update(students)
-          .set({ firstName: 'Updated' })
-          .where(eq(students.id, PROOF_STUDENT_ID))
-          .returning({ firstName: students.firstName })
-    )
-    assert.equal(updated?.firstName, 'Updated')
-
-    const invisibleUpdates = await runtime.withPolicyTenantTransaction(
-      schoolAdmin,
-      updatePolicy,
-      (transaction) =>
-        transaction
-          .update(students)
-          .set({ firstName: 'Must not change' })
-          .where(inArray(students.id, [STUDENT_A_HIGH, STUDENT_B]))
-          .returning({ id: students.id })
-    )
-    assert.deepEqual(invisibleUpdates, [])
-
     await expectSqlState(
       runtime.withPolicyTenantTransaction(schoolAdmin, updatePolicy, (transaction) =>
         transaction
           .update(students)
-          .set({ schoolId: SCHOOL_A_HIGH })
-          .where(eq(students.id, PROOF_STUDENT_ID))
+          .set({ firstName: 'Direct write rejected' })
+          .where(eq(students.id, STUDENT_A_PRIMARY))
       ),
       '42501'
     )
@@ -532,26 +490,12 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
       tenantId: TENANT_A,
       schoolId: SCHOOL_A_PRIMARY,
     })
-    const invisibleDeletes = await runtime.withPolicyTenantTransaction(
-      schoolAdmin,
-      deletePolicy,
-      (transaction) =>
-        transaction
-          .delete(students)
-          .where(inArray(students.id, [STUDENT_A_HIGH, STUDENT_B]))
-          .returning({ id: students.id })
+    await expectSqlState(
+      runtime.withPolicyTenantTransaction(schoolAdmin, deletePolicy, (transaction) =>
+        transaction.delete(students).where(eq(students.id, STUDENT_A_PRIMARY))
+      ),
+      '42501'
     )
-    assert.deepEqual(invisibleDeletes, [])
-    const [deleted] = await runtime.withPolicyTenantTransaction(
-      schoolAdmin,
-      deletePolicy,
-      (transaction) =>
-        transaction
-          .delete(students)
-          .where(eq(students.id, PROOF_STUDENT_ID))
-          .returning({ id: students.id })
-    )
-    assert.equal(deleted?.id, PROOF_STUDENT_ID)
 
     const workerContext: WorkerDatabaseContext = {
       tenantId: TENANT_B,
@@ -573,7 +517,7 @@ async function runProof(admin: ReturnType<typeof createMigrationClient>): Promis
     )
 
     console.log(
-      `Student forced-RLS proof passed: named policies, no-context denial, omitted-predicate isolation, Organization/School/class/guardian/self scopes, probing/count/pagination resistance, positive and negative writes, worker limits, and ${String(executionTime)}ms indexed plan.`
+      `Student forced-RLS proof passed: named policies, no-context denial, omitted-predicate isolation, Organization/School/class/guardian/self scopes, probing/count/pagination resistance, direct-write denial, worker limits, and ${String(executionTime)}ms indexed plan.`
     )
   } finally {
     await Promise.allSettled([runtime.close(), worker.close(), rawRuntime.end({ timeout: 5 })])
