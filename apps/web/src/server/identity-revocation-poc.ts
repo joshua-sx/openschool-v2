@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import {
+  TenantRequestContextError,
   type VerifiedAccountIdentity,
   processProviderMfaReconciliationBatch,
   resolveTenantRequestContext,
@@ -434,6 +435,23 @@ async function run(): Promise<void> {
     )
     assert.equal(mfaReset.providerMfaReset, 'pending')
     assert.equal(mfaReset.effects[0]?.securityVersion, 3)
+    const recoveryPendingIdentity = identity(
+      targetAccountId,
+      targetSession('recovery-pending'),
+      'aal2'
+    )
+    const expectRecoveryPending = () =>
+      assert.rejects(
+        resolveTenantRequestContext(
+          recoveryPendingIdentity,
+          { tenantId: TENANT_A, schoolId: SCHOOL_A },
+          { requestId: crypto.randomUUID() },
+          { at: NOW, comparisonMode: 'off' }
+        ),
+        (error: unknown) =>
+          error instanceof TenantRequestContextError && error.reason === 'MFA_RECOVERY_PENDING'
+      )
+    await expectRecoveryPending()
 
     const firstAttemptAt = new Date()
     const firstBatch = await processProviderMfaReconciliationBatch(
@@ -464,6 +482,7 @@ async function run(): Promise<void> {
     assert.equal(failedReconciliation.status, 'failed')
     assert.equal(failedReconciliation.attemptCount, 1)
     assert.equal(failedReconciliation.lastErrorCode, 'SUPABASE_MFA_FACTOR_LIST_FAILED')
+    await expectRecoveryPending()
 
     const retryAt = failedReconciliation.availableAt
     const retryBatch = await processProviderMfaReconciliationBatch(
@@ -503,6 +522,7 @@ async function run(): Promise<void> {
     )
     assert.equal(leaseClaim.length, 1)
     assert.equal(leaseClaim[0]?.expectedSecurityVersion, 4)
+    await expectRecoveryPending()
     const reclaimedAt = new Date(leaseClaimAt.getTime() + 5 * 60_000 + 1)
     const reclaimedBatch = await processProviderMfaReconciliationBatch(
       reconciliationContext(),
@@ -717,6 +737,7 @@ async function run(): Promise<void> {
             targetSession('all-1'),
             targetSession('mfa'),
             targetSession('membership'),
+            targetSession('recovery-pending'),
           ])
         )
     )

@@ -311,4 +311,19 @@ describe('database migration baseline', () => {
     assert.equal(tableDefinition.includes('provider_subject'), false)
     assert.equal(tableDefinition.includes('identity_provider'), false)
   })
+
+  it('blocks new identity sessions until the latest provider MFA reset completes', () => {
+    const migration = readFileSync(join(migrationsDirectory, '0025_fine_nemesis.sql'), 'utf8')
+    for (const expected of [
+      'provider_security_reconciliation_identity_resolver_select',
+      'is_provider_security_ready',
+      'PROVIDER_SECURITY_READINESS_CONTEXT_INVALID',
+      "reconciliation.status = 'completed'",
+      'ORDER BY reconciliation.expected_security_version DESC',
+      'OWNER TO "openschool_provider_security_resolver"',
+      'TO "openschool_runtime"',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+  })
 })

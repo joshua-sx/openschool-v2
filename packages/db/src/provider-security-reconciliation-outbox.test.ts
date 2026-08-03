@@ -3,6 +3,7 @@ import { describe, it } from 'node:test'
 import {
   claimProviderSecurityReconciliations,
   completeProviderSecurityReconciliation,
+  isProviderSecurityReady,
   resolveProviderMfaReconciliationTarget,
 } from './provider-security-reconciliation-outbox'
 import type { DatabaseTransaction } from './tenant-transaction'
@@ -15,6 +16,23 @@ const base = {
 }
 
 describe('provider security reconciliation database seam', () => {
+  it('accepts only one boolean readiness result', async () => {
+    assert.equal(
+      await isProviderSecurityReady(
+        { execute: async () => [{ ready: false }] } as unknown as DatabaseTransaction,
+        '00000000-0000-4000-8000-000000000003'
+      ),
+      false
+    )
+    await assert.rejects(
+      isProviderSecurityReady(
+        { execute: async () => [{ ready: 'false' }] } as unknown as DatabaseTransaction,
+        '00000000-0000-4000-8000-000000000003'
+      ),
+      /READINESS_INVALID/
+    )
+  })
+
   it('requires valid completion evidence', async () => {
     await assert.rejects(
       completeProviderSecurityReconciliation(transaction, {

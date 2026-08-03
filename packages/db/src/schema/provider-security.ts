@@ -152,6 +152,20 @@ export const providerSecurityReconciliationOutbox = pgTable(
         AND nullif(current_setting('app.request_id', true), '') IS NOT NULL
       `,
     }),
+    pgPolicy('provider_security_reconciliation_identity_resolver_select', {
+      for: 'select',
+      to: 'openschool_provider_security_resolver',
+      using: sql`
+        session_user = 'openschool_runtime'
+        AND current_user = 'openschool_provider_security_resolver'
+        AND EXISTS (
+          SELECT 1 FROM public.accounts AS verified_account
+          WHERE verified_account.id = ${table.accountId}
+            AND verified_account.identity_provider = nullif(current_setting('app.identity_provider', true), '')
+            AND verified_account.provider_subject = nullif(current_setting('app.provider_subject', true), '')
+        )
+      `,
+    }),
   ]
 ).enableRLS()
 

@@ -25,6 +25,26 @@ interface ProviderMfaReconciliationTargetRow extends Record<string, unknown> {
   expectedSecurityVersion: number | string
 }
 
+interface ProviderSecurityReadinessRow extends Record<string, unknown> {
+  ready: boolean
+}
+
+export async function isProviderSecurityReady(
+  tx: DatabaseTransaction,
+  accountId: string
+): Promise<boolean> {
+  if (!UUID.test(accountId)) {
+    throw new Error('PROVIDER_SECURITY_ACCOUNT_ID_INVALID')
+  }
+  const rows = await tx.execute<ProviderSecurityReadinessRow>(sql`
+    select openschool_private.is_provider_security_ready(${accountId}::uuid) as ready
+  `)
+  if (rows.length !== 1 || typeof rows[0]?.ready !== 'boolean') {
+    throw new Error('PROVIDER_SECURITY_READINESS_INVALID')
+  }
+  return rows[0].ready
+}
+
 export async function claimProviderSecurityReconciliations(
   tx: DatabaseTransaction,
   tenantId: string,

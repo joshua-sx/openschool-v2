@@ -279,6 +279,7 @@ interface RuntimeRoleEvidence extends Record<string, unknown> {
   canExecuteIdentityRevocation: boolean
   canExecuteLegacyIdentityRevocation: boolean
   canExecuteProviderSecurityResolver: boolean
+  canExecuteProviderSecurityReadiness: boolean
   canExecuteTenantAdmission: boolean
   canAssumeMigrationRole: boolean
   canAssumeOtherExecutionRole: boolean
@@ -393,6 +394,14 @@ async function assertSafeExecutionRole(
         from pg_proc procedure
         inner join pg_namespace namespace on namespace.oid = procedure.pronamespace
         where namespace.nspname = 'openschool_private'
+          and procedure.proname = 'is_provider_security_ready'
+          and procedure.proargtypes = '2950'::oidvector
+      ), false) as "canExecuteProviderSecurityReadiness",
+      coalesce((
+        select has_function_privilege(current_user, procedure.oid, 'EXECUTE')
+        from pg_proc procedure
+        inner join pg_namespace namespace on namespace.oid = procedure.pronamespace
+        where namespace.nspname = 'openschool_private'
           and procedure.proname = 'resolve_tenant_admission_status'
           and procedure.proargtypes = '2950'::oidvector
       ), false) as "canExecuteTenantAdmission",
@@ -489,6 +498,7 @@ async function assertSafeExecutionRole(
     evidence.canExecuteIdentityRevocation !== !canProcessAuditOutbox ||
     evidence.canExecuteLegacyIdentityRevocation ||
     evidence.canExecuteProviderSecurityResolver !== canProcessAuditOutbox ||
+    evidence.canExecuteProviderSecurityReadiness !== !canProcessAuditOutbox ||
     !evidence.canExecuteTenantAdmission ||
     evidence.canAssumeMigrationRole ||
     evidence.canAssumeOtherExecutionRole ||
