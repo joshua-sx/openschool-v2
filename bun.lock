@@ -7,6 +7,7 @@
       "devDependencies": {
         "@biomejs/biome": "^1.9.4",
         "@openschool/config": "workspace:*",
+        "@openschool/isolation": "workspace:*",
         "@types/node": "^20.19.33",
         "dotenv": "^17.2.3",
         "turbo": "^2.10.8",
