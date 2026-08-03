@@ -510,7 +510,6 @@ export async function createAcademicYear(
           dataClasses: ['internal'],
           change: {
             changedFields: ['academicYear', 'terms', 'learnerLevels'],
-            after: { schoolId: normalized.schoolId, status: created.status },
           },
           outbox: {
             topic: 'audit.event.committed',
@@ -550,7 +549,7 @@ async function transitionAcademicYear(
         const tenantId = context.tenantId
         if (!tenantId) policyScopeDenied()
         const [located] = await db
-          .select({ schoolId: academicYears.schoolId, status: academicYears.status })
+          .select({ schoolId: academicYears.schoolId })
           .from(academicYears)
           .where(and(eq(academicYears.tenantId, tenantId), eq(academicYears.id, academicYearId)))
           .limit(1)
@@ -603,8 +602,6 @@ async function transitionAcademicYear(
                 : eventType === 'academic_year.publish'
                   ? ['status', 'publishedAt']
                   : ['status', 'closedAt', 'closureReason'],
-            before: { schoolId: located.schoolId, status: located.status },
-            after: { schoolId: updated.schoolId, status: updated.status },
           },
           outbox: {
             topic: 'audit.event.committed',
