@@ -41,11 +41,11 @@ The accepted deployment versions are:
 3. Pass the resulting allow decision to the data service.
 4. The data service must verify the expected Capability and apply every returned query constraint as an allowed union.
 5. Relationship evidence must come from Tenant-scoped server queries, never client booleans.
-6. Complete audit obligations through #88's atomic audit/outbox boundary.
+6. Complete audit obligations through the atomic Audit Ledger/outbox boundary.
 7. Treat UI visibility as a hint only; server policy and database RLS remain authoritative.
 
 ## Evidence and remaining blockers
 
 The focused policy suite proves default-deny inputs, order-independent multi-role union, guardian, student, teacher/class, School, Organization subtree, support, and platform cases; obligation enforcement; immutable custom composition; and accepted-version selection. `policy:query-poc` runs against disposable seeded PostgreSQL and proves Organization subtree, selected School, assigned class, linked student, self, sibling-School, and cross-Tenant data constraints.
 
-This is not a complete production boundary. #86 must introduce named non-owner transaction-scoped runtime roles, #87 must independently enforce the student slice through forced RLS, #88 must make audit obligations atomic, #89 must provision platform/support/MFA lifecycle evidence, and #90 must complete the Isolation Matrix.
+This is not a complete production boundary by itself. The repository now composes Policy Decisions with named non-owner transaction-scoped roles, first-slice forced RLS, atomic audit obligations, platform/support/MFA lifecycle evidence, and the automated Isolation Matrix. Every future module must define reviewed capabilities and query constraints and pass that complete chain before enablement.

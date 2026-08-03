@@ -10,7 +10,7 @@ This package implements the first M1 isolation-key and hierarchy slice. It does 
 - `schools` remains one model for primary, secondary, all-through, special, and other profiles.
 - legacy `organizations` remains available during dual-read migration; imported records are linked by `legacy_organization_id`.
 
-Every tenant-owned operational row introduced by the existing schema carries a non-null, immutable `tenant_id`. Composite foreign keys prevent a child from combining one Tenant key with another Tenant's parent identifier. The additive Account/Person separation is documented in `IDENTITY_FOUNDATION.md`; legacy global `users` remain available only for migration compatibility. Audit scoping remains part of the atomic audit implementation in #88.
+Every tenant-owned operational row introduced by the existing schema carries a non-null, immutable `tenant_id`. Composite foreign keys prevent a child from combining one Tenant key with another Tenant's parent identifier. The additive Account/Person separation is documented in `IDENTITY_FOUNDATION.md`; legacy global `users` remain available only for migration compatibility. The merged Audit Ledger supplies the atomic audit boundary for implemented privileged mutations.
 
 ## Immutable Organization Tree writes
 

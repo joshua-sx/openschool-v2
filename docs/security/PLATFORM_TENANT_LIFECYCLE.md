@@ -1,6 +1,6 @@
 # Platform Tenant lifecycle control plane
 
-This runbook covers the platform portion of story #101: global platform access, Tenant suspension/reactivation, immediate request and worker denial, and atomic audit/invalidation evidence. It does not grant support access to school records. Support and break-glass remain story #102 and require a Tenant-approved, purpose-bound grant.
+This runbook covers the platform portion of story #101: global platform access, Tenant suspension/reactivation, immediate request and worker denial, and atomic audit/invalidation evidence. It does not grant support access to school records. The separately merged story #102 path still requires a Tenant-approved, purpose-bound grant for every support operation.
 
 ## Security boundary
 
@@ -85,6 +85,6 @@ It proves login/table/function privilege separation, AAL1 denial, stale-reauthen
 - [ ] `security.context.invalidate` publishing meets the approved latency target across every node and worker.
 - [ ] Suspension/reactivation, provider outage, database lock contention, stale context, and outbox failure drills pass in the target environment.
 - [ ] Audit review reconciles every lifecycle event with its change ticket and invalidation delivery.
-- [ ] Story #102 support/break-glass access remains disabled until its separate approval and Isolation Matrix evidence are complete.
+- [x] Story #102 support/break-glass has separate Tenant approval, purpose, expiry, notification, audit, and Isolation Matrix evidence; target-environment operations remain a production gate.
 
 Rollback may hide the platform UI or pause new lifecycle operations. It must not grant direct table access, weaken MFA/recent-auth checks, revive expired grants, ignore Tenant status, or delete audit evidence.
