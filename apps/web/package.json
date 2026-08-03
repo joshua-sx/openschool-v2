@@ -45,7 +45,7 @@
     "eslint": "^9.39.2",
     "eslint-config-next": "16.2.12",
     "tailwindcss": "^4.3.3",
-    "typescript": "^5"
+    "typescript": "^7"
   },
   "ignoreScripts": ["sharp", "unrs-resolver"],
   "trustedDependencies": ["sharp", "unrs-resolver"]
