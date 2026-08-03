@@ -213,6 +213,7 @@
     "db:backup-restore-isolation-poc": {
       "cache": false,
       "env": [
+        "ALLOW_DATABASE_EXECUTION_POC",
         "ALLOW_BACKUP_RESTORE_ISOLATION_POC",
         "DATABASE_MIGRATION_URL",
         "DATABASE_MIGRATION_ROLE",
