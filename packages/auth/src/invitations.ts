@@ -174,7 +174,9 @@ export async function acceptAccountInvitation(
             accepted.education_organization_id as "educationOrganizationId",
             accepted.school_id as "schoolId"
           from openschool_private.accept_account_invitation(
-            ${tokenHash}, ${new Date(identity.issuedAt)}, ${new Date(identity.expiresAt)}
+            ${tokenHash},
+            ${identity.issuedAt}::timestamp with time zone,
+            ${identity.expiresAt}::timestamp with time zone
           ) as accepted
         `)
         const row = result[0]
