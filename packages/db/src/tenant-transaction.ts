@@ -50,6 +50,46 @@ export interface WorkerDatabaseContext {
   requestId: string
 }
 
+export type DatabasePolicyQueryConstraint =
+  | Readonly<{ kind: 'tenant'; tenantId: string }>
+  | Readonly<{ kind: 'organization_exact'; tenantId: string; organizationId: string }>
+  | Readonly<{
+      kind: 'organization_subtree'
+      tenantId: string
+      ancestorOrganizationId: string
+    }>
+  | Readonly<{ kind: 'school'; tenantId: string; schoolId: string }>
+  | Readonly<{
+      kind: 'class'
+      tenantId: string
+      actorPersonId: string
+      classId?: string
+      schoolId?: string
+    }>
+  | Readonly<{ kind: 'self'; tenantId: string; personId: string }>
+  | Readonly<{
+      kind: 'linked_student'
+      tenantId: string
+      guardianPersonId: string
+      studentId?: string
+      classId?: string
+    }>
+
+export interface DatabasePolicyContext {
+  capability: string
+  policyVersion: string
+  queryConstraints: readonly DatabasePolicyQueryConstraint[]
+}
+
+export interface IdentityTenantResolutionContext {
+  tenantId: string
+  personId: string
+  queryConstraints: readonly (
+    | Extract<DatabasePolicyQueryConstraint, { kind: 'school' }>
+    | Extract<DatabasePolicyQueryConstraint, { kind: 'linked_student' }>
+  )[]
+}
+
 export type TenantPlacementDenialReason =
   | 'DATABASE_CONTEXT_INVALID'
   | 'DATABASE_ROLE_UNSAFE'
@@ -125,6 +165,54 @@ export function validateWorkerDatabaseContext(context: WorkerDatabaseContext): v
   requireUuid('jobId', context.jobId)
   requireSafeValue('requestId', context.requestId)
   requireSafeValue('jobType', context.jobType)
+}
+
+export function validateDatabasePolicyContext(
+  policy: DatabasePolicyContext,
+  tenant: TenantDatabaseContext
+): void {
+  requireSafeValue('capability', policy.capability)
+  requireSafeValue('policyVersion', policy.policyVersion)
+  if (!/^[a-z][a-z0-9_.:-]{0,127}$/.test(policy.capability)) {
+    deny('DATABASE_CONTEXT_INVALID', 'capability contains unsupported characters')
+  }
+  if (policy.queryConstraints.length < 1 || policy.queryConstraints.length > 16) {
+    deny('DATABASE_CONTEXT_INVALID', 'queryConstraints must contain between 1 and 16 scopes')
+  }
+  for (const constraint of policy.queryConstraints) {
+    requireUuid('queryConstraint.tenantId', constraint.tenantId)
+    if (constraint.tenantId !== tenant.tenantId) {
+      deny('DATABASE_CONTEXT_INVALID', 'queryConstraint Tenant does not match request context')
+    }
+    switch (constraint.kind) {
+      case 'tenant':
+        break
+      case 'organization_exact':
+        requireUuid('queryConstraint.organizationId', constraint.organizationId)
+        break
+      case 'organization_subtree':
+        requireUuid('queryConstraint.ancestorOrganizationId', constraint.ancestorOrganizationId)
+        break
+      case 'school':
+        requireUuid('queryConstraint.schoolId', constraint.schoolId)
+        break
+      case 'class':
+        requireUuid('queryConstraint.actorPersonId', constraint.actorPersonId)
+        if (constraint.classId) requireUuid('queryConstraint.classId', constraint.classId)
+        if (constraint.schoolId) requireUuid('queryConstraint.schoolId', constraint.schoolId)
+        break
+      case 'self':
+        requireUuid('queryConstraint.personId', constraint.personId)
+        break
+      case 'linked_student':
+        requireUuid('queryConstraint.guardianPersonId', constraint.guardianPersonId)
+        if (constraint.studentId) requireUuid('queryConstraint.studentId', constraint.studentId)
+        if (constraint.classId) requireUuid('queryConstraint.classId', constraint.classId)
+        break
+      default:
+        deny('DATABASE_CONTEXT_INVALID', 'queryConstraint kind is unsupported')
+    }
+  }
 }
 
 function createRuntimeDatabase(connectionString: string, max: number) {
@@ -309,6 +397,46 @@ async function setContext(
   await transaction.execute(sql`select ${sql.join(setters, sql`, `)}`)
 }
 
+/**
+ * Narrows a verified identity-bootstrap transaction to context-resolution rows.
+ * Callers must derive every scope from current Account Link and Affiliation data.
+ */
+export async function bindIdentityTenantResolutionContext(
+  transaction: DatabaseTransaction,
+  context: IdentityTenantResolutionContext
+): Promise<void> {
+  requireUuid('tenantId', context.tenantId)
+  requireUuid('personId', context.personId)
+  if (context.queryConstraints.length < 1 || context.queryConstraints.length > 16) {
+    deny('DATABASE_CONTEXT_INVALID', 'Identity resolution needs between 1 and 16 scopes')
+  }
+  for (const constraint of context.queryConstraints) {
+    requireUuid('queryConstraint.tenantId', constraint.tenantId)
+    if (constraint.tenantId !== context.tenantId) {
+      deny('DATABASE_CONTEXT_INVALID', 'Identity resolution scope has a different Tenant')
+    }
+    if (constraint.kind === 'school') {
+      requireUuid('queryConstraint.schoolId', constraint.schoolId)
+    } else {
+      requireUuid('queryConstraint.guardianPersonId', constraint.guardianPersonId)
+      if (constraint.guardianPersonId !== context.personId) {
+        deny('DATABASE_CONTEXT_INVALID', 'Guardian resolution scope has a different Person')
+      }
+      if (constraint.studentId) requireUuid('queryConstraint.studentId', constraint.studentId)
+      if (constraint.classId) requireUuid('queryConstraint.classId', constraint.classId)
+    }
+  }
+  await setContext(transaction, {
+    'app.person_id': context.personId,
+    'app.tenant_id': context.tenantId,
+    'app.education_organization_id': undefined,
+    'app.school_id': undefined,
+    'app.policy_capability': 'identity.context.resolve',
+    'app.policy_version': 'identity-context.v1',
+    'app.policy_constraints': JSON.stringify(context.queryConstraints),
+  })
+}
+
 async function withIdentityUsing<T>(
   database: RuntimeDatabase,
   securityAssertion: () => Promise<void>,
@@ -441,17 +569,17 @@ async function withTenantUsing<T>(
   database: RuntimeDatabase,
   securityAssertion: () => Promise<void>,
   context: TenantDatabaseContext,
-  operation: DatabaseOperation<T>
+  operation: DatabaseOperation<T>,
+  policyContext?: DatabasePolicyContext
 ): Promise<T> {
   validateTenantDatabaseContext(context)
+  if (policyContext) validateDatabasePolicyContext(policyContext, context)
   await securityAssertion()
   return database.transaction(async (transaction) => {
-    await setContext(transaction, { 'app.tenant_id': context.tenantId })
-    await assertActivePooledPlacement(transaction, context.tenantId)
-    await assertCurrentTenantContext(transaction, context)
     await setContext(transaction, {
       'app.account_id': context.accountId,
       'app.person_id': context.personId,
+      'app.tenant_id': context.tenantId,
       'app.session_id': context.sessionId,
       'app.request_id': context.requestId,
       'app.assurance_level': context.assuranceLevel,
@@ -460,7 +588,14 @@ async function withTenantUsing<T>(
       'app.context_policy_version': String(context.contextPolicyVersion),
       'app.education_organization_id': context.activeEducationOrganizationId,
       'app.school_id': context.activeSchoolId,
+      'app.policy_capability': policyContext?.capability,
+      'app.policy_version': policyContext?.policyVersion,
+      'app.policy_constraints': policyContext
+        ? JSON.stringify(policyContext.queryConstraints)
+        : undefined,
     })
+    await assertActivePooledPlacement(transaction, context.tenantId)
+    await assertCurrentTenantContext(transaction, context)
     return operation(transaction)
   })
 }
@@ -506,6 +641,17 @@ export async function withTenantTransaction<T>(
   return withTenantUsing(runtime(), assertRuntimeSecurity, context, operation)
 }
 
+/** Runs product work under both canonical Tenant and approved Policy Decision scope. */
+export async function withPolicyTenantTransaction<T>(
+  context: TenantDatabaseContext,
+  policyContext: DatabasePolicyContext,
+  operation: DatabaseOperation<T>
+): Promise<T> {
+  validateTenantDatabaseContext(context)
+  validateDatabasePolicyContext(policyContext, context)
+  return withTenantUsing(runtime(), assertRuntimeSecurity, context, operation, policyContext)
+}
+
 /** Runs a bounded background job through the separately credentialed worker role. */
 export async function withWorkerTenantTransaction<T>(
   context: WorkerDatabaseContext,
@@ -529,6 +675,9 @@ export interface DatabaseSessionContextEvidence extends Record<string, unknown> 
   membershipVersion: string | null
   securityVersion: string | null
   contextPolicyVersion: string | null
+  policyCapability: string | null
+  policyVersion: string | null
+  policyConstraints: string | null
 }
 
 /** Guarded, loopback-only harness for real pool reuse and cleanup evidence. */
@@ -574,6 +723,11 @@ export function createDatabaseExecutionProofHarness(
     ) => withIdentityUsing(database, assertHarnessSecurity, context, operation),
     withTenantTransaction: <T>(context: TenantDatabaseContext, operation: DatabaseOperation<T>) =>
       withTenantUsing(database, assertHarnessSecurity, context, operation),
+    withPolicyTenantTransaction: <T>(
+      context: TenantDatabaseContext,
+      policyContext: DatabasePolicyContext,
+      operation: DatabaseOperation<T>
+    ) => withTenantUsing(database, assertHarnessSecurity, context, operation, policyContext),
     withWorkerTenantTransaction: <T>(
       context: WorkerDatabaseContext,
       operation: DatabaseOperation<T>
@@ -595,6 +749,9 @@ export function createDatabaseExecutionProofHarness(
           nullif(current_setting('app.membership_version', true), '') as "membershipVersion",
           nullif(current_setting('app.security_version', true), '') as "securityVersion",
           nullif(current_setting('app.context_policy_version', true), '') as "contextPolicyVersion"
+          ,nullif(current_setting('app.policy_capability', true), '') as "policyCapability"
+          ,nullif(current_setting('app.policy_version', true), '') as "policyVersion"
+          ,nullif(current_setting('app.policy_constraints', true), '') as "policyConstraints"
       `)
       const evidence = result[0]
       if (!evidence) throw new Error('Database execution proof returned no context evidence.')

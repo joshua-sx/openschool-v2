@@ -22,10 +22,11 @@ jobs:
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_0123456789abcdef
       DATABASE_MIGRATION_URL: postgresql://migration:ci@127.0.0.1:5432/openschool
       DATABASE_MIGRATION_ROLE: migration
-      DATABASE_RUNTIME_URL: postgresql://runtime:ci@127.0.0.1:5432/openschool
-      DATABASE_RUNTIME_ROLE: runtime
-      DATABASE_WORKER_URL: postgresql://worker:ci@127.0.0.1:5432/openschool
-      DATABASE_WORKER_ROLE: worker
+      DATABASE_RUNTIME_URL: postgresql://openschool_runtime:ci@127.0.0.1:5432/openschool
+      DATABASE_RUNTIME_ROLE: openschool_runtime
+      DATABASE_WORKER_URL: postgresql://openschool_worker:ci@127.0.0.1:5432/openschool
+      DATABASE_WORKER_ROLE: openschool_worker
+      OPENSCHOOL_STUDENT_SLICE_MODE: forced_rls
       NEXT_PUBLIC_APP_URL: http://app.openschool.local:3000
       NEXT_PUBLIC_WWW_URL: http://www.openschool.local:3000
 
@@ -85,6 +86,7 @@ jobs:
           --health-retries 10
     env:
       ALLOW_SECURITY_POC: "true"
+      ALLOW_STUDENT_RLS_POC: "true"
       ALLOW_TENANT_FOUNDATION_POC: "true"
       ALLOW_IDENTITY_FOUNDATION_POC: "true"
       ALLOW_DATABASE_EXECUTION_POC: "true"
@@ -97,6 +99,7 @@ jobs:
       DATABASE_RUNTIME_ROLE: openschool_runtime
       DATABASE_WORKER_URL: postgresql://openschool_worker:worker-ci-only-1@127.0.0.1:5432/openschool
       DATABASE_WORKER_ROLE: openschool_worker
+      OPENSCHOOL_STUDENT_SLICE_MODE: forced_rls
 
     steps:
       - name: Check out repository
@@ -113,6 +116,11 @@ jobs:
       - name: Validate migration metadata
         run: bun run db:check
 
+      - name: Provision named role identities before RLS migrations
+        env:
+          ROLE_PROVISIONING_PHASE: identities
+        run: bun run db:provision-roles
+
       - name: Apply baseline migrations
         run: bun run db:migrate
 
@@ -125,6 +133,8 @@ jobs:
           bun run db:seed
 
       - name: Provision non-owner runtime and worker roles
+        env:
+          ROLE_PROVISIONING_PHASE: grants
         run: bun run db:provision-roles
 
       - name: Prove transaction-scoped database execution
@@ -144,6 +154,9 @@ jobs:
 
       - name: Prove capability Policy Decision query constraints
         run: bun run policy:query-poc
+
+      - name: Prove forced-RLS Student and School boundaries
+        run: bun run db:student-rls-poc
 
   database-upgrade:
     name: Upgrade representative existing data
@@ -171,6 +184,7 @@ jobs:
       DATABASE_RUNTIME_ROLE: openschool_runtime
       DATABASE_WORKER_URL: postgresql://openschool_worker:worker-ci-only-1@127.0.0.1:5432/openschool
       DATABASE_WORKER_ROLE: openschool_worker
+      OPENSCHOOL_STUDENT_SLICE_MODE: forced_rls
 
     steps:
       - name: Check out repository
@@ -186,6 +200,12 @@ jobs:
 
       - name: Prepare representative migration 0002 data
         run: bun run db:prepare-upgrade-fixture
+
+      - name: Provision named role identities before RLS migrations
+        env:
+          ALLOW_ROLE_PROVISIONING: "true"
+          ROLE_PROVISIONING_PHASE: identities
+        run: bun run db:provision-roles
 
       - name: Apply Tenant foundation migrations twice
         run: |

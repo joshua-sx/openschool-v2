@@ -4,6 +4,7 @@ import {
   accountSessions,
   accounts,
   affiliations,
+  bindIdentityTenantResolutionContext,
   classes,
   educationOrganizations,
   organizationTreeClosure,
@@ -350,6 +351,11 @@ async function loadGuardianSchoolIds(
   at: Date,
   limit = MAX_GUARDIAN_SCHOOLS + 1
 ): Promise<string[]> {
+  await bindIdentityTenantResolutionContext(db, {
+    tenantId,
+    personId: guardianPersonId,
+    queryConstraints: [{ kind: 'linked_student', tenantId, guardianPersonId }],
+  })
   const relationships = await db
     .selectDistinct({ schoolId: students.schoolId })
     .from(personRelationships)
@@ -382,6 +388,36 @@ async function loadGuardianSchoolIds(
     .limit(limit)
 
   return relationships.map(({ schoolId }) => schoolId)
+}
+
+async function loadActiveSchoolNames(
+  db: Database,
+  tenantId: string,
+  personId: string,
+  schoolIds: readonly string[]
+): Promise<Array<{ id: string; name: string }>> {
+  const rows: Array<{ id: string; name: string }> = []
+  for (let offset = 0; offset < schoolIds.length; offset += 16) {
+    const batch = schoolIds.slice(offset, offset + 16)
+    await bindIdentityTenantResolutionContext(db, {
+      tenantId,
+      personId,
+      queryConstraints: batch.map((schoolId) => ({ kind: 'school', tenantId, schoolId })),
+    })
+    rows.push(
+      ...(await db
+        .select({ id: schools.id, name: schools.name })
+        .from(schools)
+        .where(
+          and(
+            eq(schools.tenantId, tenantId),
+            inArray(schools.id, batch),
+            eq(schools.status, 'active')
+          )
+        ))
+    )
+  }
+  return rows
 }
 
 async function loadLegacyRoleKeys(
@@ -651,14 +687,6 @@ async function resolveTenantRequestContextInTransaction(
 
   let schoolGovernanceOrganizationId: string | null = null
   if (selectedSchoolId) {
-    const [school] = await db
-      .select({ name: schools.name, status: schools.status })
-      .from(schools)
-      .where(and(eq(schools.tenantId, link.tenantId), eq(schools.id, selectedSchoolId)))
-      .limit(1)
-    if (!school || school.status !== 'active') denial('SCHOOL_DENIED', 'School is not active')
-    selectedSchoolName = school.name
-
     schoolGovernanceOrganizationId = await currentSchoolGovernanceOrganization(
       db,
       link.tenantId,
@@ -668,23 +696,6 @@ async function resolveTenantRequestContextInTransaction(
     if (!schoolGovernanceOrganizationId) {
       denial('SCHOOL_DENIED', 'School has no current governance assignment')
     }
-  }
-
-  if (selectedOrganizationId) {
-    const [organization] = await db
-      .select({ name: educationOrganizations.name, status: educationOrganizations.status })
-      .from(educationOrganizations)
-      .where(
-        and(
-          eq(educationOrganizations.tenantId, link.tenantId),
-          eq(educationOrganizations.id, selectedOrganizationId)
-        )
-      )
-      .limit(1)
-    if (!organization || organization.status !== 'active') {
-      denial('ORG_DENIED', 'Education Organization is not active')
-    }
-    selectedOrganizationName = organization.name
   }
 
   const treeVersionId = await currentOrganizationTreeVersionId(db, link.tenantId, at)
@@ -749,6 +760,40 @@ async function resolveTenantRequestContextInTransaction(
   }
   if (roleTemplateKeys.length > MAX_CONTEXT_ROLE_KEYS) {
     denial('POLICY_DENIED', 'Context role safety limit exceeded')
+  }
+
+  if (selectedSchoolId) {
+    // The scope is bound only after current Affiliations/Relationships prove
+    // that this Account may select the School. Client selectors never bind RLS.
+    await bindIdentityTenantResolutionContext(db, {
+      tenantId: link.tenantId,
+      personId: link.personId,
+      queryConstraints: [{ kind: 'school', tenantId: link.tenantId, schoolId: selectedSchoolId }],
+    })
+    const [school] = await db
+      .select({ name: schools.name, status: schools.status })
+      .from(schools)
+      .where(and(eq(schools.tenantId, link.tenantId), eq(schools.id, selectedSchoolId)))
+      .limit(1)
+    if (!school || school.status !== 'active') denial('SCHOOL_DENIED', 'School is not active')
+    selectedSchoolName = school.name
+  }
+
+  if (selectedOrganizationId) {
+    const [organization] = await db
+      .select({ name: educationOrganizations.name, status: educationOrganizations.status })
+      .from(educationOrganizations)
+      .where(
+        and(
+          eq(educationOrganizations.tenantId, link.tenantId),
+          eq(educationOrganizations.id, selectedOrganizationId)
+        )
+      )
+      .limit(1)
+    if (!organization || organization.status !== 'active') {
+      denial('ORG_DENIED', 'Education Organization is not active')
+    }
+    selectedOrganizationName = organization.name
   }
 
   let legacyComparison: TenantRequestContext['legacyComparison'] = 'not_applicable'
@@ -1022,9 +1067,9 @@ async function listAvailableTenantContextsInTransaction(
     const schoolIds = [...optionRoles.keys()]
       .filter((key) => key.startsWith('school:'))
       .map((key) => key.slice(7))
-    const [organizationRows, schoolRows] = await Promise.all([
+    const organizationRows =
       organizationIds.length > 0
-        ? db
+        ? await db
             .select({ id: educationOrganizations.id, name: educationOrganizations.name })
             .from(educationOrganizations)
             .where(
@@ -1034,20 +1079,8 @@ async function listAvailableTenantContextsInTransaction(
                 eq(educationOrganizations.status, 'active')
               )
             )
-        : Promise.resolve([]),
-      schoolIds.length > 0
-        ? db
-            .select({ id: schools.id, name: schools.name })
-            .from(schools)
-            .where(
-              and(
-                eq(schools.tenantId, link.tenantId),
-                inArray(schools.id, schoolIds),
-                eq(schools.status, 'active')
-              )
-            )
-        : Promise.resolve([]),
-    ])
+        : []
+    const schoolRows = await loadActiveSchoolNames(db, link.tenantId, link.personId, schoolIds)
     const organizationNames = new Map(organizationRows.map((row) => [row.id, row.name]))
     const schoolNames = new Map(schoolRows.map((row) => [row.id, row.name]))
 

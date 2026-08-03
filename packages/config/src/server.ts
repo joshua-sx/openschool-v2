@@ -6,6 +6,8 @@ import {
 } from './validation'
 
 const DATABASE_ROLE_PATTERN = /^[a-z_][a-z0-9_]{0,62}$/
+export const DATABASE_RUNTIME_ROLE_NAME = 'openschool_runtime'
+export const DATABASE_WORKER_ROLE_NAME = 'openschool_worker'
 
 export interface DatabaseRoleEnvironment {
   DATABASE_MIGRATION_ROLE: string
@@ -23,6 +25,10 @@ export interface WorkerEnvironment extends DatabaseRoleEnvironment {
 
 export interface MigrationEnvironment {
   DATABASE_MIGRATION_URL: string
+}
+
+export interface StudentSliceEnvironment {
+  OPENSCHOOL_STUDENT_SLICE_MODE: 'forced_rls' | 'disabled'
 }
 
 function databaseUsername(variable: string, value: string): string {
@@ -49,6 +55,18 @@ function parseDatabaseRoles(source: EnvironmentSource): Readonly<DatabaseRoleEnv
     throw new EnvironmentValidationError(
       'DATABASE_RUNTIME_ROLE',
       'migration, runtime, and worker database roles must be distinct'
+    )
+  }
+  if (roles.DATABASE_RUNTIME_ROLE !== DATABASE_RUNTIME_ROLE_NAME) {
+    throw new EnvironmentValidationError(
+      'DATABASE_RUNTIME_ROLE',
+      `must be ${DATABASE_RUNTIME_ROLE_NAME} for named RLS policies`
+    )
+  }
+  if (roles.DATABASE_WORKER_ROLE !== DATABASE_WORKER_ROLE_NAME) {
+    throw new EnvironmentValidationError(
+      'DATABASE_WORKER_ROLE',
+      `must be ${DATABASE_WORKER_ROLE_NAME} for named RLS policies`
     )
   }
   return Object.freeze(roles)
@@ -107,6 +125,17 @@ export function parseMigrationEnv(source: EnvironmentSource): Readonly<Migration
   })
 }
 
+export function parseStudentSliceEnv(source: EnvironmentSource): Readonly<StudentSliceEnvironment> {
+  const mode = requireValue(source, 'OPENSCHOOL_STUDENT_SLICE_MODE')
+  if (mode !== 'forced_rls' && mode !== 'disabled') {
+    throw new EnvironmentValidationError(
+      'OPENSCHOOL_STUDENT_SLICE_MODE',
+      'must be forced_rls or disabled'
+    )
+  }
+  return Object.freeze({ OPENSCHOOL_STUDENT_SLICE_MODE: mode })
+}
+
 export function getServerEnv(): Readonly<ServerEnvironment> {
   return parseServerEnv({
     DATABASE_RUNTIME_URL: process.env.DATABASE_RUNTIME_URL,
@@ -127,6 +156,12 @@ export function getWorkerEnv(): Readonly<WorkerEnvironment> {
 
 export function getMigrationEnv(): Readonly<MigrationEnvironment> {
   return parseMigrationEnv({ DATABASE_MIGRATION_URL: process.env.DATABASE_MIGRATION_URL })
+}
+
+export function getStudentSliceEnv(): Readonly<StudentSliceEnvironment> {
+  return parseStudentSliceEnv({
+    OPENSCHOOL_STUDENT_SLICE_MODE: process.env.OPENSCHOOL_STUDENT_SLICE_MODE,
+  })
 }
 
 export { EnvironmentValidationError }

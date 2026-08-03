@@ -12,7 +12,7 @@ import {
   schoolGovernanceAssignments,
   studentProfiles,
   students,
-  withTenantTransaction,
+  withPolicyTenantTransaction,
 } from '@openschool/db'
 import {
   type AllowedPolicyDecision,
@@ -23,7 +23,11 @@ import {
 } from '@openschool/rbac'
 import { TRPCError } from '@trpc/server'
 import { and, desc, eq, gt, isNull, lte, or } from 'drizzle-orm'
-import { assertDatabasePolicyContext } from './database-context'
+import {
+  assertDatabasePolicyContext,
+  assertStudentSliceEnabled,
+  toDatabasePolicyContext,
+} from './database-context'
 import { getSchoolByIdInTransaction } from './schools'
 
 const MAX_STUDENT_ROWS = 500
@@ -256,6 +260,7 @@ async function loadAuthorizedStudents(
   expectedCapability: Capability,
   lookup: StudentLookup
 ): Promise<Student[]> {
+  assertStudentSliceEnabled()
   const constraints = tenantPolicyConstraints(context, decision, expectedCapability)
   const at = new Date()
   const rows = (
@@ -273,8 +278,9 @@ export async function getStudentsBySchool(
   decision: AllowedPolicyDecision,
   schoolId: string
 ): Promise<Student[]> {
+  assertStudentSliceEnabled()
   assertDatabasePolicyContext(databaseContext, context)
-  return withTenantTransaction(databaseContext, (db) =>
+  return withPolicyTenantTransaction(databaseContext, toDatabasePolicyContext(decision), (db) =>
     loadAuthorizedStudents(db, context, decision, CAPABILITIES.STUDENTS_READ, { schoolId })
   )
 }
@@ -285,13 +291,16 @@ export async function getStudentById(
   decision: AllowedPolicyDecision,
   studentId: string
 ): Promise<Student | null> {
+  assertStudentSliceEnabled()
   const expectedCapability =
     decision.capability === CAPABILITIES.STUDENTS_UPDATE
       ? CAPABILITIES.STUDENTS_UPDATE
       : CAPABILITIES.STUDENTS_READ
   assertDatabasePolicyContext(databaseContext, context)
-  const [student] = await withTenantTransaction(databaseContext, (db) =>
-    loadAuthorizedStudents(db, context, decision, expectedCapability, { studentId })
+  const [student] = await withPolicyTenantTransaction(
+    databaseContext,
+    toDatabasePolicyContext(decision),
+    (db) => loadAuthorizedStudents(db, context, decision, expectedCapability, { studentId })
   )
   return student ?? null
 }
@@ -302,23 +311,28 @@ export async function createStudent(
   decision: AllowedPolicyDecision,
   data: Omit<NewStudent, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>
 ): Promise<Student> {
+  assertStudentSliceEnabled()
   assertDatabasePolicyContext(databaseContext, context)
   if (decision.capability !== CAPABILITIES.STUDENTS_CREATE) policyScopeDenied()
-  const student = await withTenantTransaction(databaseContext, async (db) => {
-    const school = await getSchoolByIdInTransaction(
-      db,
-      context,
-      decision,
-      data.schoolId,
-      CAPABILITIES.STUDENTS_CREATE
-    )
-    if (!school) policyScopeDenied()
-    const [created] = await db
-      .insert(students)
-      .values({ ...data, tenantId: school.tenantId })
-      .returning()
-    return created
-  })
+  const student = await withPolicyTenantTransaction(
+    databaseContext,
+    toDatabasePolicyContext(decision),
+    async (db) => {
+      const school = await getSchoolByIdInTransaction(
+        db,
+        context,
+        decision,
+        data.schoolId,
+        CAPABILITIES.STUDENTS_CREATE
+      )
+      if (!school) policyScopeDenied()
+      const [created] = await db
+        .insert(students)
+        .values({ ...data, tenantId: school.tenantId })
+        .returning()
+      return created
+    }
+  )
   if (!student) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'CREATE_FAILED' })
 
   await logAuditEvent(databaseContext, context, {
@@ -337,44 +351,49 @@ export async function updateStudent(
   studentId: string,
   data: Partial<Omit<NewStudent, 'id' | 'tenantId' | 'schoolId' | 'createdAt' | 'updatedAt'>>
 ): Promise<Student> {
+  assertStudentSliceEnabled()
   assertDatabasePolicyContext(databaseContext, context)
   if (decision.capability !== CAPABILITIES.STUDENTS_UPDATE) policyScopeDenied()
-  const result = await withTenantTransaction(databaseContext, async (db) => {
-    const [existing] = await loadAuthorizedStudents(
-      db,
-      context,
-      decision,
-      CAPABILITIES.STUDENTS_UPDATE,
-      { studentId }
-    )
-    if (!existing) throw new TRPCError({ code: 'NOT_FOUND', message: 'Student not found' })
-    const [locked] = await db
-      .select()
-      .from(students)
-      .where(
-        and(
-          eq(students.tenantId, existing.tenantId),
-          eq(students.id, existing.id),
-          eq(students.schoolId, existing.schoolId),
-          eq(students.status, 'active')
-        )
+  const result = await withPolicyTenantTransaction(
+    databaseContext,
+    toDatabasePolicyContext(decision),
+    async (db) => {
+      const [existing] = await loadAuthorizedStudents(
+        db,
+        context,
+        decision,
+        CAPABILITIES.STUDENTS_UPDATE,
+        { studentId }
       )
-      .for('update')
-      .limit(1)
-    if (!locked) throw new TRPCError({ code: 'CONFLICT', message: 'RESOURCE_CHANGED' })
-    const [updated] = await db
-      .update(students)
-      .set({ ...data, updatedAt: new Date() })
-      .where(
-        and(
-          eq(students.tenantId, existing.tenantId),
-          eq(students.id, existing.id),
-          eq(students.schoolId, existing.schoolId)
+      if (!existing) throw new TRPCError({ code: 'NOT_FOUND', message: 'Student not found' })
+      const [locked] = await db
+        .select()
+        .from(students)
+        .where(
+          and(
+            eq(students.tenantId, existing.tenantId),
+            eq(students.id, existing.id),
+            eq(students.schoolId, existing.schoolId),
+            eq(students.status, 'active')
+          )
         )
-      )
-      .returning()
-    return { existing: locked, updated }
-  })
+        .for('update')
+        .limit(1)
+      if (!locked) throw new TRPCError({ code: 'CONFLICT', message: 'RESOURCE_CHANGED' })
+      const [updated] = await db
+        .update(students)
+        .set({ ...data, updatedAt: new Date() })
+        .where(
+          and(
+            eq(students.tenantId, existing.tenantId),
+            eq(students.id, existing.id),
+            eq(students.schoolId, existing.schoolId)
+          )
+        )
+        .returning()
+      return { existing: locked, updated }
+    }
+  )
   if (!result.updated) throw new TRPCError({ code: 'CONFLICT', message: 'RESOURCE_CHANGED' })
 
   await logAuditEvent(databaseContext, context, {

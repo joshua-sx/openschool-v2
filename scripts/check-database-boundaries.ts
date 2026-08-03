@@ -33,6 +33,12 @@ for (const trackedFile of trackedFiles) {
   if (/\.unsafe\s*\(/.test(source)) {
     violations.push(`${path}: raw SQL is not on the reviewed infrastructure allowlist`)
   }
+  if (
+    source.includes('bindIdentityTenantResolutionContext') &&
+    path !== 'packages/auth/src/tenant-request-context.ts'
+  ) {
+    violations.push(`${path}: the pre-policy RLS binder is restricted to Tenant context resolution`)
+  }
 }
 
 if (violations.length > 0) {

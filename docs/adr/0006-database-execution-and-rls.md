@@ -33,9 +33,9 @@ RLS is defense in depth against missing or incorrect predicates, not a sandbox f
 - **Session-level context:** pooled connections can leak context between requests.
 - **One database role per Person:** operationally unbounded and incompatible with ordinary pooling.
 
-## Evidence required before M1 policy migration
+## Accepted first-slice evidence
 
-The isolated proof under `packages/db/security-poc` must demonstrate separate real runtime and worker roles, non-ownership, `NOBYPASSRLS`, explicit `has_table_privilege` grants/denials, default deny, Tenant A/B SELECT/INSERT/UPDATE/DELETE isolation, `WITH CHECK` rejection, and context reset after commit, rollback, policy error, and same-connection reuse in CI. Missing table privilege failures must be distinguished from RLS policy denials. Actual table policies require a separate reviewed migration and the full isolation matrix.
+The isolated proofs demonstrate separate real runtime and worker roles, non-ownership, `NOBYPASSRLS`, explicit grants/denials, context reset, and transaction reuse. Migration `0014_student_school_forced_rls` adds named, forced policies for the first School/Student slice. `db:student-rls-poc` verifies default denial, application-predicate omission, scoped personas, Tenant A/B `SELECT`/`INSERT`/`UPDATE`/`DELETE`, `WITH CHECK`, probing/count/pagination behavior, worker limits, policy metadata, the accepted index, and a CI query budget. This is slice evidence, not approval of every Tenant table or access path.
 
 ## Consequences
 

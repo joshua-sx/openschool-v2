@@ -6,6 +6,7 @@
     "DATABASE_MIGRATION_ROLE",
     "DATABASE_RUNTIME_ROLE",
     "DATABASE_WORKER_ROLE",
+    "OPENSCHOOL_STUDENT_SLICE_MODE",
     "OPENSCHOOL_POLICY_VERSION",
     "NEXT_PUBLIC_APP_URL",
     "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
@@ -31,7 +32,8 @@
       "cache": false
     },
     "db:generate": {
-      "cache": false
+      "cache": false,
+      "env": ["DATABASE_MIGRATION_URL"]
     },
     "db:check": {
       "cache": false,
@@ -45,6 +47,7 @@
       "cache": false,
       "env": [
         "ALLOW_ROLE_PROVISIONING",
+        "ROLE_PROVISIONING_PHASE",
         "DATABASE_MIGRATION_URL",
         "DATABASE_MIGRATION_ROLE",
         "DATABASE_RUNTIME_URL",
@@ -55,6 +58,17 @@
       "cache": false,
       "env": [
         "ALLOW_DATABASE_EXECUTION_POC",
+        "DATABASE_MIGRATION_URL",
+        "DATABASE_MIGRATION_ROLE",
+        "DATABASE_RUNTIME_URL",
+        "DATABASE_WORKER_URL"
+      ]
+    },
+    "db:student-rls-poc": {
+      "cache": false,
+      "env": [
+        "ALLOW_DATABASE_EXECUTION_POC",
+        "ALLOW_STUDENT_RLS_POC",
         "DATABASE_MIGRATION_URL",
         "DATABASE_MIGRATION_ROLE",
         "DATABASE_RUNTIME_URL",
