@@ -186,6 +186,27 @@
         "DATABASE_CONTROL_PLANE_ROLE"
       ]
     },
+    "db:audit-partition-poc": {
+      "cache": false,
+      "env": [
+        "ALLOW_AUDIT_PARTITION_POC",
+        "DATABASE_MIGRATION_URL",
+        "DATABASE_MIGRATION_ROLE",
+        "DATABASE_RUNTIME_URL",
+        "DATABASE_WORKER_URL"
+      ]
+    },
+    "audit:partition-maintain": {
+      "cache": false,
+      "env": [
+        "AUDIT_PARTITION_MIN_HORIZON_DAYS",
+        "DATABASE_MIGRATION_ROLE",
+        "DATABASE_RUNTIME_ROLE",
+        "DATABASE_WORKER_ROLE",
+        "DATABASE_CONTROL_PLANE_ROLE",
+        "DATABASE_WORKER_URL"
+      ]
+    },
     "db:prepare-upgrade-fixture": {
       "cache": false,
       "env": ["ALLOW_TENANT_FOUNDATION_POC", "DATABASE_MIGRATION_URL", "DATABASE_MIGRATION_ROLE"]

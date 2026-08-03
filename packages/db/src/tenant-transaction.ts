@@ -92,6 +92,8 @@ export interface WorkerDatabaseContext {
   requestId: string
 }
 
+export type SystemWorkerDatabaseContext = Omit<WorkerDatabaseContext, 'tenantId'>
+
 export type DatabasePolicyQueryConstraint =
   | Readonly<{ kind: 'tenant'; tenantId: string }>
   | Readonly<{ kind: 'organization_exact'; tenantId: string; organizationId: string }>
@@ -238,6 +240,10 @@ export function validateTenantDatabaseContext(context: TenantDatabaseContext): v
 
 export function validateWorkerDatabaseContext(context: WorkerDatabaseContext): void {
   requireUuid('tenantId', context.tenantId)
+  validateSystemWorkerDatabaseContext(context)
+}
+
+export function validateSystemWorkerDatabaseContext(context: SystemWorkerDatabaseContext): void {
   requireUuid('jobId', context.jobId)
   requireSafeValue('requestId', context.requestId)
   requireSafeValue('jobType', context.jobType)
@@ -355,6 +361,7 @@ interface RuntimeRoleEvidence extends Record<string, unknown> {
   canResolveSupportAccess: boolean
   canCloseSupportAccess: boolean
   canExpireSupportAccess: boolean
+  canMaintainAuditPartitions: boolean
   canAssumeMigrationRole: boolean
   canAssumeOtherExecutionRole: boolean
   canAssumeBackupRole: boolean
@@ -365,6 +372,7 @@ interface RuntimeRoleEvidence extends Record<string, unknown> {
   canAssumeProviderSecurityResolver: boolean
   canAssumeSupportGrantManager: boolean
   canAssumeSupportAccessResolver: boolean
+  canAssumeAuditPartitionManager: boolean
   operationalRolesExist: boolean
   hasUnsafeMembership: boolean
 }
@@ -537,6 +545,14 @@ async function assertSafeExecutionRole(
         where namespace.nspname = 'openschool_private'
           and procedure.proname = 'expire_support_access_grant'
       ), false) as "canExpireSupportAccess",
+      coalesce((
+        select has_function_privilege(current_user, procedure.oid, 'EXECUTE')
+        from pg_proc procedure
+        inner join pg_namespace namespace on namespace.oid = procedure.pronamespace
+        where namespace.nspname = 'openschool_private'
+          and procedure.proname = 'maintain_audit_partition_horizon'
+          and procedure.proargtypes = '23'::oidvector
+      ), false) as "canMaintainAuditPartitions",
       exists (
         select 1 from pg_roles candidate
         where candidate.rolname = ${migrationUsername}
@@ -587,6 +603,11 @@ async function assertSafeExecutionRole(
         where candidate.rolname = 'openschool_support_access_resolver'
           and pg_has_role(current_user, candidate.oid, 'member')
       ) as "canAssumeSupportAccessResolver",
+      exists (
+        select 1 from pg_roles candidate
+        where candidate.rolname = 'openschool_audit_partition_manager'
+          and pg_has_role(current_user, candidate.oid, 'member')
+      ) as "canAssumeAuditPartitionManager",
       (
         select count(*) = 2
         from pg_roles candidate
@@ -655,6 +676,7 @@ async function assertSafeExecutionRole(
     evidence.canResolveSupportAccess !== !canProcessAuditOutbox ||
     evidence.canCloseSupportAccess !== !canProcessAuditOutbox ||
     evidence.canExpireSupportAccess !== canProcessAuditOutbox ||
+    evidence.canMaintainAuditPartitions !== canProcessAuditOutbox ||
     evidence.canAssumeMigrationRole ||
     evidence.canAssumeOtherExecutionRole ||
     evidence.canAssumeBackupRole ||
@@ -665,6 +687,7 @@ async function assertSafeExecutionRole(
     evidence.canAssumeProviderSecurityResolver ||
     evidence.canAssumeSupportGrantManager ||
     evidence.canAssumeSupportAccessResolver ||
+    evidence.canAssumeAuditPartitionManager ||
     !evidence.operationalRolesExist ||
     evidence.hasUnsafeMembership
   ) {
@@ -1218,6 +1241,24 @@ async function withWorkerUsing<T>(
   })
 }
 
+async function withSystemWorkerUsing<T>(
+  database: RuntimeDatabase,
+  securityAssertion: () => Promise<void>,
+  context: SystemWorkerDatabaseContext,
+  operation: DatabaseOperation<T>
+): Promise<T> {
+  validateSystemWorkerDatabaseContext(context)
+  await securityAssertion()
+  return database.transaction(async (transaction) => {
+    await setContext(transaction, {
+      'app.job_id': context.jobId,
+      'app.job_type': context.jobType,
+      'app.request_id': context.requestId,
+    })
+    return operation(transaction)
+  })
+}
+
 /** Runs pre-Tenant identity bootstrap through the non-owner runtime role. */
 export async function withIdentityTransaction<T>(
   context: IdentityDatabaseContext,
@@ -1295,6 +1336,15 @@ export async function withWorkerTenantTransaction<T>(
 ): Promise<T> {
   validateWorkerDatabaseContext(context)
   return withWorkerUsing(worker(), assertWorkerSecurity, context, operation)
+}
+
+/** Runs a global, non-Tenant maintenance job through the non-owner worker role. */
+export async function withSystemWorkerTransaction<T>(
+  context: SystemWorkerDatabaseContext,
+  operation: DatabaseOperation<T>
+): Promise<T> {
+  validateSystemWorkerDatabaseContext(context)
+  return withSystemWorkerUsing(worker(), assertWorkerSecurity, context, operation)
 }
 
 export interface DatabaseSessionContextEvidence extends Record<string, unknown> {

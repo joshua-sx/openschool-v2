@@ -18,6 +18,8 @@
     "db:identity-foundation-poc": "bun run src/identity-foundation-poc.ts",
     "db:platform-tenant-lifecycle-poc": "bun run src/platform-tenant-lifecycle-poc.ts",
     "db:support-access-poc": "bun run src/support-access-poc.ts",
+    "db:audit-partition-poc": "bun run src/audit-partition-lifecycle-poc.ts",
+    "audit:partition-maintain": "bun run src/audit-partition-maintenance-job.ts",
     "db:prepare-upgrade-fixture": "bun run src/prepare-upgrade-fixture.ts",
     "db:verify-upgrade-fixture": "bun run src/verify-upgrade-fixture.ts",
     "db:studio": "drizzle-kit studio",
