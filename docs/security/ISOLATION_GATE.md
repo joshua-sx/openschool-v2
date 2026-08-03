@@ -33,12 +33,13 @@ The guarded runner executes:
 4. verified Tenant Request Context and capability query constraints;
 5. actual tRPC School/Student IDOR and error-shape proof;
 6. canonical learner admission, legacy compatibility, and direct-write denial proof;
-7. forced-RLS School/Student aggregate, pagination, and plan proof;
-8. atomic Audit Ledger/outbox;
-9. invitation, revocation/MFA, platform Tenant lifecycle, support, and notification proofs;
-10. backup/restore isolation rehearsal;
-11. release metadata capture; and
-12. Audit Ledger partition lifecycle last, because its default-occupancy alert fixture is immutable.
+7. canonical Academic Year/Term/Learner Level lifecycle, concurrency, and primary/high proof;
+8. forced-RLS School/Student aggregate, pagination, and plan proof;
+9. atomic Audit Ledger/outbox;
+10. invitation, revocation/MFA, platform Tenant lifecycle, support, and notification proofs;
+11. backup/restore isolation rehearsal;
+12. release metadata capture; and
+13. Audit Ledger partition lifecycle last, because its default-occupancy alert fixture is immutable.
 
 The runner stops at the first failed proof, emits engineering NO-GO with the missing evidence, and
 returns non-zero. Cross-Tenant, privilege, audit, backup, or bulk-output failures cannot be
@@ -57,8 +58,8 @@ destructive to disposable proof data and must never be pointed at a shared or pr
 
 ## Implemented and disabled paths
 
-Identity/session, context selection, tRPC API, policy/query modules, School/Student PostgreSQL RLS,
-Organization Tree, School/class, guardian/student, platform control plane, support/break glass,
+Identity/session, context selection, tRPC API, policy/query modules, School/Student/academic
+PostgreSQL RLS, Organization Tree, School/class, guardian/student, platform control plane, support/break glass,
 short-lived context cache, current durable jobs, support notifications, Audit Ledger, and pooled
 placement routing are implemented rows. Backup/restore is evidence-only: the drill detects an
 RLS-filtered full backup, rejects a wrong-Tenant target, and reconciles a disposable Tenant restore,

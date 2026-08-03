@@ -9,7 +9,7 @@ import type {
 } from './types'
 
 export const POLICY_VERSION_LEGACY_PARITY = '2026-08-02.legacy-parity'
-export const POLICY_VERSION_CURRENT = '2026-08-03.v3'
+export const POLICY_VERSION_CURRENT = '2026-08-03.v4'
 
 const audit = (event: string): PolicyObligation => ({ kind: 'audit', event })
 const mfa: PolicyObligation = { kind: 'mfa', assuranceLevel: 'aal2' }
@@ -30,8 +30,18 @@ function grants(
   }))
 }
 
-function tenantRoleTemplates(options: { supportAccess: boolean }): RoleTemplateDefinition[] {
+function tenantRoleTemplates(options: {
+  supportAccess: boolean
+  academicStructure: boolean
+}): RoleTemplateDefinition[] {
   const protectedAdmin = (event: string): readonly PolicyObligation[] => [mfa, audit(event)]
+  const academicStructureAdmin = (): readonly PolicyObligation[] => [
+    mfa,
+    audit('academic_year.create'),
+    audit('academic_year.review'),
+    audit('academic_year.publish'),
+    audit('academic_year.close'),
+  ]
   const recorded = (event: string): readonly PolicyObligation[] => [audit(event)]
 
   return [
@@ -40,6 +50,16 @@ function tenantRoleTemplates(options: { supportAccess: boolean }): RoleTemplateD
       description: 'Manages the selected Education Organization subtree.',
       grants: grants('org_admin', [
         [CAPABILITIES.SCHOOLS_READ, SCOPES.ORGANIZATION_SUBTREE],
+        ...(options.academicStructure
+          ? [
+              [CAPABILITIES.ACADEMIC_STRUCTURE_READ, SCOPES.ORGANIZATION_SUBTREE] as const,
+              [
+                CAPABILITIES.ACADEMIC_STRUCTURE_MANAGE,
+                SCOPES.ORGANIZATION_SUBTREE,
+                academicStructureAdmin(),
+              ] as const,
+            ]
+          : []),
         [CAPABILITIES.STUDENTS_CREATE, SCOPES.ORGANIZATION_SUBTREE, recorded('student.create')],
         [CAPABILITIES.STUDENTS_READ, SCOPES.ORGANIZATION_SUBTREE],
         [CAPABILITIES.STUDENTS_UPDATE, SCOPES.ORGANIZATION_SUBTREE, recorded('student.update')],
@@ -93,6 +113,9 @@ function tenantRoleTemplates(options: { supportAccess: boolean }): RoleTemplateD
       description: 'Reads operational information in the selected Organization subtree.',
       grants: grants('org_viewer', [
         [CAPABILITIES.SCHOOLS_READ, SCOPES.ORGANIZATION_SUBTREE],
+        ...(options.academicStructure
+          ? [[CAPABILITIES.ACADEMIC_STRUCTURE_READ, SCOPES.ORGANIZATION_SUBTREE] as const]
+          : []),
         [CAPABILITIES.STUDENTS_READ, SCOPES.ORGANIZATION_SUBTREE],
         [CAPABILITIES.GRADES_READ, SCOPES.ORGANIZATION_SUBTREE],
         [CAPABILITIES.CLASSES_READ, SCOPES.ORGANIZATION_SUBTREE],
@@ -107,6 +130,16 @@ function tenantRoleTemplates(options: { supportAccess: boolean }): RoleTemplateD
       description: 'Manages one selected School.',
       grants: grants('school_admin', [
         [CAPABILITIES.SCHOOLS_READ, SCOPES.SCHOOL],
+        ...(options.academicStructure
+          ? [
+              [CAPABILITIES.ACADEMIC_STRUCTURE_READ, SCOPES.SCHOOL] as const,
+              [
+                CAPABILITIES.ACADEMIC_STRUCTURE_MANAGE,
+                SCOPES.SCHOOL,
+                academicStructureAdmin(),
+              ] as const,
+            ]
+          : []),
         [CAPABILITIES.STUDENTS_CREATE, SCOPES.SCHOOL, recorded('student.create')],
         [CAPABILITIES.STUDENTS_READ, SCOPES.SCHOOL],
         [CAPABILITIES.STUDENTS_UPDATE, SCOPES.SCHOOL, recorded('student.update')],
@@ -206,13 +239,13 @@ const legacyParityBundle = createPolicyBundle({
   version: POLICY_VERSION_LEGACY_PARITY,
   // The rollback bundle preserves the accepted Tenant grant surface but keeps
   // the same safeguarding obligations; rollback never weakens MFA or audit.
-  roleTemplates: tenantRoleTemplates({ supportAccess: false }),
+  roleTemplates: tenantRoleTemplates({ supportAccess: false, academicStructure: false }),
 })
 
 const currentBundle = createPolicyBundle({
   version: POLICY_VERSION_CURRENT,
   roleTemplates: [
-    ...tenantRoleTemplates({ supportAccess: true }),
+    ...tenantRoleTemplates({ supportAccess: true, academicStructure: true }),
     {
       key: 'super_admin',
       description: 'Operates the OpenSchool platform without implicit Tenant data access.',

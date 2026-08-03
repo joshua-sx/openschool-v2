@@ -177,6 +177,20 @@
         "OPENSCHOOL_POLICY_VERSION"
       ]
     },
+    "academic:structure-poc": {
+      "cache": false,
+      "env": [
+        "ALLOW_ACADEMIC_STRUCTURE_POC",
+        "DATABASE_MIGRATION_URL",
+        "DATABASE_RUNTIME_URL",
+        "DATABASE_MIGRATION_ROLE",
+        "DATABASE_RUNTIME_ROLE",
+        "DATABASE_WORKER_ROLE",
+        "DATABASE_CONTROL_PLANE_ROLE",
+        "OPENSCHOOL_STUDENT_SLICE_MODE",
+        "OPENSCHOOL_POLICY_VERSION"
+      ]
+    },
     "provider:mfa-reconcile": {
       "cache": false,
       "env": [

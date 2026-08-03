@@ -77,6 +77,35 @@ describe('database migration baseline', () => {
     }
   })
 
+  it('installs immutable Academic Years, Terms, and Learner Levels', () => {
+    const migration = readFileSync(
+      join(migrationsDirectory, '0029_overconfident_iron_lad.sql'),
+      'utf8'
+    )
+    for (const expected of [
+      'CREATE TABLE "academic_years"',
+      'CREATE TABLE "academic_terms"',
+      'CREATE TABLE "learner_levels"',
+      'CREATE TABLE "academic_compatibility_evidence"',
+      'academic_years_no_overlapping_lifecycle_dates',
+      'academic_terms_no_overlapping_dates',
+      'lag(created_term.end_date) OVER (ORDER BY created_term.ordinal)',
+      'ALTER TABLE "academic_years" FORCE ROW LEVEL SECURITY',
+      'guard_academic_year_lifecycle',
+      'guard_academic_compatibility_evidence',
+      'openschool_private"."create_academic_year',
+      'openschool_private"."publish_academic_year',
+      'openschool_private"."close_academic_year',
+      'OWNER TO "openschool_academic_configurator"',
+      '"school_governance_assignments", "organization_tree_versions"',
+      'ACADEMIC_YEAR_TIMEZONE_INVALID',
+      'no dates were inferred',
+      'REVOKE INSERT, UPDATE, DELETE ON TABLE "academic_years"',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+  })
+
   it('installs a partitioned append-only Audit Ledger and guarded outbox', () => {
     const migration = readFileSync(
       join(migrationsDirectory, '0015_atomic_audit_outbox.sql'),

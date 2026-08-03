@@ -73,6 +73,7 @@ export const schools = pgTable(
                 'tenant.schools.read', 'tenant.students.create',
                 'support.schools.read', 'support.students.read',
                 'tenant.accounts.invite', 'tenant.accounts.manage',
+                'tenant.academic_structure.read', 'tenant.academic_structure.manage',
                 'identity.context.resolve'
               )
             AND public.openschool_school_scope_allows(
@@ -105,6 +106,18 @@ export const schools = pgTable(
         AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
         AND nullif(current_setting('app.policy_capability', true), '')
           IN (${STUDENT_ADMITTER_CAPABILITIES})
+        AND public.openschool_school_scope_allows(${table.tenantId}, ${table.id})
+      `,
+    }),
+    pgPolicy('schools_academic_configurator_select', {
+      for: 'select',
+      to: 'openschool_academic_configurator',
+      using: sql`
+        session_user = 'openschool_runtime'
+        AND current_user = 'openschool_academic_configurator'
+        AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND nullif(current_setting('app.policy_capability', true), '')
+          = 'tenant.academic_structure.manage'
         AND public.openschool_school_scope_allows(${table.tenantId}, ${table.id})
       `,
     }),

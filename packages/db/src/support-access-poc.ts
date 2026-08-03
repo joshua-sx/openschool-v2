@@ -194,7 +194,7 @@ async function run(): Promise<void> {
     }
     const managementPolicy = {
       capability: 'tenant.support.grants.manage',
-      policyVersion: '2026-08-03.v3',
+      policyVersion: '2026-08-03.v4',
       queryConstraints: [{ kind: 'tenant' as const, tenantId: TENANT_A }],
       correlationId: crypto.randomUUID(),
     }
@@ -213,7 +213,7 @@ async function run(): Promise<void> {
     }
     const schoolManagementPolicy = {
       capability: 'tenant.support.grants.manage',
-      policyVersion: '2026-08-03.v3',
+      policyVersion: '2026-08-03.v4',
       queryConstraints: [{ kind: 'school' as const, tenantId: TENANT_A, schoolId: SCHOOL_A }],
       correlationId: crypto.randomUUID(),
     }
@@ -244,7 +244,7 @@ async function run(): Promise<void> {
       approval.supportGrantId,
       {
         capability: 'support.schools.read',
-        policyVersion: '2026-08-03.v3',
+        policyVersion: '2026-08-03.v4',
         correlationId: crypto.randomUUID(),
       },
       (transaction, context) => {
@@ -262,7 +262,7 @@ async function run(): Promise<void> {
       approval.supportGrantId,
       {
         capability: 'support.students.read',
-        policyVersion: '2026-08-03.v3',
+        policyVersion: '2026-08-03.v4',
         correlationId: crypto.randomUUID(),
       },
       (transaction) =>
@@ -294,7 +294,7 @@ async function run(): Promise<void> {
         approval.supportGrantId,
         {
           capability: 'support.schools.read',
-          policyVersion: '2026-08-03.v3',
+          policyVersion: '2026-08-03.v4',
           correlationId: crypto.randomUUID(),
         },
         async () => undefined
@@ -309,7 +309,7 @@ async function run(): Promise<void> {
         approval.supportGrantId,
         {
           capability: 'support.schools.read',
-          policyVersion: '2026-08-03.v3',
+          policyVersion: '2026-08-03.v4',
           correlationId: crypto.randomUUID(),
         },
         async () => undefined
@@ -325,7 +325,7 @@ async function run(): Promise<void> {
       approval.supportGrantId,
       {
         capability: 'support.sessions.use',
-        policyVersion: '2026-08-03.v3',
+        policyVersion: '2026-08-03.v4',
         correlationId: crypto.randomUUID(),
       },
       (transaction) =>
@@ -344,7 +344,7 @@ async function run(): Promise<void> {
         approval.supportGrantId,
         {
           capability: 'support.schools.read',
-          policyVersion: '2026-08-03.v3',
+          policyVersion: '2026-08-03.v4',
           correlationId: crypto.randomUUID(),
         },
         async () => undefined
@@ -437,7 +437,7 @@ async function run(): Promise<void> {
       platformIdentity(breakGlassProviderSubject, breakGlassSession, freshReauthentication),
       {
         capability: 'platform.break_glass.open',
-        policyVersion: '2026-08-03.v3',
+        policyVersion: '2026-08-03.v4',
         queryConstraints: [{ kind: 'platform' }],
         correlationId: crypto.randomUUID(),
       },
@@ -460,7 +460,7 @@ async function run(): Promise<void> {
       breakGlass.supportGrantId,
       {
         capability: 'support.schools.read',
-        policyVersion: '2026-08-03.v3',
+        policyVersion: '2026-08-03.v4',
         correlationId: crypto.randomUUID(),
       },
       (transaction, context) => {
