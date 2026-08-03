@@ -39,6 +39,12 @@ function hasPostgresError(error: unknown, code?: string, message?: string): bool
   return false
 }
 
+function positiveVersion(value: number | string): number {
+  const parsed = Number(value)
+  assert.equal(Number.isSafeInteger(parsed) && parsed > 0, true)
+  return parsed
+}
+
 function assertGuardedProof(): void {
   if (process.env.ALLOW_PLATFORM_TENANT_LIFECYCLE_POC !== 'true') {
     throw new Error(
@@ -139,13 +145,13 @@ async function run(): Promise<void> {
   try {
     proofStage = 'prepare proof identities and grants'
     const [tenantAAccount] = await admin<
-      Array<{ membershipVersion: number; securityVersion: number }>
+      Array<{ membershipVersion: number | string; securityVersion: number | string }>
     >`
       select membership_version as "membershipVersion", security_version as "securityVersion"
       from accounts where id = ${TENANT_A_ACCOUNT}
     `
     const [tenantBAccount] = await admin<
-      Array<{ membershipVersion: number; securityVersion: number }>
+      Array<{ membershipVersion: number | string; securityVersion: number | string }>
     >`
       select membership_version as "membershipVersion", security_version as "securityVersion"
       from accounts where id = ${TENANT_B_ACCOUNT}
@@ -323,23 +329,25 @@ async function run(): Promise<void> {
       TENANT_A_ACCOUNT,
       TENANT_A_PERSON,
       tenantASessionId,
-      tenantAAccount.membershipVersion,
-      tenantAAccount.securityVersion
+      positiveVersion(tenantAAccount.membershipVersion),
+      positiveVersion(tenantAAccount.securityVersion)
     )
     const tenantBContext = tenantContext(
       TENANT_B,
       TENANT_B_ACCOUNT,
       TENANT_B_PERSON,
       tenantBSessionId,
-      tenantBAccount.membershipVersion,
-      tenantBAccount.securityVersion
+      positiveVersion(tenantBAccount.membershipVersion),
+      positiveVersion(tenantBAccount.securityVersion)
     )
 
     proofStage = 'prove concurrent suspension linearization'
     let releaseInFlight!: () => void
     let markInFlightEntered!: () => void
-    const inFlightEntered = new Promise<void>((resolve) => {
+    let rejectInFlightEntry!: (error: unknown) => void
+    const inFlightEntered = new Promise<void>((resolve, reject) => {
       markInFlightEntered = resolve
+      rejectInFlightEntry = reject
     })
     const releaseInFlightSignal = new Promise<void>((resolve) => {
       releaseInFlight = resolve
@@ -349,6 +357,7 @@ async function run(): Promise<void> {
       await releaseInFlightSignal
       await transaction.execute(sql`select 1`)
     })
+    void inFlight.catch(rejectInFlightEntry)
     await inFlightEntered
 
     let suspensionSettled = false
