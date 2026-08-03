@@ -35,6 +35,13 @@ function tenantRoleTemplates(options: {
   academicStructure: boolean
 }): RoleTemplateDefinition[] {
   const protectedAdmin = (event: string): readonly PolicyObligation[] => [mfa, audit(event)]
+  const academicStructureAdmin = (): readonly PolicyObligation[] => [
+    mfa,
+    audit('academic_year.create'),
+    audit('academic_year.review'),
+    audit('academic_year.publish'),
+    audit('academic_year.close'),
+  ]
   const recorded = (event: string): readonly PolicyObligation[] => [audit(event)]
 
   return [
@@ -49,7 +56,7 @@ function tenantRoleTemplates(options: {
               [
                 CAPABILITIES.ACADEMIC_STRUCTURE_MANAGE,
                 SCOPES.ORGANIZATION_SUBTREE,
-                protectedAdmin('academic_structure.manage'),
+                academicStructureAdmin(),
               ] as const,
             ]
           : []),
@@ -129,7 +136,7 @@ function tenantRoleTemplates(options: {
               [
                 CAPABILITIES.ACADEMIC_STRUCTURE_MANAGE,
                 SCOPES.SCHOOL,
-                protectedAdmin('academic_structure.manage'),
+                academicStructureAdmin(),
               ] as const,
             ]
           : []),

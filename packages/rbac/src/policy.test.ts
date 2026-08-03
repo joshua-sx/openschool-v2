@@ -494,8 +494,15 @@ describe('capability Policy Decisions', () => {
     assert.equal(schoolAdmin.effect, 'allow')
     assert.equal(schoolAdmin.queryConstraints[0]?.kind, 'school')
     assert.deepEqual(
-      schoolAdmin.obligations.map(({ kind }) => kind),
-      ['mfa', 'audit']
+      schoolAdmin.obligations
+        .filter((obligation) => obligation.kind === 'audit')
+        .map(({ event }) => event),
+      [
+        'academic_year.create',
+        'academic_year.review',
+        'academic_year.publish',
+        'academic_year.close',
+      ]
     )
 
     assert.equal(
