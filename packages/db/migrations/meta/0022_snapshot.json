@@ -400,6 +400,13 @@
         }
       },
       "policies": {
+        "schools_identity_revoker_select": {
+          "name": "schools_identity_revoker_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": ["openschool_identity_revoker"],
+          "using": "\n        \"schools\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.accounts.manage'\n        AND nullif(current_setting('app.assurance_level', true), '') = 'aal2'\n      "
+        },
         "schools_runtime_select": {
           "name": "schools_runtime_select",
           "as": "PERMISSIVE",

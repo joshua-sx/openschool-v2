@@ -225,6 +225,8 @@ describe('database migration baseline', () => {
       "current_user <> 'openschool_identity_revoker'",
       "current_setting('app.reauthenticated_at', true)",
       "current_setting('app.policy_capability', true)",
+      'CREATE POLICY "schools_identity_revoker_select"',
+      "current_setting('app.assurance_level', true)",
       'openschool_invitation_scope_allows',
       'OWNER TO "openschool_identity_revoker"',
       'TO "openschool_runtime"',

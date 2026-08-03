@@ -402,6 +402,11 @@ GRANT EXECUTE ON FUNCTION public.openschool_school_scope_allows(uuid, uuid)
   TO "openschool_identity_revoker";--> statement-breakpoint
 GRANT EXECUTE ON FUNCTION public.openschool_invitation_scope_allows(uuid, text, uuid, uuid, uuid)
   TO "openschool_identity_revoker";--> statement-breakpoint
+CREATE POLICY "schools_identity_revoker_select" ON "schools" AS PERMISSIVE FOR SELECT TO "openschool_identity_revoker" USING (
+  "schools"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid
+  AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.accounts.manage'
+  AND nullif(current_setting('app.assurance_level', true), '') = 'aal2'
+);--> statement-breakpoint
 GRANT USAGE, CREATE ON SCHEMA "openschool_private"
   TO "openschool_identity_revoker";--> statement-breakpoint
 ALTER FUNCTION "openschool_private"."apply_identity_revocation"(text, uuid, text)
