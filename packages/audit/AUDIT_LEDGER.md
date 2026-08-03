@@ -36,6 +36,12 @@ Event version 1 records:
 - data classes, redacted change summary, coded purpose, source, retention class, and legal hold;
 - occurrence/creation timestamps and a database-computed SHA-256 content hash.
 
+Content-hash schema version 1 serializes that explicit field set with stable JSON keys; it never
+hashes the database row wholesale. Additive columns therefore do not invalidate historical hashes.
+Any future evidence field added to the hash requires a new hash schema/event version and matching
+updates to both the insert trigger and verification function. `pgcrypto` is accepted only from the
+trusted `public` or Supabase-standard `extensions` schema, both pinned in function search paths.
+
 Schema-version rollback may select the last reader-compatible event version. It may never disable
 required audit, rewrite committed events, or remove evidence created by the newer version.
 
@@ -74,8 +80,10 @@ collisions. An invalid transition or anchor change raises SQLSTATE `55000`.
 ## Partition, retention, legal hold, and archive procedure
 
 `audit_events` is range-partitioned on `occurred_at` with a current quarterly partition and a
-default safety partition. Operations must create the next partition before each quarter and alert
-on any rows entering the default partition.
+default safety partition. Migration `0015_atomic_audit_outbox.sql` hand-maintains the partition
+clauses, attached partitions, triggers, and FORCE RLS details that Drizzle cannot model; schema
+generation must never replace that SQL. Operations must create the next partition before each
+quarter and alert on any rows entering the default partition.
 
 Retention class is a routing label, not an authorization to delete. Before production, qualified
 privacy/legal owners must approve jurisdiction-specific schedules for operational, security,
@@ -93,8 +101,11 @@ A closed-partition archive job must:
 5. reconcile source count, first/last hash, root, signature, and archive-location hash;
 6. detach or remove local data only under an approved retention action and recoverable runbook.
 
-The schema defines and protects the manifest contract. Provisioning the immutable store, signing
-service, keys, alerts, and approved retention schedules remains a deployment go-live requirement.
+The schema defines and protects the manifest contract. Runtime and worker roles receive no
+privileges on `audit_archive_manifests`, and forced RLS has no permissive application policy. A
+separately controlled archive role and tenant-scoped policy must be reviewed before that service is
+provisioned. Provisioning the immutable store, signing service, keys, alerts, and approved retention
+schedules remains a deployment go-live requirement.
 
 ## Proof and operations
 

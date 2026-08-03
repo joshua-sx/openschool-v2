@@ -4598,7 +4598,7 @@
           "value": "\"audit_archive_manifests\".\"first_event_hash\" ~ '^[0-9a-f]{64}$' AND \"audit_archive_manifests\".\"last_event_hash\" ~ '^[0-9a-f]{64}$' AND \"audit_archive_manifests\".\"root_hash\" ~ '^[0-9a-f]{64}$' AND \"audit_archive_manifests\".\"manifest_hash\" ~ '^[0-9a-f]{64}$' AND \"audit_archive_manifests\".\"archive_location_hash\" ~ '^[0-9a-f]{64}$'"
         }
       },
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.audit_events": {
       "name": "audit_events",

@@ -1,15 +1,14 @@
-import type { AuditEventRecord } from '@openschool/db'
+import type {
+  AuditEventRecord,
+  AuditOutcome,
+  AuditRetentionClass,
+  AuditSource,
+} from '@openschool/db'
+
+export type { AuditOutcome, AuditRetentionClass, AuditSource } from '@openschool/db'
 
 export const AUDIT_EVENT_VERSION = 1
 
-export type AuditOutcome = 'attempted' | 'succeeded' | 'denied' | 'failed'
-export type AuditSource = 'web' | 'worker' | 'migration' | 'support' | 'system'
-export type AuditRetentionClass =
-  | 'operational'
-  | 'security'
-  | 'financial'
-  | 'safeguarding'
-  | 'legal_hold'
 export type AuditDataClass =
   | 'internal'
   | 'student_personal'

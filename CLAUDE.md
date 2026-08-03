@@ -89,6 +89,7 @@ Organization (District)
 
 ### Permission Check Flow
 
+```ts
 // In every mutation:
 
 await checkPermission(ctx, 'resource:action', { resourceId })
@@ -99,21 +100,30 @@ throw new TRPCError({ code: 'FORBIDDEN' })
 
 }
 
-const result = await db.insert(...)
+const result = await withPolicyTenantTransaction(
+  databaseContext,
+  toDatabasePolicyContext(policyDecision),
+  async (tx) => {
+    const result = await tx.insert(...)
 
-await appendAuditEventInTransaction(db, databaseContext, policyContext, policyDecision, {
+    await appendAuditEventInTransaction(
+      tx,
+      databaseContext,
+      policyContext,
+      policyDecision,
+      {
+        eventType: 'resource.create',
+        outcome: 'succeeded',
+        targetType: 'resource',
+        targetId: result.id,
+        dataClasses: ['internal']
+      }
+    )
 
-eventType: 'resource.create',
-
-outcome: 'succeeded',
-
-targetType: 'resource',
-
-targetId: result.id,
-
-dataClasses: ['internal']
-
-})
+    return result
+  }
+)
+```
 
 ---
 

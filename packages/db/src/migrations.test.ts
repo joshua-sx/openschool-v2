@@ -65,11 +65,14 @@ describe('database migration baseline', () => {
       'CREATE TABLE "audit_events_default" PARTITION OF "audit_events" DEFAULT',
       'ALTER TABLE "audit_events" FORCE ROW LEVEL SECURITY',
       'ALTER TABLE "audit_outbox" FORCE ROW LEVEL SECURITY',
+      'ALTER TABLE "audit_archive_manifests" FORCE ROW LEVEL SECURITY',
       'CREATE POLICY "audit_events_runtime_insert"',
       'CREATE POLICY "audit_events_runtime_update_deny"',
       'CREATE POLICY "audit_events_runtime_delete_deny"',
       'CREATE POLICY "audit_outbox_worker_update"',
       'openschool_hash_audit_event_on_insert',
+      "'hashSchemaVersion', 1",
+      'SET search_path = pg_catalog, extensions, public',
       'openschool_guard_audit_event_insert',
       'openschool_guard_audit_outbox_change',
       "OLD.status = 'processing' AND NEW.status = 'processing'",
@@ -79,5 +82,7 @@ describe('database migration baseline', () => {
     ]) {
       assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
     }
+    assert.equal(migration.includes('to_jsonb(NEW)'), false)
+    assert.equal(migration.includes('to_jsonb(event)'), false)
   })
 })

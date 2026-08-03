@@ -69,6 +69,16 @@ export const AUDIT_OUTBOX_STATUSES = [
   'dead_letter',
 ] as const
 
+export type AuditOutcome = (typeof AUDIT_OUTCOMES)[number]
+export type AuditActorType = (typeof AUDIT_ACTOR_TYPES)[number]
+export type AuditSource = (typeof AUDIT_SOURCES)[number]
+export type AuditRetentionClass = (typeof AUDIT_RETENTION_CLASSES)[number]
+export type AuditOutboxStatus = (typeof AUDIT_OUTBOX_STATUSES)[number]
+
+/**
+ * Drizzle models the logical parent table. Migration 0015 hand-maintains its RANGE partitioning,
+ * attached partitions, hash/guard triggers, and FORCE RLS clauses; never regenerate those away.
+ */
 export const auditEvents = pgTable(
   'audit_events',
   {
@@ -392,7 +402,7 @@ export const auditArchiveManifests = pgTable(
       sql`${table.firstEventHash} ~ '^[0-9a-f]{64}$' AND ${table.lastEventHash} ~ '^[0-9a-f]{64}$' AND ${table.rootHash} ~ '^[0-9a-f]{64}$' AND ${table.manifestHash} ~ '^[0-9a-f]{64}$' AND ${table.archiveLocationHash} ~ '^[0-9a-f]{64}$'`
     ),
   ]
-)
+).enableRLS()
 
 export type AuditEventRecord = typeof auditEvents.$inferSelect
 export type NewAuditEventRecord = typeof auditEvents.$inferInsert

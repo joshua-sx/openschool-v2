@@ -2,6 +2,21 @@
 -- by occurrence time; application roles can append but cannot alter committed evidence.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;--> statement-breakpoint
+DO $$
+DECLARE
+	installed_schema text;
+BEGIN
+	SELECT namespace.nspname INTO installed_schema
+	FROM pg_extension extension
+	JOIN pg_namespace namespace ON namespace.oid = extension.extnamespace
+	WHERE extension.extname = 'pgcrypto';
+
+	IF installed_schema IS NULL OR installed_schema NOT IN ('public', 'extensions') THEN
+		RAISE EXCEPTION 'pgcrypto must be installed in the trusted public or extensions schema; found %', installed_schema
+			USING ERRCODE = '55000';
+	END IF;
+END;
+$$;--> statement-breakpoint
 
 CREATE FUNCTION "openschool_audit_scope_allows"(
 	row_tenant_id uuid,
@@ -86,6 +101,8 @@ CREATE TABLE "audit_archive_manifests" (
 	CONSTRAINT "audit_archive_manifest_hashes_check" CHECK ("audit_archive_manifests"."first_event_hash" ~ '^[0-9a-f]{64}$' AND "audit_archive_manifests"."last_event_hash" ~ '^[0-9a-f]{64}$' AND "audit_archive_manifests"."root_hash" ~ '^[0-9a-f]{64}$' AND "audit_archive_manifests"."manifest_hash" ~ '^[0-9a-f]{64}$' AND "audit_archive_manifests"."archive_location_hash" ~ '^[0-9a-f]{64}$')
 );
 --> statement-breakpoint
+ALTER TABLE "audit_archive_manifests" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "audit_archive_manifests" FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "audit_events" (
 	"id" uuid DEFAULT gen_random_uuid() NOT NULL,
 	"occurred_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -319,13 +336,46 @@ $$;--> statement-breakpoint
 CREATE FUNCTION "openschool_hash_audit_event_on_insert"()
 RETURNS trigger
 LANGUAGE plpgsql
-SET search_path = pg_catalog, public
+SET search_path = pg_catalog, extensions, public
 SET timezone = 'UTC'
 AS $$
 BEGIN
 	NEW.content_hash := encode(
 		digest(
-			convert_to((to_jsonb(NEW) - 'content_hash')::text, 'UTF8'),
+			convert_to(
+				jsonb_build_object(
+					'hashSchemaVersion', 1,
+					'id', NEW.id,
+					'occurredAt', NEW.occurred_at,
+					'eventVersion', NEW.event_version,
+					'eventType', NEW.event_type,
+					'outcome', NEW.outcome,
+					'tenantId', NEW.tenant_id,
+					'educationOrganizationId', NEW.education_organization_id,
+					'schoolId', NEW.school_id,
+					'actorType', NEW.actor_type,
+					'actorAccountId', NEW.actor_account_id,
+					'actorPersonId', NEW.actor_person_id,
+					'capability', NEW.capability,
+					'policyVersion', NEW.policy_version,
+					'policyDecision', NEW.policy_decision,
+					'requestId', NEW.request_id,
+					'correlationId', NEW.correlation_id,
+					'causationId', NEW.causation_id,
+					'preOperationReceiptId', NEW.pre_operation_receipt_id,
+					'supportGrantId', NEW.support_grant_id,
+					'targetType', NEW.target_type,
+					'targetId', NEW.target_id,
+					'dataClasses', NEW.data_classes,
+					'changeSummary', NEW.change_summary,
+					'purpose', NEW.purpose,
+					'source', NEW.source,
+					'retentionClass', NEW.retention_class,
+					'legalHold', NEW.legal_hold,
+					'createdAt', NEW.created_at
+				)::text,
+				'UTF8'
+			),
 			'sha256'
 		),
 		'hex'
@@ -337,7 +387,7 @@ $$;--> statement-breakpoint
 CREATE FUNCTION "openschool_hash_audit_outbox_on_insert"()
 RETURNS trigger
 LANGUAGE plpgsql
-SET search_path = pg_catalog, public
+SET search_path = pg_catalog, extensions, public
 SET timezone = 'UTC'
 AS $$
 BEGIN
@@ -390,12 +440,45 @@ RETURNS boolean
 LANGUAGE sql
 STABLE
 PARALLEL SAFE
-SET search_path = pg_catalog, public
+SET search_path = pg_catalog, extensions, public
 SET timezone = 'UTC'
 AS $$
 	SELECT event.content_hash = encode(
 		digest(
-			convert_to((to_jsonb(event) - 'content_hash')::text, 'UTF8'),
+			convert_to(
+				jsonb_build_object(
+					'hashSchemaVersion', 1,
+					'id', event.id,
+					'occurredAt', event.occurred_at,
+					'eventVersion', event.event_version,
+					'eventType', event.event_type,
+					'outcome', event.outcome,
+					'tenantId', event.tenant_id,
+					'educationOrganizationId', event.education_organization_id,
+					'schoolId', event.school_id,
+					'actorType', event.actor_type,
+					'actorAccountId', event.actor_account_id,
+					'actorPersonId', event.actor_person_id,
+					'capability', event.capability,
+					'policyVersion', event.policy_version,
+					'policyDecision', event.policy_decision,
+					'requestId', event.request_id,
+					'correlationId', event.correlation_id,
+					'causationId', event.causation_id,
+					'preOperationReceiptId', event.pre_operation_receipt_id,
+					'supportGrantId', event.support_grant_id,
+					'targetType', event.target_type,
+					'targetId', event.target_id,
+					'dataClasses', event.data_classes,
+					'changeSummary', event.change_summary,
+					'purpose', event.purpose,
+					'source', event.source,
+					'retentionClass', event.retention_class,
+					'legalHold', event.legal_hold,
+					'createdAt', event.created_at
+				)::text,
+				'UTF8'
+			),
 			'sha256'
 		),
 		'hex'

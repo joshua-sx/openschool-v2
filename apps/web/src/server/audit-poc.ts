@@ -8,7 +8,7 @@ import {
   requestAuditExport,
   toAuditDatabasePolicyContext,
 } from '@openschool/audit'
-import { getServerEnv } from '@openschool/config/server'
+import { getMigrationEnv, getServerEnv, getWorkerEnv } from '@openschool/config/server'
 import {
   type TenantDatabaseContext,
   accountSessions,
@@ -52,9 +52,18 @@ function assertLocalDisposableDatabase(): void {
   if (process.env.ALLOW_AUDIT_POC !== 'true') {
     throw new Error('Audit proof refused: ALLOW_AUDIT_POC must be exactly "true".')
   }
-  const databaseUrl = new URL(getServerEnv().DATABASE_RUNTIME_URL)
-  if (!new Set(['127.0.0.1', 'localhost', '[::1]']).has(databaseUrl.hostname)) {
-    throw new Error('Audit proof refused: database host must be loopback.')
+  const serverEnvironment = getServerEnv()
+  const migrationEnvironment = getMigrationEnv()
+  const workerEnvironment = getWorkerEnv()
+  const loopbackHosts = new Set(['127.0.0.1', 'localhost', '[::1]'])
+  for (const [name, connectionString] of [
+    ['DATABASE_MIGRATION_URL', migrationEnvironment.DATABASE_MIGRATION_URL],
+    ['DATABASE_RUNTIME_URL', serverEnvironment.DATABASE_RUNTIME_URL],
+    ['DATABASE_WORKER_URL', workerEnvironment.DATABASE_WORKER_URL],
+  ] as const) {
+    if (!loopbackHosts.has(new URL(connectionString).hostname)) {
+      throw new Error(`Audit proof refused: ${name} host must be loopback.`)
+    }
   }
 }
 

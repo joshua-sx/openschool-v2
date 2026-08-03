@@ -243,6 +243,7 @@ interface RuntimeRoleEvidence extends Record<string, unknown> {
   canDeleteAuditEvents: boolean
   canUpdateAuditOutbox: boolean
   canDeleteAuditOutbox: boolean
+  canAccessAuditArchiveManifests: boolean
   canAssumeMigrationRole: boolean
   canAssumeOtherExecutionRole: boolean
   canAssumeBackupRole: boolean
@@ -279,6 +280,11 @@ async function assertSafeExecutionRole(
       has_table_privilege(current_user, 'public.audit_events', 'DELETE') as "canDeleteAuditEvents",
       has_table_privilege(current_user, 'public.audit_outbox', 'UPDATE') as "canUpdateAuditOutbox",
       has_table_privilege(current_user, 'public.audit_outbox', 'DELETE') as "canDeleteAuditOutbox",
+      has_table_privilege(
+        current_user,
+        'public.audit_archive_manifests',
+        'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'
+      ) as "canAccessAuditArchiveManifests",
       exists (
         select 1 from pg_roles candidate
         where candidate.rolname = ${migrationUsername}
@@ -331,6 +337,7 @@ async function assertSafeExecutionRole(
     evidence.canDeleteAuditEvents ||
     evidence.canUpdateAuditOutbox !== canProcessAuditOutbox ||
     evidence.canDeleteAuditOutbox ||
+    evidence.canAccessAuditArchiveManifests ||
     evidence.canAssumeMigrationRole ||
     evidence.canAssumeOtherExecutionRole ||
     evidence.canAssumeBackupRole ||

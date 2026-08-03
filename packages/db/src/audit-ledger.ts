@@ -3,35 +3,24 @@ import { and, eq, sql } from 'drizzle-orm'
 import { auditEvents, auditOutbox } from './schema'
 import type { DatabaseTransaction } from './tenant-transaction'
 
-export interface SanitizedAuditLedgerEvent {
-  id?: string
-  occurredAt: Date
-  eventVersion: number
-  eventType: string
-  outcome: 'attempted' | 'succeeded' | 'denied' | 'failed'
-  tenantId: string
-  educationOrganizationId?: string
-  schoolId?: string
-  actorType: 'account' | 'worker' | 'system' | 'support'
-  actorAccountId?: string
-  actorPersonId?: string
-  capability?: string
-  policyVersion?: string
-  policyDecision?: Record<string, unknown>
-  requestId: string
-  correlationId: string
-  causationId?: string
-  preOperationReceiptId?: string
-  supportGrantId?: string
-  targetType: string
-  targetId?: string
-  dataClasses: string[]
-  changeSummary: Record<string, unknown>
-  purpose?: string
-  source: 'web' | 'worker' | 'migration' | 'support' | 'system'
-  retentionClass: 'operational' | 'security' | 'financial' | 'safeguarding' | 'legal_hold'
-  legalHold?: boolean
-}
+type AuditEventInsert = typeof auditEvents.$inferInsert
+type RequiredSanitizedAuditField =
+  | 'occurredAt'
+  | 'eventVersion'
+  | 'eventType'
+  | 'outcome'
+  | 'tenantId'
+  | 'actorType'
+  | 'requestId'
+  | 'correlationId'
+  | 'targetType'
+  | 'dataClasses'
+  | 'changeSummary'
+  | 'source'
+  | 'retentionClass'
+
+export type SanitizedAuditLedgerEvent = Omit<AuditEventInsert, 'id' | 'contentHash' | 'createdAt'> &
+  Required<Pick<AuditEventInsert, RequiredSanitizedAuditField>> & { id?: string }
 
 export interface AuditOutboxRequest {
   topic: string
