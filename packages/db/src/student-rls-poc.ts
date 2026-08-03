@@ -170,6 +170,7 @@ async function provePolicyMetadata(admin: ReturnType<typeof createMigrationClien
   assert.deepEqual(
     policies.map(({ policyname }) => policyname),
     [
+      'schools_academic_configurator_select',
       'schools_identity_revoker_select',
       'schools_runtime_delete_deny',
       'schools_runtime_insert_deny',
