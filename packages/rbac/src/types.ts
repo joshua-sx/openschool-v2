@@ -45,6 +45,18 @@ export interface PolicyContext {
   activeSchoolId?: string
   /** Loaded only from the platform access store; Tenant roles never imply it. */
   platformAccess?: boolean
+  /** Loaded only from a current, purpose-bound Support Grant; never client supplied. */
+  supportAccess?: Readonly<{
+    grantId: string
+    kind: 'support' | 'break_glass'
+    purpose: 'customer_support' | 'incident_response'
+    allowedCapabilities: readonly string[]
+    queryConstraint: Extract<
+      PolicyQueryConstraint,
+      { kind: 'tenant' | 'organization_subtree' | 'school' }
+    >
+    expiresAt: string
+  }>
 }
 
 export interface PolicyResourceDescriptor {
@@ -144,6 +156,8 @@ export type PolicyDenialReason =
   | 'MFA_REQUIRED'
   | 'REAUTHENTICATION_REQUIRED'
   | 'PURPOSE_REQUIRED'
+  | 'SUPPORT_ACCESS_REQUIRED'
+  | 'SUPPORT_CAPABILITY_DENIED'
 
 export interface MatchedPolicyGrant {
   assignedRoleTemplateKey: string

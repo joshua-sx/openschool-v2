@@ -23,7 +23,7 @@ export interface PlatformDatabaseContext {
   requestId: string
   securityVersion: number
   platformAccessGrantId: string
-  roleTemplateKey: 'super_admin' | 'support_agent'
+  roleTemplateKey: 'super_admin' | 'support_agent' | 'break_glass_operator'
   assuranceLevel: DatabaseAssuranceLevel
   reauthenticatedAt?: string
   expiresAt: string
@@ -130,6 +130,7 @@ interface ControlPlaneRoleEvidence extends Record<string, unknown> {
   canCreateInPrivateSchema: boolean
   canResolvePlatformAccess: boolean
   canApplyTenantLifecycle: boolean
+  canOpenBreakGlassAccess: boolean
   hasUnsafeMembership: boolean
 }
 
@@ -182,6 +183,11 @@ async function assertSafeControlPlaneRole(database: ControlPlaneDatabase): Promi
         'openschool_private.apply_tenant_lifecycle(text,uuid,text)'::regprocedure,
         'EXECUTE'
       ) as "canApplyTenantLifecycle",
+      has_function_privilege(
+        current_user,
+        'openschool_private.open_break_glass_access(uuid,text,uuid,uuid,jsonb,text,text,text,timestamp with time zone)'::regprocedure,
+        'EXECUTE'
+      ) as "canOpenBreakGlassAccess",
       exists (
         select 1 from pg_roles granted_role
         where granted_role.rolname <> current_user
@@ -212,6 +218,7 @@ async function assertSafeControlPlaneRole(database: ControlPlaneDatabase): Promi
     evidence.canCreateInPrivateSchema ||
     !evidence.canResolvePlatformAccess ||
     !evidence.canApplyTenantLifecycle ||
+    !evidence.canOpenBreakGlassAccess ||
     evidence.hasUnsafeMembership
   ) {
     deny(
@@ -315,7 +322,7 @@ async function resolvePlatformAccessInTransaction(
     !UUID_PATTERN.test(row.accountSessionId) ||
     !UUID_PATTERN.test(row.platformAccessGrantId) ||
     !Number.isSafeInteger(Number(row.securityVersion)) ||
-    !['super_admin', 'support_agent'].includes(row.roleTemplateKey) ||
+    !['super_admin', 'support_agent', 'break_glass_operator'].includes(row.roleTemplateKey) ||
     !['aal1', 'aal2'].includes(row.assuranceLevel) ||
     !expiresAt ||
     (row.reauthenticatedAt !== null && !reauthenticatedAt)

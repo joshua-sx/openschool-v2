@@ -41,12 +41,48 @@ function deny(
 function validContext(context: PolicyContext | null | undefined): context is PolicyContext {
   return Boolean(
     context?.accountId &&
-      (context.personId || (context.platformAccess === true && !context.tenantId)) &&
+      (context.personId ||
+        (context.platformAccess === true && !context.tenantId) ||
+        (context.supportAccess && context.tenantId && !context.personId)) &&
       Array.isArray(context.roleTemplateKeys) &&
       context.roleTemplateKeys.length > 0 &&
       context.roleTemplateKeys.every((key) => typeof key === 'string' && key.length > 0) &&
       (context.assuranceLevel === 'aal1' || context.assuranceLevel === 'aal2')
   )
+}
+
+function supportConstraintFor(
+  context: PolicyContext,
+  request: PolicyEvaluationRequest,
+  resource: PolicyResourceDescriptor
+): PolicyQueryConstraint | null {
+  const support = context.supportAccess
+  if (!support || !support.allowedCapabilities.includes(request.capability)) return null
+  const constraint = support.queryConstraint
+  if (constraint.tenantId !== context.tenantId) return null
+  if (
+    request.requestedScope &&
+    !grantCoversRequestedScope(constraint.kind, request.requestedScope as ScopeKind)
+  ) {
+    return null
+  }
+  if (resource.tenantId && resource.tenantId !== constraint.tenantId) return null
+  if (
+    constraint.kind === 'school' &&
+    resource.schoolId &&
+    resource.schoolId !== constraint.schoolId
+  ) {
+    return null
+  }
+  if (
+    constraint.kind === 'organization_subtree' &&
+    resource.organizationId &&
+    resource.organizationId !== constraint.ancestorOrganizationId &&
+    !resource.organizationAncestorIds?.includes(constraint.ancestorOrganizationId)
+  ) {
+    return null
+  }
+  return frozen({ ...constraint })
 }
 
 function parseResource(value: unknown): PolicyResourceDescriptor | null {
@@ -105,6 +141,9 @@ function constraintForGrant(
   resource: PolicyResourceDescriptor,
   request: PolicyEvaluationRequest
 ): PolicyQueryConstraint | null {
+  if (grant.capability.startsWith('support.') && grant.capability !== 'support.sessions.use') {
+    return supportConstraintFor(context, request, resource)
+  }
   const tenantId = tenantFor(context, resource)
   switch (grant.scope) {
     case 'platform':
@@ -219,6 +258,12 @@ export function evaluatePolicy(request: PolicyEvaluationRequest): PolicyDecision
   if (!validContext(request.context)) return deny(request, 'CONTEXT_MISSING')
   const context = request.context
   if (!isCapability(request.capability)) return deny(request, 'UNKNOWN_CAPABILITY')
+  if (request.capability.startsWith('support.') && request.capability !== 'support.sessions.use') {
+    if (!context.supportAccess) return deny(request, 'SUPPORT_ACCESS_REQUIRED')
+    if (!context.supportAccess.allowedCapabilities.includes(request.capability)) {
+      return deny(request, 'SUPPORT_CAPABILITY_DENIED')
+    }
+  }
   if (request.requestedScope && !isScopeKind(request.requestedScope)) {
     return deny(request, 'UNKNOWN_SCOPE')
   }

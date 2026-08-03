@@ -339,4 +339,46 @@ describe('database migration baseline', () => {
       assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
     }
   })
+
+  it('installs Tenant-approved Support Access and isolated break-glass controls', () => {
+    const migration = readFileSync(
+      join(migrationsDirectory, '0026_tiresome_grey_gargoyle.sql'),
+      'utf8'
+    )
+    for (const expected of [
+      'CREATE TABLE "support_access_grants"',
+      'CREATE TABLE "support_access_notifications"',
+      'CREATE TABLE "support_notification_outbox"',
+      'FORCE ROW LEVEL SECURITY',
+      'support_access_grants_no_live_overlap',
+      'Support Access Grant anchors are immutable',
+      'issue_support_access_grant',
+      'resolve_support_access',
+      'close_support_access',
+      'revoke_support_access_grant',
+      'expire_support_access_grant',
+      'review_support_access_grant',
+      'open_break_glass_access',
+      "session_user <> 'openschool_runtime'",
+      "session_user <> 'openschool_control_plane'",
+      "session_user <> 'openschool_worker'",
+      "current_setting('app.reauthenticated_at', true)",
+      "current_setting('app.support_grant_id', true)",
+      'SUPPORT_ACCESS_SESSION_REUSED',
+      'support_access_notifications_worker_select',
+      'OWNER TO "openschool_support_grant_manager"',
+      'OWNER TO "openschool_support_access_resolver"',
+      'public.support_access_grants, public.support_access_notifications',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+    assert.equal(
+      migration.includes('GRANT SELECT ON TABLE public.students TO "openschool_control_plane"'),
+      false
+    )
+    assert.equal(
+      migration.includes('GRANT SELECT ON TABLE public.students TO "openschool_worker"'),
+      false
+    )
+  })
 })

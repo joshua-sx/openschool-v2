@@ -29,7 +29,7 @@ export interface PlatformRequestContext {
   accountSessionId: string
   providerSessionId: string
   platformAccessGrantId: string
-  roleTemplateKey: 'super_admin' | 'support_agent'
+  roleTemplateKey: 'super_admin' | 'support_agent' | 'break_glass_operator'
   assuranceLevel: 'aal1' | 'aal2'
   reauthenticatedAt?: string
   securityVersion: number
