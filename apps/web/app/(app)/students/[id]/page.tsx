@@ -1,5 +1,12 @@
 'use client'
 
+import {
+  type StudentFormData,
+  type StudentFormErrors,
+  type StudentFormField,
+  firstStudentFormError,
+  validateStudentForm,
+} from '@/lib/student-form'
 import { trpc } from '@/lib/trpc/client'
 import {
   AlertCircle,
@@ -10,25 +17,22 @@ import {
   Loader2,
   Mail,
   Save,
+  School,
   User,
   X,
 } from 'lucide-react'
 import Link from 'next/link'
-import { use, useState } from 'react'
+import { use, useRef, useState } from 'react'
 
 interface StudentDetailPageProps {
   params: Promise<{ id: string }>
 }
 
-interface StudentFormData {
-  firstName: string
-  lastName: string
-  dateOfBirth: string
-  studentNumber: string
-  email: string
-}
+const INPUT_CLASS =
+  'block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900 aria-[invalid=true]:border-red-500 aria-[invalid=true]:ring-red-500'
 
 function toStudentFormData(student: {
+  schoolId: string
   firstName: string
   lastName: string
   dateOfBirth: string | null
@@ -36,6 +40,7 @@ function toStudentFormData(student: {
   email: string | null
 }): StudentFormData {
   return {
+    schoolId: student.schoolId,
     firstName: student.firstName,
     lastName: student.lastName,
     dateOfBirth: student.dateOfBirth || '',
@@ -44,333 +49,376 @@ function toStudentFormData(student: {
   }
 }
 
+function FieldError({ id, message }: { id: string; message?: string }) {
+  if (!message) return null
+  return (
+    <p id={id} className="mt-1 text-sm text-red-700">
+      {message}
+    </p>
+  )
+}
+
 export default function StudentDetailPage({ params }: StudentDetailPageProps) {
   const { id } = use(params)
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState<StudentFormData | null>(null)
-  const [formErrors, setFormErrors] = useState<string[]>([])
-
+  const [fieldErrors, setFieldErrors] = useState<StudentFormErrors>({})
+  const [serverError, setServerError] = useState<string | null>(null)
+  const fields = useRef<Partial<Record<StudentFormField, HTMLInputElement>>>({})
   const utils = trpc.useUtils()
-
-  // Fetch student
   const { data: student, isLoading, error } = trpc.students.getById.useQuery({ studentId: id })
 
-  // Update mutation
   const updateMutation = trpc.students.update.useMutation({
-    onSuccess: () => {
-      utils.students.getById.invalidate({ studentId: id })
+    onSuccess: async () => {
+      await utils.students.getById.invalidate({ studentId: id })
       setFormData(null)
       setIsEditing(false)
-      setFormErrors([])
+      setFieldErrors({})
+      setServerError(null)
     },
-    onError: (err) => {
-      setFormErrors([err.message])
-    },
+    onError: (mutationError) => setServerError(mutationError.message),
   })
 
-  const handleSave = () => {
+  const handleSave = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
     if (!student) return
-
-    const currentFormData = formData ?? toStudentFormData(student)
-
+    const submitted = formData ?? toStudentFormData(student)
+    const errors = validateStudentForm(submitted, { requireSchool: false })
+    setFieldErrors(errors)
+    setServerError(null)
+    const firstError = firstStudentFormError(errors)
+    if (firstError && firstError !== 'schoolId') {
+      fields.current[firstError]?.focus()
+      return
+    }
     updateMutation.mutate({
       studentId: id,
-      firstName: currentFormData.firstName,
-      lastName: currentFormData.lastName,
-      dateOfBirth: currentFormData.dateOfBirth || null,
-      studentNumber: currentFormData.studentNumber || null,
-      email: currentFormData.email || null,
+      firstName: submitted.firstName,
+      lastName: submitted.lastName,
+      dateOfBirth: submitted.dateOfBirth || null,
+      studentNumber: submitted.studentNumber || null,
+      email: submitted.email || null,
     })
+  }
+
+  const updateField = (field: StudentFormField, value: string) => {
+    if (!student) return
+    setFormData((current) => ({ ...(current ?? toStudentFormData(student)), [field]: value }))
+    if (fieldErrors[field]) setFieldErrors((current) => ({ ...current, [field]: undefined }))
   }
 
   const handleCancel = () => {
     setFormData(null)
     setIsEditing(false)
-    setFormErrors([])
+    setFieldErrors({})
+    setServerError(null)
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
-        <span className="ml-2 text-gray-500">Loading student...</span>
-      </div>
+      <output className="flex items-center justify-center py-12">
+        <Loader2 aria-hidden="true" className="h-6 w-6 animate-spin text-gray-400" />
+        <span className="ml-2 text-gray-500">Loading learner…</span>
+      </output>
     )
   }
 
-  if (error) {
+  if (error || !student) {
     return (
-      <div className="text-center py-12">
-        <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-        <p className="text-red-600 mb-4">Error loading student: {error.message}</p>
+      <div role={error ? 'alert' : undefined} className="py-12 text-center">
+        {error ? (
+          <AlertCircle aria-hidden="true" className="mx-auto mb-4 h-12 w-12 text-red-400" />
+        ) : (
+          <User aria-hidden="true" className="mx-auto mb-4 h-12 w-12 text-gray-300" />
+        )}
+        <p className={error ? 'mb-4 text-red-700' : 'mb-4 text-gray-500'}>
+          {error ? `Learner could not be loaded. ${error.message}` : 'Learner not found.'}
+        </p>
         <Link
           href="/students"
-          className="text-gray-600 hover:text-gray-900 inline-flex items-center"
+          className="inline-flex items-center text-gray-600 hover:text-gray-900"
         >
-          <ArrowLeft className="w-4 h-4 mr-1" />
-          Back to Students
+          <ArrowLeft aria-hidden="true" className="mr-1 h-4 w-4" />
+          Back to students
         </Link>
       </div>
     )
   }
 
-  if (!student) {
-    return (
-      <div className="text-center py-12">
-        <User className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-        <p className="text-gray-500 mb-4">Student not found</p>
-        <Link
-          href="/students"
-          className="text-gray-600 hover:text-gray-900 inline-flex items-center"
-        >
-          <ArrowLeft className="w-4 h-4 mr-1" />
-          Back to Students
-        </Link>
-      </div>
-    )
-  }
-
-  const displayedFormData = formData ?? toStudentFormData(student)
+  const displayed = formData ?? toStudentFormData(student)
 
   return (
-    <div>
-      {/* Back Link */}
+    <div className="mx-auto max-w-4xl">
       <Link
         href="/students"
-        className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-6"
+        className="mb-6 inline-flex items-center text-sm text-gray-600 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2"
       >
-        <ArrowLeft className="w-4 h-4 mr-1" />
-        Back to Students
+        <ArrowLeft aria-hidden="true" className="mr-1 h-4 w-4" />
+        Back to students
       </Link>
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center">
-          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mr-4">
-            <span className="text-xl font-medium text-gray-600">
-              {student.firstName[0]}
-              {student.lastName[0]}
-            </span>
-          </div>
+          <span
+            aria-hidden="true"
+            className="mr-4 flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gray-100 text-lg font-medium text-gray-600 sm:h-16 sm:w-16 sm:text-xl"
+          >
+            {student.firstName[0]}
+            {student.lastName[0]}
+          </span>
           <div>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Official learner record
+            </p>
             <h1 className="text-2xl font-bold text-gray-900">
               {student.firstName} {student.lastName}
             </h1>
-            <p className="text-gray-500 text-sm">
-              {student.studentNumber ? `Student #${student.studentNumber}` : 'No student number'}
-            </p>
+            <p className="mt-1 text-sm text-gray-500">{student.schoolName} · Current enrollment</p>
           </div>
         </div>
         {!isEditing && (
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className="inline-flex items-center px-4 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+            className="inline-flex items-center justify-center rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2"
           >
-            <Edit className="w-4 h-4 mr-2" />
-            Edit
+            <Edit aria-hidden="true" className="mr-2 h-4 w-4" />
+            Edit record
           </button>
         )}
       </div>
 
-      {/* Form Errors */}
-      {formErrors.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center mb-2">
-            <AlertCircle className="w-4 h-4 text-red-600 mr-2" />
-            <span className="text-sm font-medium text-red-800">
-              Please fix the following errors:
-            </span>
-          </div>
-          <ul className="list-disc list-inside text-sm text-red-700">
-            {formErrors.map((error) => (
-              <li key={error}>{error}</li>
-            ))}
-          </ul>
+      {serverError && (
+        <div
+          role="alert"
+          className="mb-6 flex gap-2 rounded-lg border border-red-200 bg-red-50 p-3"
+        >
+          <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+          <p className="text-sm text-red-800">The record could not be saved. {serverError}</p>
         </div>
       )}
 
-      {/* Student Details Card */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Student Information</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* First Name */}
+      <form noValidate onSubmit={handleSave} aria-busy={updateMutation.isPending}>
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-3 border-b border-gray-200 bg-gray-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-                First Name
+              <h2 className="font-semibold text-gray-900">Learner information</h2>
+              <p className="mt-1 text-xs text-gray-500">
+                Identity details shared across School services.
+              </p>
+            </div>
+            <span
+              className={`inline-flex w-fit rounded-full px-2 py-1 text-xs font-medium ${student.parityStatus === 'matched' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-900'}`}
+            >
+              {student.parityStatus === 'matched' ? 'Record verified' : 'Needs review'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 p-6 md:grid-cols-2">
+            <div>
+              <label htmlFor="firstName" className="mb-1 block text-sm font-medium text-gray-700">
+                First name
               </label>
               {isEditing ? (
-                <input
-                  id="firstName"
-                  type="text"
-                  value={displayedFormData.firstName}
-                  onChange={(e) => setFormData({ ...displayedFormData, firstName: e.target.value })}
-                  className="block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-                />
+                <>
+                  <input
+                    ref={(element) => {
+                      fields.current.firstName = element ?? undefined
+                    }}
+                    id="firstName"
+                    name="firstName"
+                    type="text"
+                    autoComplete="given-name"
+                    required
+                    maxLength={100}
+                    value={displayed.firstName}
+                    onChange={(event) => updateField('firstName', event.target.value)}
+                    aria-invalid={!!fieldErrors.firstName}
+                    aria-describedby={fieldErrors.firstName ? 'firstName-error' : undefined}
+                    className={INPUT_CLASS}
+                  />
+                  <FieldError id="firstName-error" message={fieldErrors.firstName} />
+                </>
               ) : (
-                <div className="flex items-center text-gray-900">
-                  <User className="w-4 h-4 text-gray-400 mr-2" />
+                <p className="flex items-center text-gray-900">
+                  <User aria-hidden="true" className="mr-2 h-4 w-4 text-gray-400" />
                   {student.firstName}
-                </div>
+                </p>
               )}
             </div>
 
-            {/* Last Name */}
             <div>
-              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
-                Last Name
+              <label htmlFor="lastName" className="mb-1 block text-sm font-medium text-gray-700">
+                Last name
               </label>
               {isEditing ? (
-                <input
-                  id="lastName"
-                  type="text"
-                  value={displayedFormData.lastName}
-                  onChange={(e) => setFormData({ ...displayedFormData, lastName: e.target.value })}
-                  className="block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-                />
+                <>
+                  <input
+                    ref={(element) => {
+                      fields.current.lastName = element ?? undefined
+                    }}
+                    id="lastName"
+                    name="lastName"
+                    type="text"
+                    autoComplete="family-name"
+                    required
+                    maxLength={100}
+                    value={displayed.lastName}
+                    onChange={(event) => updateField('lastName', event.target.value)}
+                    aria-invalid={!!fieldErrors.lastName}
+                    aria-describedby={fieldErrors.lastName ? 'lastName-error' : undefined}
+                    className={INPUT_CLASS}
+                  />
+                  <FieldError id="lastName-error" message={fieldErrors.lastName} />
+                </>
               ) : (
-                <div className="flex items-center text-gray-900">
-                  <User className="w-4 h-4 text-gray-400 mr-2" />
+                <p className="flex items-center text-gray-900">
+                  <User aria-hidden="true" className="mr-2 h-4 w-4 text-gray-400" />
                   {student.lastName}
-                </div>
+                </p>
               )}
             </div>
 
-            {/* Student Number */}
             <div>
               <label
                 htmlFor="studentNumber"
-                className="block text-sm font-medium text-gray-700 mb-1"
+                className="mb-1 block text-sm font-medium text-gray-700"
               >
-                Student Number
+                Student number
               </label>
               {isEditing ? (
-                <input
-                  id="studentNumber"
-                  type="text"
-                  value={displayedFormData.studentNumber}
-                  onChange={(e) =>
-                    setFormData({ ...displayedFormData, studentNumber: e.target.value })
-                  }
-                  className="block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-                  placeholder="Optional"
-                />
+                <>
+                  <input
+                    ref={(element) => {
+                      fields.current.studentNumber = element ?? undefined
+                    }}
+                    id="studentNumber"
+                    name="studentNumber"
+                    type="text"
+                    maxLength={64}
+                    value={displayed.studentNumber}
+                    onChange={(event) => updateField('studentNumber', event.target.value)}
+                    aria-invalid={!!fieldErrors.studentNumber}
+                    aria-describedby={fieldErrors.studentNumber ? 'studentNumber-error' : undefined}
+                    className={INPUT_CLASS}
+                  />
+                  <FieldError id="studentNumber-error" message={fieldErrors.studentNumber} />
+                </>
               ) : (
-                <div className="flex items-center text-gray-900">
-                  <Hash className="w-4 h-4 text-gray-400 mr-2" />
-                  {student.studentNumber || '-'}
-                </div>
+                <p className="flex items-center text-gray-900">
+                  <Hash aria-hidden="true" className="mr-2 h-4 w-4 text-gray-400" />
+                  {student.studentNumber || '—'}
+                </p>
               )}
             </div>
 
-            {/* Date of Birth */}
             <div>
-              <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700 mb-1">
-                Date of Birth
+              <label htmlFor="dateOfBirth" className="mb-1 block text-sm font-medium text-gray-700">
+                Date of birth
               </label>
               {isEditing ? (
-                <input
-                  id="dateOfBirth"
-                  type="date"
-                  value={displayedFormData.dateOfBirth}
-                  onChange={(e) =>
-                    setFormData({ ...displayedFormData, dateOfBirth: e.target.value })
-                  }
-                  className="block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-                />
+                <>
+                  <input
+                    ref={(element) => {
+                      fields.current.dateOfBirth = element ?? undefined
+                    }}
+                    id="dateOfBirth"
+                    name="dateOfBirth"
+                    type="date"
+                    value={displayed.dateOfBirth}
+                    onChange={(event) => updateField('dateOfBirth', event.target.value)}
+                    aria-invalid={!!fieldErrors.dateOfBirth}
+                    aria-describedby={fieldErrors.dateOfBirth ? 'dateOfBirth-error' : undefined}
+                    className={INPUT_CLASS}
+                  />
+                  <FieldError id="dateOfBirth-error" message={fieldErrors.dateOfBirth} />
+                </>
               ) : (
-                <div className="flex items-center text-gray-900">
-                  <Calendar className="w-4 h-4 text-gray-400 mr-2" />
+                <p className="flex items-center text-gray-900">
+                  <Calendar aria-hidden="true" className="mr-2 h-4 w-4 text-gray-400" />
                   {student.dateOfBirth
                     ? new Date(`${student.dateOfBirth}T00:00:00`).toLocaleDateString()
-                    : '-'}
-                </div>
+                    : '—'}
+                </p>
               )}
             </div>
 
-            {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
                 Email
               </label>
               {isEditing ? (
-                <input
-                  id="email"
-                  type="email"
-                  value={displayedFormData.email}
-                  onChange={(e) => setFormData({ ...displayedFormData, email: e.target.value })}
-                  className="block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-                  placeholder="Optional"
-                />
+                <>
+                  <input
+                    ref={(element) => {
+                      fields.current.email = element ?? undefined
+                    }}
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    maxLength={320}
+                    value={displayed.email}
+                    onChange={(event) => updateField('email', event.target.value)}
+                    aria-invalid={!!fieldErrors.email}
+                    aria-describedby={fieldErrors.email ? 'email-error' : undefined}
+                    className={INPUT_CLASS}
+                  />
+                  <FieldError id="email-error" message={fieldErrors.email} />
+                </>
               ) : (
-                <div className="flex items-center text-gray-900">
-                  <Mail className="w-4 h-4 text-gray-400 mr-2" />
-                  {student.email || '-'}
-                </div>
+                <p className="flex items-center text-gray-900">
+                  <Mail aria-hidden="true" className="mr-2 h-4 w-4 text-gray-400" />
+                  {student.email || '—'}
+                </p>
               )}
             </div>
 
-            {/* Status */}
             <div>
-              <span className="block text-sm font-medium text-gray-700 mb-1">Status</span>
-              <div className="flex items-center">
-                <span
-                  className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                    student.status === 'active'
-                      ? 'bg-green-100 text-green-800'
-                      : student.status === 'archived'
-                        ? 'bg-gray-100 text-gray-800'
-                        : 'bg-yellow-100 text-yellow-800'
-                  }`}
-                >
-                  {student.status}
-                </span>
-              </div>
+              <span className="mb-1 block text-sm font-medium text-gray-700">
+                Current enrollment
+              </span>
+              <p className="flex items-center text-gray-900">
+                <School aria-hidden="true" className="mr-2 h-4 w-4 text-gray-400" />
+                {student.schoolName}
+              </p>
             </div>
           </div>
+
+          {isEditing && (
+            <div className="flex flex-col-reverse gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={updateMutation.isPending}
+                className="inline-flex items-center justify-center rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2 disabled:opacity-50"
+              >
+                <X aria-hidden="true" className="mr-2 h-4 w-4" />
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={updateMutation.isPending}
+                className="inline-flex items-center justify-center rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2 disabled:opacity-50"
+              >
+                {updateMutation.isPending ? (
+                  <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save aria-hidden="true" className="mr-2 h-4 w-4" />
+                )}
+                {updateMutation.isPending ? 'Saving…' : 'Save changes'}
+              </button>
+            </div>
+          )}
         </div>
+      </form>
 
-        {/* Edit Actions */}
-        {isEditing && (
-          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={handleCancel}
-              disabled={updateMutation.isPending}
-              className="inline-flex items-center px-4 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-white transition-colors disabled:opacity-50"
-            >
-              <X className="w-4 h-4 mr-2" />
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={updateMutation.isPending}
-              className="inline-flex items-center px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
-            >
-              {updateMutation.isPending ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
-              )}
-              Save Changes
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Metadata */}
-      <div className="mt-6 text-sm text-gray-500">
+      <div className="mt-6 border-t border-gray-200 pt-4 text-xs text-gray-500">
         <p>
-          Created: {new Date(student.createdAt).toLocaleDateString()} at{' '}
-          {new Date(student.createdAt).toLocaleTimeString()}
+          Enrolled {new Date(student.enrolledAt).toLocaleDateString()} · Record created{' '}
+          {new Date(student.createdAt).toLocaleDateString()}
         </p>
-        <p>
-          Last Updated: {new Date(student.updatedAt).toLocaleDateString()} at{' '}
-          {new Date(student.updatedAt).toLocaleTimeString()}
-        </p>
+        <p className="mt-1">Last updated {new Date(student.updatedAt).toLocaleString()}</p>
       </div>
     </div>
   )
