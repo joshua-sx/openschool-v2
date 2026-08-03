@@ -875,6 +875,7 @@ async function resolveTenantRequestContextInTransaction(
 
   options.cache?.set(resolvedCacheKey, context, {
     accountId: account.id,
+    tenantId: link.tenantId,
     sessionId: identity.sessionId,
     expiresAt,
   })

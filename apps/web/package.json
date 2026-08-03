@@ -13,6 +13,7 @@
     "invitation:deliver": "bun run src/server/invitation-delivery-job.ts",
     "invitation:onboarding-poc": "bun run src/server/invitation-onboarding-poc.ts",
     "identity:revocation-poc": "bun run src/server/identity-revocation-poc.ts",
+    "api:isolation-poc": "bun run src/server/api-isolation-poc.ts",
     "provider:mfa-reconcile": "bun run src/server/provider-mfa-reconciliation-job.ts"
   },
   "dependencies": {
@@ -20,6 +21,7 @@
     "@openschool/auth": "workspace:*",
     "@openschool/config": "workspace:*",
     "@openschool/db": "workspace:*",
+    "@openschool/isolation": "workspace:*",
     "@openschool/rbac": "workspace:*",
     "@supabase/auth-ui-react": "^0.4.0",
     "@supabase/auth-ui-shared": "^0.1.0",

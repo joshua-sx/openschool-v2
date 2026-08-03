@@ -1,3 +1,8 @@
+import {
+  type TenantCacheKey,
+  assertTenantCacheKey,
+  buildTenantCacheKey,
+} from '@openschool/isolation'
 import type { AssuranceLevel } from './verified-identity'
 
 export const TENANT_CONTEXT_POLICY_VERSION = 1
@@ -17,10 +22,16 @@ export interface TenantContextCacheKeyInput {
   schoolId?: string
 }
 
-export function buildTenantContextCacheKey(input: TenantContextCacheKeyInput): string {
+export function buildTenantContextCacheKey(input: TenantContextCacheKeyInput): TenantCacheKey {
+  const boundary = buildTenantCacheKey({
+    tenantId: input.tenantId,
+    namespace: 'tenant-request-context',
+    resourceId: input.accountId,
+    scopeVersion: input.policyVersion,
+  })
   return [
+    boundary,
     `account=${input.accountId}`,
-    `tenant=${input.tenantId}`,
     `session=${input.sessionId}`,
     `membership=${input.membershipVersion}`,
     `security=${input.securityVersion}`,
@@ -30,12 +41,13 @@ export function buildTenantContextCacheKey(input: TenantContextCacheKeyInput): s
     `comparison=${input.comparisonMode}`,
     `organization=${input.educationOrganizationId ?? '-'}`,
     `school=${input.schoolId ?? '-'}`,
-  ].join('|')
+  ].join('|') as TenantCacheKey
 }
 
 interface CacheEntry<T> {
   accountId: string
   sessionId: string
+  tenantId: string
   expiresAt: number
   value: T
 }
@@ -49,7 +61,7 @@ export class TenantRequestContextCache<T> {
 
   constructor(private readonly maximumEntries = 1_000) {}
 
-  get(key: string, at = new Date()): T | null {
+  get(key: TenantCacheKey, at = new Date()): T | null {
     const entry = this.entries.get(key)
     if (!entry) return null
     if (entry.expiresAt <= at.getTime()) {
@@ -60,10 +72,11 @@ export class TenantRequestContextCache<T> {
   }
 
   set(
-    key: string,
+    key: TenantCacheKey,
     value: T,
-    metadata: { accountId: string; sessionId: string; expiresAt: Date }
+    metadata: { accountId: string; tenantId: string; sessionId: string; expiresAt: Date }
   ): void {
+    assertTenantCacheKey(key, metadata.tenantId)
     if (this.entries.size >= this.maximumEntries && !this.entries.has(key)) {
       const oldestKey = this.entries.keys().next().value
       if (typeof oldestKey === 'string') this.entries.delete(oldestKey)
