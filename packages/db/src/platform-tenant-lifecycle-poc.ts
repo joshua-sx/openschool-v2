@@ -18,6 +18,7 @@ const TENANT_A_ACCOUNT = '00000000-0000-4000-8000-000000000201'
 const TENANT_A_PERSON = '00000000-0000-4000-8000-000000000901'
 const TENANT_B_ACCOUNT = '00000000-0000-4000-8000-000000000207'
 const TENANT_B_PERSON = '00000000-0000-4000-8000-000000000908'
+const PROOF_TIMEOUT_MS = 60_000
 
 interface PostgresErrorLike {
   code?: string
@@ -109,6 +110,11 @@ function tenantContext(
 
 async function run(): Promise<void> {
   assertGuardedProof()
+  let proofStage = 'initialize proof dependencies'
+  const proofWatchdog = setTimeout(() => {
+    console.error('Platform Tenant lifecycle proof timed out.', { stage: proofStage })
+    process.exit(1)
+  }, PROOF_TIMEOUT_MS)
   const admin = postgres(getMigrationEnv().DATABASE_MIGRATION_URL, { max: 2, prepare: false })
   const runtime = createDatabaseExecutionProofHarness('runtime', 2)
   const worker = createDatabaseExecutionProofHarness('worker', 1)
@@ -131,6 +137,7 @@ async function run(): Promise<void> {
   let outboxInsertRevoked = false
 
   try {
+    proofStage = 'prepare proof identities and grants'
     const [tenantAAccount] = await admin<
       Array<{ membershipVersion: number; securityVersion: number }>
     >`
@@ -258,6 +265,7 @@ async function run(): Promise<void> {
       (await resolvePlatformDatabaseContext(aal1Identity)).roleTemplateKey,
       'super_admin'
     )
+    proofStage = 'prove AAL1 lifecycle denial'
     await assert.rejects(
       withPlatformPolicyTransaction(
         aal1Identity,
@@ -283,6 +291,7 @@ async function run(): Promise<void> {
       'aal2',
       staleReauthentication
     )
+    proofStage = 'prove stale reauthentication denial'
     await assert.rejects(
       withPlatformPolicyTransaction(
         staleIdentity,
@@ -326,6 +335,7 @@ async function run(): Promise<void> {
       tenantBAccount.securityVersion
     )
 
+    proofStage = 'prove concurrent suspension linearization'
     let releaseInFlight!: () => void
     let markInFlightEntered!: () => void
     const inFlightEntered = new Promise<void>((resolve) => {
@@ -363,6 +373,7 @@ async function run(): Promise<void> {
     assert.equal(suspensionSettledBeforeRelease, false)
     assert.equal(suspended.tenantStatus, 'suspended')
 
+    proofStage = 'prove suspended runtime and worker denial'
     await assert.rejects(
       runtime.withTenantTransaction(tenantAContext, async () => undefined),
       (error: unknown) =>
@@ -420,6 +431,7 @@ async function run(): Promise<void> {
       outboxStatus: 'pending',
     })
 
+    proofStage = 'prove atomic audit and outbox rollback'
     await admin.unsafe(
       'revoke insert on table public.audit_outbox from openschool_tenant_lifecycle_manager'
     )
@@ -457,6 +469,7 @@ async function run(): Promise<void> {
     )
     outboxInsertRevoked = false
 
+    proofStage = 'prove Tenant reactivation'
     const reactivateIdentity = { ...freshIdentity, requestId: crypto.randomUUID() }
     const reactivated = await withPlatformPolicyTransaction(
       reactivateIdentity,
@@ -473,6 +486,7 @@ async function run(): Promise<void> {
       await transaction.execute(sql`select 1`)
     })
 
+    proofStage = 'prove platform grant revocation'
     await admin`
       update platform_access_grants
       set status = 'revoked', revoked_at = now(), revoked_by_account_id = ${platformAccountId},
@@ -488,6 +502,7 @@ async function run(): Promise<void> {
       'Platform Tenant lifecycle proof passed: isolated role, MFA/reauth, grant revocation, in-flight linearization, cross-Tenant continuity, runtime/worker suspension denial, atomic audit/outbox rollback, and reactivation.'
     )
   } finally {
+    proofStage = 'clean up proof resources'
     if (outboxInsertRevoked) {
       await admin.unsafe(
         'grant insert on table public.audit_outbox to openschool_tenant_lifecycle_manager'
@@ -508,6 +523,7 @@ async function run(): Promise<void> {
     await directControlPlane.end()
     await directRuntime.end()
     await admin.end()
+    clearTimeout(proofWatchdog)
   }
 }
 
