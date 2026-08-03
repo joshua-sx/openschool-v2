@@ -181,10 +181,11 @@ export function AcademicStructureSettingsPanel() {
     event.preventDefault()
     setError('')
     setStatusMessage('')
-    const form = new FormData(event.currentTarget)
+    const formElement = event.currentTarget
+    const form = new FormData(formElement)
     try {
       await close.mutateAsync({ academicYearId, reason: String(form.get('reason')) })
-      event.currentTarget.reset()
+      formElement.reset()
       setStatusMessage('Academic Year closed. Its historical structure remains available.')
       await refresh()
     } catch (cause) {

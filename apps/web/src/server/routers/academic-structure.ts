@@ -17,19 +17,19 @@ const codeSchema = z
   .regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/)
 
 const createAcademicYearSchema = z.object({
-  schoolId: z.string().uuid(),
+  schoolId: z.uuid(),
   code: codeSchema,
   name: z.string().trim().min(1).max(128),
   timeZone: z.string().trim().min(1).max(128),
-  startDate: z.string().date(),
-  endDate: z.string().date(),
+  startDate: z.iso.date(),
+  endDate: z.iso.date(),
   terms: z
     .array(
       z.object({
         code: codeSchema,
         name: z.string().trim().min(1).max(128),
-        startDate: z.string().date(),
-        endDate: z.string().date(),
+        startDate: z.iso.date(),
+        endDate: z.iso.date(),
       })
     )
     .min(1)
@@ -46,13 +46,13 @@ const createAcademicYearSchema = z.object({
     .max(30),
 })
 
-const academicYearIdSchema = z.object({ academicYearId: z.string().uuid() })
+const academicYearIdSchema = z.object({ academicYearId: z.uuid() })
 
 export const academicStructureRouter = router({
   list: protectedProcedure(CAPABILITIES.ACADEMIC_STRUCTURE_READ, {
     requestedScope: 'school',
   })
-    .input(z.object({ schoolId: z.string().uuid() }))
+    .input(z.object({ schoolId: z.uuid() }))
     .query(({ ctx, input }) =>
       getAcademicYears(ctx.requestContext, ctx.policyContext, ctx.policyDecision, input.schoolId)
     ),

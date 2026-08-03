@@ -194,6 +194,7 @@ async function failureFingerprint(operation: Promise<unknown>): Promise<string> 
 async function runProof(): Promise<void> {
   assertLocalDisposableDatabase()
   const admin = createMigrationClient()
+  let failure: unknown
   const schoolContext = schoolPolicyContext()
   const orgContext = orgPolicyContext()
   const schoolRead = allow(schoolContext, CAPABILITIES.ACADEMIC_STRUCTURE_READ)
@@ -460,16 +461,20 @@ async function runProof(): Promise<void> {
     console.log(
       `Academic structure proof passed: shared primary/high primitives, local-current derivation, sibling and cross-Tenant denial, invalid overlap rejection, concurrent publication serialization, immutable history, direct-write denial, atomic audit/outbox, and indexed plan evidence. tenantB=${TENANT_B}`
     )
+  } catch (error) {
+    failure = error
   } finally {
-    await closeDatabaseExecutionPoolsForProof()
-    try {
-      await admin
+    const cleanup = await Promise.allSettled([
+      admin
         .delete(accountSessions)
-        .where(inArray(accountSessions.providerSessionId, [SCHOOL_SESSION_ID, ORG_SESSION_ID]))
-    } finally {
-      await admin.$client.end({ timeout: 5 })
-    }
+        .where(inArray(accountSessions.providerSessionId, [SCHOOL_SESSION_ID, ORG_SESSION_ID])),
+      closeDatabaseExecutionPoolsForProof(),
+    ])
+    await admin.$client.end({ timeout: 5 })
+    const cleanupFailure = cleanup.find((result) => result.status === 'rejected')
+    if (!failure && cleanupFailure?.status === 'rejected') failure = cleanupFailure.reason
   }
+  if (failure) throw failure
 }
 
 await runProof()
