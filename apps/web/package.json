@@ -9,7 +9,9 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit --incremental false",
     "audit:poc": "bun run src/server/audit-poc.ts",
-    "policy:query-poc": "bun run src/server/policy-query-poc.ts"
+    "policy:query-poc": "bun run src/server/policy-query-poc.ts",
+    "invitation:deliver": "bun run src/server/invitation-delivery-job.ts",
+    "invitation:onboarding-poc": "bun run src/server/invitation-onboarding-poc.ts"
   },
   "dependencies": {
     "@openschool/audit": "workspace:*",

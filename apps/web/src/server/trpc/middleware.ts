@@ -39,6 +39,14 @@ export const requireAuth = publicProcedure.use(async ({ ctx, next }) => {
   })
 })
 
+/** Allows verified-but-not-yet-provisioned identities to accept an invitation. */
+export const requireVerifiedIdentity = publicProcedure.use(async ({ ctx, next }) => {
+  if (!ctx.identity) {
+    throw new TRPCError({ code: 'UNAUTHORIZED', message: ctx.denialReason ?? 'UNAUTHENTICATED' })
+  }
+  return next({ ctx: { ...ctx, identity: ctx.identity } })
+})
+
 interface ProtectedProcedureOptions {
   requestedScope?: ScopeKind
   resourceKind?: ResourceKind

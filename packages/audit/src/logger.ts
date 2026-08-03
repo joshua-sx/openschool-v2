@@ -170,3 +170,115 @@ export async function recordAuditAttempt(
     })
   )
 }
+
+export interface InvitationAcceptanceAuditInput {
+  invitationId: string
+  tenantId: string
+  accountId: string
+  personId: string
+  requestId: string
+  occurredAt: Date
+  educationOrganizationId?: string
+  schoolId?: string
+}
+
+export interface InvitationAcceptanceDenialAuditInput {
+  invitationId: string
+  tenantId: string
+  requestId: string
+  occurredAt: Date
+  reason: 'INVITATION_UNAVAILABLE' | 'INVITATION_IDENTITY_MISMATCH' | 'INVITATION_ACCOUNT_CONFLICT'
+  educationOrganizationId?: string
+  schoolId?: string
+}
+
+/** Records identity bootstrap after the private acceptance function binds canonical context. */
+export async function appendInvitationAcceptanceAudit(
+  tx: DatabaseTransaction,
+  input: InvitationAcceptanceAuditInput
+) {
+  return appendSanitizedAuditLedgerEvent(
+    tx,
+    {
+      occurredAt: input.occurredAt,
+      eventVersion: 1,
+      eventType: 'account.invitation.accept',
+      outcome: 'succeeded',
+      tenantId: input.tenantId,
+      ...(input.educationOrganizationId
+        ? { educationOrganizationId: input.educationOrganizationId }
+        : {}),
+      ...(input.schoolId ? { schoolId: input.schoolId } : {}),
+      actorType: 'account',
+      actorAccountId: input.accountId,
+      actorPersonId: input.personId,
+      capability: 'identity.invitation.accept',
+      policyVersion: 'identity-invitation.v1',
+      policyDecision: {
+        effect: 'allow',
+        reason: 'VERIFIED_INVITATION_MATCHED',
+        capability: 'identity.invitation.accept',
+        policyVersion: 'identity-invitation.v1',
+      },
+      requestId: input.requestId,
+      correlationId: input.requestId,
+      targetType: 'account.invitation',
+      targetId: input.invitationId,
+      dataClasses: ['credential'],
+      changeSummary: {
+        changedFields: ['accountLink', 'affiliation', 'roleAssignments', 'status'],
+      },
+      purpose: 'account_onboarding',
+      source: 'web',
+      retentionClass: 'security',
+    },
+    {
+      topic: 'audit.event.committed',
+      deduplicationKey: `account.invitation.accept:${input.invitationId}`,
+      deduplicationMode: 'return_existing',
+    }
+  )
+}
+
+/** Records a known-invitation denial without persisting unverified identity claims. */
+export async function appendInvitationAcceptanceDenialAudit(
+  tx: DatabaseTransaction,
+  input: InvitationAcceptanceDenialAuditInput
+) {
+  return appendSanitizedAuditLedgerEvent(
+    tx,
+    {
+      occurredAt: input.occurredAt,
+      eventVersion: 1,
+      eventType: 'account.invitation.accept',
+      outcome: 'denied',
+      tenantId: input.tenantId,
+      ...(input.educationOrganizationId
+        ? { educationOrganizationId: input.educationOrganizationId }
+        : {}),
+      ...(input.schoolId ? { schoolId: input.schoolId } : {}),
+      actorType: 'system',
+      capability: 'identity.invitation.accept',
+      policyVersion: 'identity-invitation.v1',
+      policyDecision: {
+        effect: 'deny',
+        reason: input.reason,
+        capability: 'identity.invitation.accept',
+        policyVersion: 'identity-invitation.v1',
+      },
+      requestId: input.requestId,
+      correlationId: input.requestId,
+      targetType: 'account.invitation',
+      targetId: input.invitationId,
+      dataClasses: ['credential'],
+      changeSummary: { changedFields: [] },
+      purpose: 'account_onboarding',
+      source: 'web',
+      retentionClass: 'security',
+    },
+    {
+      topic: 'audit.event.committed',
+      deduplicationKey: `account.invitation.accept.denied:${input.invitationId}:${input.requestId}`,
+    }
+  )
+}

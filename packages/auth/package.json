@@ -13,6 +13,7 @@
     "auth:tenant-context-poc": "bun run src/tenant-request-context-poc.ts"
   },
   "dependencies": {
+    "@openschool/audit": "workspace:*",
     "@openschool/config": "workspace:*",
     "@openschool/db": "workspace:*",
     "@openschool/rbac": "workspace:*",

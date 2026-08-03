@@ -31,6 +31,18 @@ export interface StudentSliceEnvironment {
   OPENSCHOOL_STUDENT_SLICE_MODE: 'forced_rls' | 'disabled'
 }
 
+export interface InvitationDeliveryEnvironment {
+  INVITATION_TOKEN_ENCRYPTION_KEY_ID: string
+  INVITATION_TOKEN_ENCRYPTION_KEYS: Readonly<Record<string, string>>
+}
+
+export interface SupabaseAdminEnvironment {
+  SUPABASE_SECRET_KEY: string
+}
+
+const ENCRYPTION_KEY_ID = /^[A-Za-z0-9_.-]{1,64}$/
+const BASE64URL_256_BIT_KEY = /^[A-Za-z0-9_-]{43}$/
+
 function databaseUsername(variable: string, value: string): string {
   const username = decodeURIComponent(new URL(value).username)
   if (!username) throw new EnvironmentValidationError(variable, 'must include a database username')
@@ -136,6 +148,92 @@ export function parseStudentSliceEnv(source: EnvironmentSource): Readonly<Studen
   return Object.freeze({ OPENSCHOOL_STUDENT_SLICE_MODE: mode })
 }
 
+export function parseInvitationDeliveryEnv(
+  source: EnvironmentSource
+): Readonly<InvitationDeliveryEnvironment> {
+  const activeKeyId = requireValue(source, 'INVITATION_TOKEN_ENCRYPTION_KEY_ID')
+  if (!ENCRYPTION_KEY_ID.test(activeKeyId)) {
+    throw new EnvironmentValidationError(
+      'INVITATION_TOKEN_ENCRYPTION_KEY_ID',
+      'must be a safe 1-64 character key identifier'
+    )
+  }
+
+  const serializedKeys = requireValue(source, 'INVITATION_TOKEN_ENCRYPTION_KEYS')
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(serializedKeys)
+  } catch {
+    throw new EnvironmentValidationError(
+      'INVITATION_TOKEN_ENCRYPTION_KEYS',
+      'must be a JSON object of key IDs to base64url-encoded 256-bit keys'
+    )
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new EnvironmentValidationError(
+      'INVITATION_TOKEN_ENCRYPTION_KEYS',
+      'must be a JSON object of key IDs to base64url-encoded 256-bit keys'
+    )
+  }
+
+  const keys: Record<string, string> = Object.create(null)
+  for (const [keyId, key] of Object.entries(parsed)) {
+    if (
+      !ENCRYPTION_KEY_ID.test(keyId) ||
+      typeof key !== 'string' ||
+      !BASE64URL_256_BIT_KEY.test(key)
+    ) {
+      throw new EnvironmentValidationError(
+        'INVITATION_TOKEN_ENCRYPTION_KEYS',
+        'contains an invalid key ID or non-256-bit base64url key'
+      )
+    }
+    keys[keyId] = key
+  }
+  if (!Object.hasOwn(keys, activeKeyId)) {
+    throw new EnvironmentValidationError(
+      'INVITATION_TOKEN_ENCRYPTION_KEY_ID',
+      'must identify a key present in INVITATION_TOKEN_ENCRYPTION_KEYS'
+    )
+  }
+  return Object.freeze({
+    INVITATION_TOKEN_ENCRYPTION_KEY_ID: activeKeyId,
+    INVITATION_TOKEN_ENCRYPTION_KEYS: Object.freeze(keys),
+  })
+}
+
+export function parseSupabaseAdminEnv(
+  source: EnvironmentSource
+): Readonly<SupabaseAdminEnvironment> {
+  const secretKey = requireValue(source, 'SUPABASE_SECRET_KEY')
+  // Three dot-separated segments support legacy Supabase service-role JWTs;
+  // this is format validation, not token signature verification.
+  if (
+    /replace[_-]?with|your[_-]?project/i.test(secretKey) ||
+    (!secretKey.startsWith('sb_secret_') && secretKey.split('.').length !== 3)
+  ) {
+    throw new EnvironmentValidationError(
+      'SUPABASE_SECRET_KEY',
+      'must be a server-only Supabase secret key'
+    )
+  }
+  return Object.freeze({ SUPABASE_SECRET_KEY: secretKey })
+}
+
+export function parseOpenSignupAllowed(
+  source: EnvironmentSource,
+  nodeEnvironment = 'development'
+): boolean {
+  const configured = source.OPENSCHOOL_ALLOW_OPEN_SIGNUP?.trim()
+  if (configured && configured !== 'true' && configured !== 'false') {
+    throw new EnvironmentValidationError(
+      'OPENSCHOOL_ALLOW_OPEN_SIGNUP',
+      'must be true or false when provided'
+    )
+  }
+  return nodeEnvironment !== 'production' && configured === 'true'
+}
+
 export function getServerEnv(): Readonly<ServerEnvironment> {
   return parseServerEnv({
     DATABASE_RUNTIME_URL: process.env.DATABASE_RUNTIME_URL,
@@ -162,6 +260,21 @@ export function getStudentSliceEnv(): Readonly<StudentSliceEnvironment> {
   return parseStudentSliceEnv({
     OPENSCHOOL_STUDENT_SLICE_MODE: process.env.OPENSCHOOL_STUDENT_SLICE_MODE,
   })
+}
+
+export function getInvitationDeliveryEnv(): Readonly<InvitationDeliveryEnvironment> {
+  return parseInvitationDeliveryEnv({
+    INVITATION_TOKEN_ENCRYPTION_KEY_ID: process.env.INVITATION_TOKEN_ENCRYPTION_KEY_ID,
+    INVITATION_TOKEN_ENCRYPTION_KEYS: process.env.INVITATION_TOKEN_ENCRYPTION_KEYS,
+  })
+}
+
+export function getSupabaseAdminEnv(): Readonly<SupabaseAdminEnvironment> {
+  return parseSupabaseAdminEnv({ SUPABASE_SECRET_KEY: process.env.SUPABASE_SECRET_KEY })
+}
+
+export function isOpenSignupAllowed(): boolean {
+  return parseOpenSignupAllowed(process.env, process.env.NODE_ENV)
 }
 
 export { EnvironmentValidationError }

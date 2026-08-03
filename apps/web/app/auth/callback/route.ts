@@ -1,5 +1,6 @@
 import { normalizeInternalRedirectPath } from '@/lib/redirects'
 import {
+  TenantRequestContextError,
   createServerClient,
   registerVerifiedAccountSession,
   verifySupabaseIdentity,
@@ -26,7 +27,16 @@ export async function GET(request: NextRequest) {
         const identity = await verifySupabaseIdentity(supabase)
         await registerVerifiedAccountSession(identity)
         return NextResponse.redirect(new URL(next, env.NEXT_PUBLIC_APP_URL))
-      } catch {
+      } catch (error) {
+        if (
+          next.startsWith('/auth/invitation') &&
+          error instanceof TenantRequestContextError &&
+          error.reason === 'TENANT_DENIED'
+        ) {
+          // A verified invitee has no Account yet; the private acceptance flow
+          // creates it atomically after checking the invitation identity.
+          return NextResponse.redirect(new URL(next, env.NEXT_PUBLIC_APP_URL))
+        }
         return NextResponse.redirect(`${env.NEXT_PUBLIC_WWW_URL}/auth/login?error=auth_failed`)
       }
     }

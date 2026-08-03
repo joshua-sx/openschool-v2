@@ -27,6 +27,10 @@ jobs:
       DATABASE_WORKER_URL: postgresql://openschool_worker:ci@127.0.0.1:5432/openschool
       DATABASE_WORKER_ROLE: openschool_worker
       OPENSCHOOL_STUDENT_SLICE_MODE: forced_rls
+      INVITATION_TOKEN_ENCRYPTION_KEY_ID: ci-v1
+      INVITATION_TOKEN_ENCRYPTION_KEYS: '{"ci-v1":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}'
+      SUPABASE_SECRET_KEY: sb_secret_ci_0123456789abcdef
+      OPENSCHOOL_ALLOW_OPEN_SIGNUP: "false"
       NEXT_PUBLIC_APP_URL: http://app.openschool.local:3000
       NEXT_PUBLIC_WWW_URL: http://www.openschool.local:3000
 
@@ -93,6 +97,7 @@ jobs:
       ALLOW_TENANT_CONTEXT_POC: "true"
       ALLOW_POLICY_QUERY_POC: "true"
       ALLOW_AUDIT_POC: "true"
+      ALLOW_INVITATION_ONBOARDING_POC: "true"
       ALLOW_ROLE_PROVISIONING: "true"
       DATABASE_MIGRATION_URL: postgresql://postgres:postgres@127.0.0.1:5432/openschool
       DATABASE_MIGRATION_ROLE: postgres
@@ -101,6 +106,12 @@ jobs:
       DATABASE_WORKER_URL: postgresql://openschool_worker:worker-ci-only-1@127.0.0.1:5432/openschool
       DATABASE_WORKER_ROLE: openschool_worker
       OPENSCHOOL_STUDENT_SLICE_MODE: forced_rls
+      INVITATION_TOKEN_ENCRYPTION_KEY_ID: ci-v1
+      INVITATION_TOKEN_ENCRYPTION_KEYS: '{"ci-v1":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}'
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_0123456789abcdef
+      NEXT_PUBLIC_APP_URL: http://app.openschool.local:3000
+      NEXT_PUBLIC_WWW_URL: http://www.openschool.local:3000
 
     steps:
       - name: Check out repository
@@ -161,6 +172,9 @@ jobs:
 
       - name: Prove atomic and tamper-evident Audit Ledger boundaries
         run: bun run audit:poc
+
+      - name: Prove invitation-only onboarding boundaries
+        run: bun run invitation:onboarding-poc
 
   database-upgrade:
     name: Upgrade representative existing data

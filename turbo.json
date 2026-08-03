@@ -117,6 +117,27 @@
         "OPENSCHOOL_STUDENT_SLICE_MODE"
       ]
     },
+    "invitation:deliver": {
+      "cache": false,
+      "env": [
+        "DATABASE_WORKER_URL",
+        "INVITATION_DELIVERY_TENANT_ID",
+        "INVITATION_TOKEN_ENCRYPTION_KEY_ID",
+        "INVITATION_TOKEN_ENCRYPTION_KEYS",
+        "SUPABASE_SECRET_KEY"
+      ]
+    },
+    "invitation:onboarding-poc": {
+      "cache": false,
+      "env": [
+        "ALLOW_INVITATION_ONBOARDING_POC",
+        "DATABASE_MIGRATION_URL",
+        "DATABASE_RUNTIME_URL",
+        "DATABASE_WORKER_URL",
+        "INVITATION_TOKEN_ENCRYPTION_KEY_ID",
+        "INVITATION_TOKEN_ENCRYPTION_KEYS"
+      ]
+    },
     "db:prepare-upgrade-fixture": {
       "cache": false,
       "env": ["ALLOW_TENANT_FOUNDATION_POC", "DATABASE_MIGRATION_URL", "DATABASE_MIGRATION_ROLE"]

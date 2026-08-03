@@ -82,6 +82,7 @@ describe('Tenant context selectors', () => {
     const authorizationSeams = [
       new URL('../../middleware.ts', import.meta.url),
       new URL('../../app/auth/callback/route.ts', import.meta.url),
+      new URL('../../app/auth/confirm/route.ts', import.meta.url),
       new URL('../../app/(app)/layout.tsx', import.meta.url),
       new URL('../../app/context/select/route.ts', import.meta.url),
       new URL('./trpc/context.ts', import.meta.url),
@@ -91,5 +92,14 @@ describe('Tenant context selectors', () => {
       const source = readFileSync(seam, 'utf8')
       assert.equal(/(?:\.auth\.)?\bgetSession\s*\(/.test(source), false, seam.pathname)
     }
+  })
+
+  it('verifies provider email proof before returning the invitation fragment', () => {
+    const source = readFileSync(new URL('../../app/auth/confirm/route.ts', import.meta.url), 'utf8')
+    const verifyOtp = source.indexOf('supabase.auth.verifyOtp')
+    const invitationFragment = source.indexOf('destination.hash')
+    assert.ok(verifyOtp >= 0 && verifyOtp < invitationFragment)
+    assert.equal(source.includes("destination.searchParams.set('invitation_token'"), false)
+    assert.equal(source.includes('openInvitationContinuation'), true)
   })
 })

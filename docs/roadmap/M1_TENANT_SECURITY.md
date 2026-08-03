@@ -38,7 +38,7 @@ flowchart TD
 | 3. Trusted context | #84 | verified identity and canonical Tenant Request Context | compare in development; production fails closed |
 | 4. Enforcement modules | #85 and #86 | Policy Decision module plus non-owner transaction adapter | versioned policy rollback; never owner-bypass DB access |
 | 5. Evidence and audit | #87 and #88 | forced-RLS student vertical slice and atomic audit/outbox | slice feature flag; audit never disabled/deleted |
-| 6. Privileged identity | #89 | invitation, MFA, revocation, support/break-glass | pause invites only; revocation/MFA/audit remain |
+| 6. Privileged identity | #89 (#100, #101, #102) | invitation, MFA, revocation, support/break-glass | pause invites only; revocation/MFA/audit remain |
 | 7. System proof | #90 | full cross-path Isolation Matrix and automated NO-GO gate | security failures disable feature/release, not tests |
 
 ## Execution rules
@@ -49,3 +49,9 @@ flowchart TD
 4. Each pull request is independently reviewable and keeps the application pre-production.
 5. Product epics #2–#6 do not expand protected data paths until #87 proves the first complete slice.
 6. Jurisdiction-specific privacy/legal decisions remain named human approvals in the Production Gate, never inferred from passing code.
+
+## Phase 6 status
+
+- #100 invitation-only onboarding: implementation candidate complete; live PostgreSQL/CI and review evidence required before closure.
+- #101 privileged MFA and immediate revocation: not started and remains blocking.
+- #102 tenant-approved support and break-glass access: not started and remains blocking.

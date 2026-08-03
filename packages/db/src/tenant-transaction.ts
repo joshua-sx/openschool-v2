@@ -25,6 +25,8 @@ export interface IdentityDatabaseContext {
   identityProvider: string
   providerSubject: string
   providerSessionId: string
+  /** Verified provider claim; required by invitation acceptance and never client supplied. */
+  identityEmail?: string
   requestId: string
   assuranceLevel: DatabaseAssuranceLevel
 }
@@ -130,6 +132,7 @@ export function validateIdentityDatabaseContext(context: IdentityDatabaseContext
   requireSafeValue('identityProvider', context.identityProvider)
   requireSafeValue('providerSubject', context.providerSubject)
   requireSafeValue('providerSessionId', context.providerSessionId)
+  if (context.identityEmail) requireSafeValue('identityEmail', context.identityEmail)
   requireSafeValue('requestId', context.requestId)
   if (!new Set<DatabaseAssuranceLevel>(['aal1', 'aal2']).has(context.assuranceLevel)) {
     deny('DATABASE_CONTEXT_INVALID', 'assuranceLevel is invalid')
@@ -246,10 +249,22 @@ interface RuntimeRoleEvidence extends Record<string, unknown> {
   canUpdateAuditOutbox: boolean
   canDeleteAuditOutbox: boolean
   canAccessAuditArchiveManifests: boolean
+  canSelectInvitations: boolean
+  canInsertInvitations: boolean
+  canUpdateInvitations: boolean
+  canDeleteInvitations: boolean
+  canSelectInvitationDelivery: boolean
+  canInsertInvitationDelivery: boolean
+  canUpdateInvitationDelivery: boolean
+  canDeleteInvitationDelivery: boolean
+  canUseInvitationSchema: boolean
+  canCreateInInvitationSchema: boolean
+  canExecuteInvitationAcceptance: boolean
   canAssumeMigrationRole: boolean
   canAssumeOtherExecutionRole: boolean
   canAssumeBackupRole: boolean
   canAssumeEmergencyRole: boolean
+  canAssumeInvitationAcceptor: boolean
   operationalRolesExist: boolean
   hasUnsafeMembership: boolean
 }
@@ -289,6 +304,35 @@ async function assertSafeExecutionRole(
         'public.audit_archive_manifests',
         'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'
       ) as "canAccessAuditArchiveManifests",
+      has_table_privilege(current_user, 'public.account_invitations', 'SELECT')
+        as "canSelectInvitations",
+      has_table_privilege(current_user, 'public.account_invitations', 'INSERT')
+        as "canInsertInvitations",
+      has_table_privilege(current_user, 'public.account_invitations', 'UPDATE')
+        as "canUpdateInvitations",
+      has_table_privilege(current_user, 'public.account_invitations', 'DELETE')
+        as "canDeleteInvitations",
+      has_table_privilege(current_user, 'public.invitation_delivery_outbox', 'SELECT')
+        as "canSelectInvitationDelivery",
+      has_table_privilege(current_user, 'public.invitation_delivery_outbox', 'INSERT')
+        as "canInsertInvitationDelivery",
+      has_table_privilege(current_user, 'public.invitation_delivery_outbox', 'UPDATE')
+        as "canUpdateInvitationDelivery",
+      has_table_privilege(current_user, 'public.invitation_delivery_outbox', 'DELETE')
+        as "canDeleteInvitationDelivery",
+      has_schema_privilege(current_user, 'openschool_private', 'USAGE')
+        as "canUseInvitationSchema",
+      has_schema_privilege(current_user, 'openschool_private', 'CREATE')
+        as "canCreateInInvitationSchema",
+      -- Resolve by catalog OID so the worker can prove denial without private-schema USAGE.
+      coalesce((
+        select has_function_privilege(current_user, procedure.oid, 'EXECUTE')
+        from pg_proc procedure
+        inner join pg_namespace namespace on namespace.oid = procedure.pronamespace
+        where namespace.nspname = 'openschool_private'
+          and procedure.proname = 'accept_account_invitation'
+          and procedure.proargtypes = '25 1184 1184'::oidvector
+      ), false) as "canExecuteInvitationAcceptance",
       exists (
         select 1 from pg_roles candidate
         where candidate.rolname = ${migrationUsername}
@@ -309,6 +353,11 @@ async function assertSafeExecutionRole(
         where candidate.rolname = 'openschool_emergency'
           and pg_has_role(current_user, candidate.oid, 'member')
       ) as "canAssumeEmergencyRole",
+      exists (
+        select 1 from pg_roles candidate
+        where candidate.rolname = 'openschool_invitation_acceptor'
+          and pg_has_role(current_user, candidate.oid, 'member')
+      ) as "canAssumeInvitationAcceptor",
       (
         select count(*) = 2
         from pg_roles candidate
@@ -344,10 +393,22 @@ async function assertSafeExecutionRole(
     evidence.canUpdateAuditOutbox !== canProcessAuditOutbox ||
     evidence.canDeleteAuditOutbox ||
     evidence.canAccessAuditArchiveManifests ||
+    !evidence.canSelectInvitations ||
+    evidence.canInsertInvitations !== !canProcessAuditOutbox ||
+    evidence.canUpdateInvitations !== !canProcessAuditOutbox ||
+    evidence.canDeleteInvitations ||
+    evidence.canSelectInvitationDelivery !== canProcessAuditOutbox ||
+    evidence.canInsertInvitationDelivery !== !canProcessAuditOutbox ||
+    evidence.canUpdateInvitationDelivery !== canProcessAuditOutbox ||
+    evidence.canDeleteInvitationDelivery ||
+    evidence.canUseInvitationSchema !== !canProcessAuditOutbox ||
+    evidence.canCreateInInvitationSchema ||
+    evidence.canExecuteInvitationAcceptance !== !canProcessAuditOutbox ||
     evidence.canAssumeMigrationRole ||
     evidence.canAssumeOtherExecutionRole ||
     evidence.canAssumeBackupRole ||
     evidence.canAssumeEmergencyRole ||
+    evidence.canAssumeInvitationAcceptor ||
     !evidence.operationalRolesExist ||
     evidence.hasUnsafeMembership
   ) {
@@ -478,6 +539,7 @@ async function withIdentityUsing<T>(
       'app.identity_provider': context.identityProvider,
       'app.provider_subject': context.providerSubject,
       'app.provider_session_id': context.providerSessionId,
+      'app.identity_email': context.identityEmail,
       'app.request_id': context.requestId,
       'app.assurance_level': context.assuranceLevel,
     })

@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { EnvironmentValidationError, parsePublicEnv } from './public'
-import { parseMigrationEnv, parseServerEnv, parseStudentSliceEnv, parseWorkerEnv } from './server'
+import {
+  parseInvitationDeliveryEnv,
+  parseMigrationEnv,
+  parseOpenSignupAllowed,
+  parseServerEnv,
+  parseStudentSliceEnv,
+  parseSupabaseAdminEnv,
+  parseWorkerEnv,
+} from './server'
 
 const validPublicEnv = {
   NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321',
@@ -175,6 +183,68 @@ describe('server environment validation', () => {
     assert.throws(
       () => parseStudentSliceEnv({ OPENSCHOOL_STUDENT_SLICE_MODE: 'owner_fallback' }),
       /OPENSCHOOL_STUDENT_SLICE_MODE: must be forced_rls or disabled/
+    )
+  })
+
+  it('validates a rotatable invitation-token encryption keyring', () => {
+    const key = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+    const environment = parseInvitationDeliveryEnv({
+      INVITATION_TOKEN_ENCRYPTION_KEY_ID: 'local-v1',
+      INVITATION_TOKEN_ENCRYPTION_KEYS: JSON.stringify({ 'local-v1': key }),
+    })
+    assert.equal(environment.INVITATION_TOKEN_ENCRYPTION_KEY_ID, 'local-v1')
+    assert.equal(environment.INVITATION_TOKEN_ENCRYPTION_KEYS['local-v1'], key)
+    assert.equal(Object.getPrototypeOf(environment.INVITATION_TOKEN_ENCRYPTION_KEYS), null)
+    const prototypeNamedKeyring = parseInvitationDeliveryEnv({
+      INVITATION_TOKEN_ENCRYPTION_KEY_ID: '__proto__',
+      INVITATION_TOKEN_ENCRYPTION_KEYS: `{"__proto__":"${key}"}`,
+    })
+    assert.equal(prototypeNamedKeyring.INVITATION_TOKEN_ENCRYPTION_KEYS.__proto__, key)
+    assert.throws(
+      () =>
+        parseInvitationDeliveryEnv({
+          INVITATION_TOKEN_ENCRYPTION_KEY_ID: 'missing',
+          INVITATION_TOKEN_ENCRYPTION_KEYS: JSON.stringify({ 'local-v1': key }),
+        }),
+      /must identify a key present/
+    )
+    assert.throws(
+      () =>
+        parseInvitationDeliveryEnv({
+          INVITATION_TOKEN_ENCRYPTION_KEY_ID: 'local-v1',
+          INVITATION_TOKEN_ENCRYPTION_KEYS: JSON.stringify({ 'local-v1': 'too-short' }),
+        }),
+      /non-256-bit base64url key/
+    )
+  })
+
+  it('keeps Supabase admin keys server-only and rejects placeholders', () => {
+    assert.deepEqual(parseSupabaseAdminEnv({ SUPABASE_SECRET_KEY: 'sb_secret_local_test_key' }), {
+      SUPABASE_SECRET_KEY: 'sb_secret_local_test_key',
+    })
+    assert.throws(
+      () => parseSupabaseAdminEnv({ SUPABASE_SECRET_KEY: 'sb_secret_replace_with_project_key' }),
+      /must be a server-only Supabase secret key/
+    )
+    assert.throws(
+      () => parseSupabaseAdminEnv({ SUPABASE_SECRET_KEY: 'anon-key' }),
+      /must be a server-only Supabase secret key/
+    )
+    assert.deepEqual(parseSupabaseAdminEnv({ SUPABASE_SECRET_KEY: 'header.payload.signature' }), {
+      SUPABASE_SECRET_KEY: 'header.payload.signature',
+    })
+  })
+
+  it('allows open signup only through an explicit non-production override', () => {
+    assert.equal(parseOpenSignupAllowed({}, 'development'), false)
+    assert.equal(parseOpenSignupAllowed({ OPENSCHOOL_ALLOW_OPEN_SIGNUP: 'true' }, 'test'), true)
+    assert.equal(
+      parseOpenSignupAllowed({ OPENSCHOOL_ALLOW_OPEN_SIGNUP: 'true' }, 'production'),
+      false
+    )
+    assert.throws(
+      () => parseOpenSignupAllowed({ OPENSCHOOL_ALLOW_OPEN_SIGNUP: 'yes' }, 'development'),
+      /must be true or false/
     )
   })
 })

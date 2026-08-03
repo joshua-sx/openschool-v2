@@ -52,7 +52,8 @@ export async function middleware(request: NextRequest) {
     if (
       url.pathname.startsWith('/auth/login') ||
       url.pathname.startsWith('/auth/signup') ||
-      url.pathname.startsWith('/auth/callback')
+      url.pathname.startsWith('/auth/callback') ||
+      url.pathname.startsWith('/auth/invitation')
     ) {
       return NextResponse.next()
     }

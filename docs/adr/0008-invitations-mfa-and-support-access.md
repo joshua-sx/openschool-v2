@@ -31,6 +31,10 @@ Platform operators have control-plane capabilities only. Support Access requires
 
 Onboarding is a state machine rather than an auth callback side effect. Schools can delegate invitations without platform access. Support operations become slower but explainable and reviewable. Customer SSO can become another identity adapter at the Account seam.
 
+The invitation slice is implemented by migration 0016, the invitation services/router, a durable encrypted delivery adapter, the acceptance page, and the guarded PostgreSQL proof. Its private function is owned by a dedicated `NOLOGIN`, `NOBYPASSRLS` role so forced RLS does not depend on a superuser migration owner. Known-invitation denials are redacted Tenant audit events; invalid random tokens remain aggregate security telemetry because no Tenant can be derived safely.
+
 ## Migration path and rollback
 
 Disable production open sign-up before onboarding real users. Add invitation and session-version records, migrate existing development Accounts as explicitly accepted fixtures, then enforce MFA by privilege tier. Rollback can pause new invitations but must preserve revocations and audit evidence.
+
+Operational configuration, delivery, key rotation, incident response, and rollback are defined in [Invitation-only account onboarding](../security/INVITATION_ONBOARDING.md). Completing this invitation slice does not satisfy the MFA/revocation or support/break-glass parts of this decision.
