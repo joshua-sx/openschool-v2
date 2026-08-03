@@ -88,6 +88,30 @@ describe('database migration baseline', () => {
     assert.equal(migration.includes('to_jsonb(event)'), false)
   })
 
+  it('installs guarded Audit Ledger partition lifecycle automation', () => {
+    const migration = readFileSync(
+      join(migrationsDirectory, '0027_audit_partition_lifecycle.sql'),
+      'utf8'
+    )
+    for (const expected of [
+      'openschool_audit_partition_manager',
+      'maintain_audit_partition_horizon',
+      'pg_advisory_xact_lock',
+      'AUDIT_DEFAULT_PARTITION_MISSING',
+      'AUDIT_PARTITION_METADATA_INVALID',
+      'AUDIT_PARTITION_PROTECTIONS_INVALID',
+      'audit_events_partition_manager_select',
+      'ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY',
+      'ALTER TABLE public.%I FORCE ROW LEVEL SECURITY',
+      'FROM PUBLIC',
+      'TO "openschool_worker"',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+    assert.equal(migration.includes('TO "openschool_runtime"'), false)
+    assert.equal(migration.includes('TO "openschool_control_plane"'), false)
+  })
+
   it('installs invitation-only onboarding with forced RLS and a private acceptance seam', () => {
     const migration = readFileSync(join(migrationsDirectory, '0016_careful_violations.sql'), 'utf8')
     for (const expected of [

@@ -5,6 +5,7 @@ import {
   TenantDatabaseError,
   validateDatabasePolicyContext,
   validateIdentityDatabaseContext,
+  validateSystemWorkerDatabaseContext,
   validateTenantDatabaseContext,
   validateWorkerDatabaseContext,
 } from './tenant-transaction'
@@ -69,6 +70,13 @@ describe('database execution context validation', () => {
         requestId: IDS.request,
       })
     )
+    assert.doesNotThrow(() =>
+      validateSystemWorkerDatabaseContext({
+        jobId: IDS.account,
+        jobType: 'audit_partition_maintenance',
+        requestId: IDS.request,
+      })
+    )
   })
 
   it('fails before database access for missing, malformed, or unsafe context', () => {
@@ -84,6 +92,15 @@ describe('database execution context validation', () => {
           membershipVersion: 1,
           securityVersion: 1,
           contextPolicyVersion: 1,
+        }),
+      isInvalidContext
+    )
+    assert.throws(
+      () =>
+        validateSystemWorkerDatabaseContext({
+          jobId: 'not-a-job-id',
+          jobType: 'audit_partition_maintenance',
+          requestId: IDS.request,
         }),
       isInvalidContext
     )

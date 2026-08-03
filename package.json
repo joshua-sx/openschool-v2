@@ -35,6 +35,8 @@
     "provider:mfa-reconcile": "turbo run provider:mfa-reconcile --filter=web",
     "platform:tenant-lifecycle-poc": "turbo run db:platform-tenant-lifecycle-poc --filter=@openschool/db",
     "support:access-poc": "turbo run db:support-access-poc --filter=@openschool/db",
+    "audit:partition-poc": "turbo run db:audit-partition-poc --filter=@openschool/db",
+    "audit:partition-maintain": "turbo run audit:partition-maintain --filter=@openschool/db",
     "db:prepare-upgrade-fixture": "turbo run db:prepare-upgrade-fixture --filter=@openschool/db",
     "db:verify-upgrade-fixture": "turbo run db:verify-upgrade-fixture --filter=@openschool/db",
     "db:seed": "turbo run db:seed --filter=@openschool/db",
