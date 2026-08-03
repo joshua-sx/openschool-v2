@@ -218,6 +218,7 @@ describe('database migration baseline', () => {
     for (const expected of [
       'reauthenticated_at',
       'VALIDATE CONSTRAINT "account_sessions_reauthentication_time_check"',
+      'CREATE UNIQUE INDEX "account_links_account_tenant_active_unique"',
       'Account Session reauthentication evidence cannot move backwards',
       'apply_identity_revocation',
       'SECURITY DEFINER',

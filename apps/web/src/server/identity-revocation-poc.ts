@@ -79,6 +79,17 @@ function requestContext<T extends { requestId: string }>(context: T, label: stri
   return { ...context, requestId: `identity-revocation-proof:${label}:${crypto.randomUUID()}` }
 }
 
+function hasPostgresCode(error: unknown, code: string): boolean {
+  let current = error
+  for (let depth = 0; depth < 5; depth += 1) {
+    if (typeof current !== 'object' || current === null) return false
+    const candidate = current as { code?: unknown; cause?: unknown }
+    if (candidate.code === code) return true
+    current = candidate.cause
+  }
+  return false
+}
+
 async function run(): Promise<void> {
   const databaseUrl = new URL(getMigrationEnv().DATABASE_MIGRATION_URL)
   assertDisposableDatabase(databaseUrl)
@@ -134,6 +145,19 @@ async function run(): Promise<void> {
       issuanceReason: 'Identity revocation proof',
       activatedAt: new Date(NOW.getTime() - 60_000),
     })
+    await assert.rejects(
+      db.insert(accountLinks).values({
+        id: crypto.randomUUID(),
+        tenantId: TENANT_A,
+        accountId: targetAccountId,
+        personId: targetPersonA,
+        status: 'active',
+        validFrom: new Date(NOW.getTime() - 60_000),
+        issuanceReason: 'Duplicate active link denial proof',
+        activatedAt: new Date(NOW.getTime() - 60_000),
+      }),
+      (error: unknown) => hasPostgresCode(error, '23505')
+    )
     await db.insert(affiliations).values([
       {
         id: targetAffiliationA,
@@ -454,6 +478,21 @@ async function run(): Promise<void> {
           targetSession('membership'),
         ])
       )
+    await db
+      .delete(roleTemplateAssignments)
+      .where(inArray(roleTemplateAssignments.id, [targetRoleA, targetRoleB, targetRoleCrossTenant]))
+    await db
+      .delete(affiliations)
+      .where(
+        inArray(affiliations.id, [
+          targetAffiliationA,
+          targetAffiliationB,
+          targetAffiliationCrossTenant,
+        ])
+      )
+    await db.delete(accountLinks).where(inArray(accountLinks.id, [targetLinkA, targetLinkB]))
+    await db.delete(people).where(inArray(people.id, [targetPersonA, targetPersonB]))
+    await db.delete(accounts).where(eq(accounts.id, targetAccountId))
     await closeDatabaseExecutionPoolsForProof()
     await db.$client.end({ timeout: 5 })
   }

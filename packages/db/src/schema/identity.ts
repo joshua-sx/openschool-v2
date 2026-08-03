@@ -11,6 +11,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
 import { classes } from './classes'
@@ -210,6 +211,9 @@ export const accountLinks = pgTable(
       .onDelete('restrict')
       .onUpdate('restrict'),
     index('account_links_account_status_idx').on(table.accountId, table.status, table.tenantId),
+    uniqueIndex('account_links_account_tenant_active_unique')
+      .on(table.accountId, table.tenantId)
+      .where(sql`${table.status} = 'active'`),
     index('account_links_tenant_person_status_idx').on(
       table.tenantId,
       table.personId,

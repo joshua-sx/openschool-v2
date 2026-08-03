@@ -1269,6 +1269,28 @@
           "method": "btree",
           "with": {}
         },
+        "account_links_account_tenant_active_unique": {
+          "name": "account_links_account_tenant_active_unique",
+          "columns": [
+            {
+              "expression": "account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"account_links\".\"status\" = 'active'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "account_links_tenant_person_status_idx": {
           "name": "account_links_tenant_person_status_idx",
           "columns": [
