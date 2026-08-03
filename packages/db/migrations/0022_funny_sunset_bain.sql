@@ -163,8 +163,7 @@ BEGIN
       AND link.tenant_id = context_tenant_id
       AND link.status = 'active'
       AND link.valid_from <= changed_at
-      AND (link.valid_until IS NULL OR link.valid_until > changed_at)
-    FOR SHARE;
+      AND (link.valid_until IS NULL OR link.valid_until > changed_at);
 
     IF NOT FOUND
       OR EXISTS (
