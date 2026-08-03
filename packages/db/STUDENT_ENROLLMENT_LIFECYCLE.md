@@ -1,6 +1,9 @@
 # Learner School-enrollment lifecycle
 
 Migration `0030_milky_lord_tyger` establishes the supported School-enrollment transition boundary.
+Migration `0031_curved_rumiko_fujikawa` hardens that boundary with transition-specific event
+shapes, same-Person and same-School enrollment references, native hierarchy-version evidence, and
+a lifecycle-only enrollment update policy.
 It builds on canonical learner admission without treating School placement as a mutable field on a
 Student row.
 
@@ -15,6 +18,10 @@ Student row.
   events under one stable transition ID.
 - Transfers create a new period linked through `supersedes_enrollment_id`; re-enrollment starts a
   new period without reopening or rewriting prior history.
+- Native enrollment periods always record the Organization Tree version effective at admission;
+  legacy backfill rows remain explicitly distinguishable.
+- A terminal primary transition keeps the learner active while another current School enrollment
+  remains, so concurrent secondary Schools retain an operational learner record.
 - A cross-Tenant identifier is never imported, moved, or disclosed by this workflow. Cross-Tenant
   transfer remains a future governed export/import process.
 

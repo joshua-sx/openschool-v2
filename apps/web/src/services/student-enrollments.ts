@@ -394,6 +394,7 @@ export async function getEnrollmentHistory(
 
 async function applyTransitionInTransaction(
   db: DatabaseTransaction,
+  tenantId: string,
   transitionId: string
 ): Promise<TransitionFunctionRow> {
   const [scheduled] = await db
@@ -401,6 +402,7 @@ async function applyTransitionInTransaction(
     .from(schoolEnrollmentTransitionEvents)
     .where(
       and(
+        eq(schoolEnrollmentTransitionEvents.tenantId, tenantId),
         eq(schoolEnrollmentTransitionEvents.transitionId, transitionId),
         eq(schoolEnrollmentTransitionEvents.eventType, 'scheduled')
       )
@@ -440,7 +442,11 @@ export async function scheduleEnrollmentTransition(
 ): Promise<EnrollmentHistoryView> {
   assertStudentSliceEnabled()
   assertDatabasePolicyContext(databaseContext, context)
-  assertEnrollmentCapability(context, decision, CAPABILITIES.STUDENT_ENROLLMENTS_MANAGE)
+  const tenantId = assertEnrollmentCapability(
+    context,
+    decision,
+    CAPABILITIES.STUDENT_ENROLLMENTS_MANAGE
+  )
   const effectiveAt = normalizedEffectiveAt(input.effectiveAt)
   const reason = normalizedText(input.reason, 'Reason')
   const evidenceReference = normalizedOptionalText(input.evidenceReference)
@@ -474,7 +480,9 @@ export async function scheduleEnrollmentTransition(
             ${input.expectedEnrollmentVersion ?? null}::bigint
           )
         `)
-        if (input.applyImmediately) await applyTransitionInTransaction(db, transitionId)
+        if (input.applyImmediately) {
+          await applyTransitionInTransaction(db, tenantId, transitionId)
+        }
 
         await appendAuditEventInTransaction(db, databaseContext, context, decision, {
           eventType,
@@ -521,14 +529,18 @@ export async function applyEnrollmentTransition(
 ): Promise<EnrollmentHistoryView> {
   assertStudentSliceEnabled()
   assertDatabasePolicyContext(databaseContext, context)
-  assertEnrollmentCapability(context, decision, CAPABILITIES.STUDENT_ENROLLMENTS_MANAGE)
+  const tenantId = assertEnrollmentCapability(
+    context,
+    decision,
+    CAPABILITIES.STUDENT_ENROLLMENTS_MANAGE
+  )
   let personId = transitionId
   try {
     return await withPolicyTenantTransaction(
       databaseContext,
       toDatabasePolicyContext(decision),
       async (db) => {
-        const applied = await applyTransitionInTransaction(db, transitionId)
+        const applied = await applyTransitionInTransaction(db, tenantId, transitionId)
         personId = applied.personId
         await appendAuditEventInTransaction(db, databaseContext, context, decision, {
           eventType: 'student.enrollment.apply',

@@ -119,7 +119,7 @@ function allow(
 }
 
 function immediateAfter(date: Date): string {
-  return new Date(Math.max(Date.now() - 1, date.getTime() + 1)).toISOString()
+  return new Date(Math.min(Date.now(), date.getTime() + 1)).toISOString()
 }
 
 async function failureMessage(operation: Promise<unknown>): Promise<string> {
@@ -478,6 +478,78 @@ async function runProof(): Promise<void> {
       )
     )
     assert.equal(invalidSecondaryWithdrawal, 'ENROLLMENT_TRANSITION_INVALID')
+
+    const currentPrimary = history.periods.find(
+      (period) => period.isCurrent && period.enrollmentType === 'primary'
+    )
+    assert.ok(currentPrimary)
+    history = await scheduleEnrollmentTransition(
+      databaseContext(`enrollment-${PROOF_RUN_ID}-withdraw-primary-with-secondary`),
+      orgContext,
+      enrollmentManage,
+      {
+        personId: created.personId,
+        fromEnrollmentId: currentPrimary.id,
+        transitionType: 'withdraw',
+        effectiveAt: new Date().toISOString(),
+        reason: 'Primary withdrawal with secondary enrollment proof',
+        expectedEnrollmentVersion: currentPrimary.version,
+        applyImmediately: true,
+      }
+    )
+    assert.equal(
+      history.periods.filter((period) => period.isCurrent && period.enrollmentType === 'secondary')
+        .length,
+      1
+    )
+    const [activeConcurrentProfile] = await admin
+      .select({ status: studentProfiles.status })
+      .from(studentProfiles)
+      .where(
+        and(eq(studentProfiles.tenantId, TENANT_A), eq(studentProfiles.personId, created.personId))
+      )
+    assert.equal(activeConcurrentProfile?.status, 'active')
+    const concurrentLearner = await getStudentById(
+      databaseContext(`enrollment-${PROOF_RUN_ID}-concurrent-student`),
+      orgContext,
+      studentRead,
+      created.personId
+    )
+    assert.equal(concurrentLearner?.schoolId, SCHOOL_HIGH)
+    assert.equal(concurrentLearner?.status, 'active')
+    assert.equal(concurrentLearner?.isCurrentEnrollment, true)
+
+    const invalidReenrollmentSource = await failureMessage(
+      scheduleEnrollmentTransition(
+        databaseContext(`enrollment-${PROOF_RUN_ID}-reenroll-with-source`),
+        orgContext,
+        enrollmentManage,
+        {
+          personId: created.personId,
+          fromEnrollmentId: secondary.id,
+          destinationSchoolId: SCHOOL_PRIMARY,
+          transitionType: 'reenroll',
+          effectiveAt: new Date().toISOString(),
+          reason: 'Invalid re-enrollment source proof',
+          applyImmediately: true,
+        }
+      )
+    )
+    assert.equal(invalidReenrollmentSource, 'ENROLLMENT_TRANSITION_INVALID')
+    history = await scheduleEnrollmentTransition(
+      databaseContext(`enrollment-${PROOF_RUN_ID}-reenroll-concurrent-primary`),
+      orgContext,
+      enrollmentManage,
+      {
+        personId: created.personId,
+        destinationSchoolId: SCHOOL_PRIMARY,
+        transitionType: 'reenroll',
+        effectiveAt: new Date().toISOString(),
+        reason: 'Restore primary after concurrent withdrawal proof',
+        applyImmediately: true,
+      }
+    )
+
     history = await scheduleEnrollmentTransition(
       databaseContext(`enrollment-${PROOF_RUN_ID}-end-secondary`),
       orgContext,
@@ -577,12 +649,14 @@ async function runProof(): Promise<void> {
         )
     )
 
+    const appliedTransition = orgHistory.transitions.find(({ status }) => status === 'applied')
+    assert.ok(appliedTransition)
     await assert.rejects(
       applyEnrollmentTransition(
         databaseContext(`enrollment-${PROOF_RUN_ID}-applied-again`),
         orgContext,
         enrollmentManage,
-        orgHistory.transitions.find(({ status }) => status === 'applied')?.transitionId ?? ''
+        appliedTransition.transitionId
       )
     )
 
@@ -595,14 +669,18 @@ async function runProof(): Promise<void> {
     const cleanup = await Promise.allSettled([
       admin
         .delete(accountSessions)
-        .where(inArray(accountSessions.providerSessionId, [ORG_SESSION_ID, SCHOOL_SESSION_ID])),
-      admin.delete(accountLinks).where(eq(accountLinks.accountId, LINKED_ACCOUNT_ID)),
+        .where(inArray(accountSessions.providerSessionId, [ORG_SESSION_ID, SCHOOL_SESSION_ID]))
+        .then(() => admin.delete(accountLinks).where(eq(accountLinks.accountId, LINKED_ACCOUNT_ID)))
+        .then(() => admin.delete(accounts).where(eq(accounts.id, LINKED_ACCOUNT_ID))),
     ])
-    await admin.delete(accounts).where(eq(accounts.id, LINKED_ACCOUNT_ID))
-    await Promise.allSettled([closeDatabaseExecutionPoolsForProof()])
-    await admin.$client.end({ timeout: 5 })
+    const poolClose = await Promise.allSettled([
+      closeDatabaseExecutionPoolsForProof(),
+      admin.$client.end({ timeout: 5 }),
+    ])
     const cleanupFailure = cleanup.find((result) => result.status === 'rejected')
+    const poolCloseFailure = poolClose.find((result) => result.status === 'rejected')
     if (!failure && cleanupFailure?.status === 'rejected') failure = cleanupFailure.reason
+    if (!failure && poolCloseFailure?.status === 'rejected') failure = poolCloseFailure.reason
   }
   if (failure) throw failure
 }

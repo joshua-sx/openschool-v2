@@ -52,6 +52,9 @@ function mutationErrorMessage(error: unknown): string {
   if (message.includes('ENROLLMENT_CONTEXT_STALE')) {
     return 'The enrollment changed after this page loaded. The timeline has been refreshed.'
   }
+  if (message.includes('ENROLLMENT_TRANSITION_STALE')) {
+    return 'The enrollment changed after this page loaded. The timeline has been refreshed.'
+  }
   if (message.includes('ENROLLMENT_TRANSITION_CONFLICT')) {
     return 'This transition conflicts with an enrollment or another scheduled transition.'
   }
@@ -64,7 +67,13 @@ function mutationErrorMessage(error: unknown): string {
   return 'The enrollment transition could not be completed. Refresh and retry.'
 }
 
-export function StudentEnrollmentLifecycle({ personId }: { personId: string }) {
+export function StudentEnrollmentLifecycle({
+  personId,
+  studentLookupId,
+}: {
+  personId: string
+  studentLookupId: string
+}) {
   const utils = trpc.useUtils()
   const history = trpc.studentEnrollments.history.useQuery({ personId }, { retry: false })
   const manageAccess = trpc.studentEnrollments.canManage.useQuery(undefined, { retry: false })
@@ -140,7 +149,7 @@ export function StudentEnrollmentLifecycle({ personId }: { personId: string }) {
   const refresh = async () => {
     await Promise.all([
       utils.studentEnrollments.history.invalidate({ personId }),
-      utils.students.getById.invalidate({ studentId: personId }),
+      utils.students.getById.invalidate({ studentId: studentLookupId }),
     ])
   }
 

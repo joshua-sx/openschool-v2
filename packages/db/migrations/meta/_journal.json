@@ -218,6 +218,13 @@
       "when": 1785781049675,
       "tag": "0030_milky_lord_tyger",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1785784717438,
+      "tag": "0031_curved_rumiko_fujikawa",
+      "breakpoints": true
     }
   ]
 }

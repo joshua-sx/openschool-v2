@@ -285,7 +285,6 @@ async function loadAuthorizedStudents(
       eq(schoolEnrollments.status, 'enrolled'),
       lte(schoolEnrollments.validFrom, at),
       sql`(${schoolEnrollments.validUntil} IS NULL OR ${schoolEnrollments.validUntil} > ${atIso}::timestamptz)`,
-      eq(studentProfiles.status, 'active'),
       eq(affiliations.status, 'active'),
       lte(affiliations.validFrom, at),
       sql`(${affiliations.validUntil} IS NULL OR ${affiliations.validUntil} > ${atIso}::timestamptz)`
@@ -315,7 +314,16 @@ async function loadAuthorizedStudents(
       dateOfBirth: people.dateOfBirth,
       studentNumber: studentProfiles.studentNumber,
       email: people.email,
-      status: studentProfiles.status,
+      status: sql<CanonicalStudent['status']>`CASE
+        WHEN ${schoolEnrollments.status} = 'enrolled'
+          AND ${schoolEnrollments.validFrom} <= ${atIso}::timestamptz
+          AND (
+            ${schoolEnrollments.validUntil} IS NULL
+            OR ${schoolEnrollments.validUntil} > ${atIso}::timestamptz
+          )
+        THEN 'active'
+        ELSE ${studentProfiles.status}
+      END`,
       isCurrentEnrollment: sql<boolean>`
         ${schoolEnrollments.status} = 'enrolled'
         AND ${schoolEnrollments.validFrom} <= ${atIso}::timestamptz
@@ -390,6 +398,15 @@ async function loadAuthorizedStudents(
     .orderBy(
       ...(lookup.studentId
         ? [
+            sql<number>`CASE
+              WHEN ${schoolEnrollments.status} = 'enrolled'
+                AND ${schoolEnrollments.validFrom} <= ${atIso}::timestamptz
+                AND (
+                  ${schoolEnrollments.validUntil} IS NULL
+                  OR ${schoolEnrollments.validUntil} > ${atIso}::timestamptz
+                )
+              THEN 0 ELSE 1
+            END`,
             sql<number>`CASE WHEN ${schoolEnrollments.enrollmentType} = 'primary' THEN 0 ELSE 1 END`,
             desc(schoolEnrollments.validFrom),
             desc(schoolEnrollments.id),

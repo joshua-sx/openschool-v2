@@ -152,7 +152,7 @@ GRANT SELECT ON
   "accounts", "account_links", "organization_tree_versions",
   "school_enrollment_transition_events"
   TO "openschool_student_admitter";--> statement-breakpoint
-GRANT INSERT, UPDATE ON "school_enrollment_transition_events"
+GRANT INSERT ON "school_enrollment_transition_events"
   TO "openschool_student_admitter";--> statement-breakpoint
 GRANT UPDATE ("valid_until", "end_reason", "end_evidence_reference", "ended_by_account_id", "ended_at", "version", "updated_at")
   ON "school_enrollments" TO "openschool_student_admitter";--> statement-breakpoint
@@ -302,6 +302,10 @@ BEGIN
     OR (
       p_transition_type = 'transfer'
       AND p_destination_school_id = v_source_school_id
+    )
+    OR (
+      p_transition_type IN ('reenroll', 'add_secondary')
+      AND p_from_enrollment_id IS NOT NULL
     )
   THEN
     RAISE EXCEPTION 'ENROLLMENT_TRANSITION_INVALID' USING ERRCODE = '23514';
@@ -516,6 +520,10 @@ BEGIN
     RAISE EXCEPTION 'ENROLLMENT_TRANSITION_CONTEXT_INVALID' USING ERRCODE = '22023';
   END IF;
 
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended(v_tenant_id::text || ':transition:' || p_transition_id::text, 0)
+  );
+
   SELECT
     scheduled.person_id,
     scheduled.from_enrollment_id,
@@ -542,7 +550,7 @@ BEGIN
   WHERE scheduled.tenant_id = v_tenant_id
     AND scheduled.transition_id = p_transition_id
     AND scheduled.event_type = 'scheduled'
-  FOR UPDATE;
+  ;
 
   IF v_person_id IS NULL
     OR v_effective_at > v_now
@@ -781,7 +789,7 @@ BEGIN
       'enrolled',
       v_effective_at,
       v_reason,
-      v_from_enrollment_id,
+      CASE WHEN v_transition_type = 'transfer' THEN v_from_enrollment_id ELSE NULL END,
       v_tree_version_id,
       1,
       'native',
@@ -793,7 +801,24 @@ BEGIN
     v_to_affiliation_id := p_new_affiliation_id;
   END IF;
 
-  IF v_transition_type = 'withdraw' THEN
+  IF v_transition_type IN ('withdraw', 'graduate') AND EXISTS (
+    SELECT 1
+    FROM public.school_enrollments AS remaining_enrollment
+    WHERE remaining_enrollment.tenant_id = v_tenant_id
+      AND remaining_enrollment.person_id = v_person_id
+      AND remaining_enrollment.status = 'enrolled'
+      AND remaining_enrollment.id IS DISTINCT FROM v_from_enrollment_id
+      AND tstzrange(
+        remaining_enrollment.valid_from,
+        COALESCE(remaining_enrollment.valid_until, 'infinity'::timestamptz),
+        '[)'
+      ) @> v_effective_at
+  ) THEN
+    UPDATE public.student_profiles
+    SET status = 'active', updated_at = v_now
+    WHERE tenant_id = v_tenant_id AND person_id = v_person_id;
+    v_legacy_status := 'active';
+  ELSIF v_transition_type = 'withdraw' THEN
     UPDATE public.student_profiles
     SET status = 'withdrawn', updated_at = v_now
     WHERE tenant_id = v_tenant_id AND person_id = v_person_id;
@@ -1036,6 +1061,10 @@ BEGIN
     RAISE EXCEPTION 'ENROLLMENT_TRANSITION_CONTEXT_INVALID' USING ERRCODE = '22023';
   END IF;
 
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended(v_tenant_id::text || ':transition:' || p_transition_id::text, 0)
+  );
+
   SELECT
     scheduled.person_id,
     scheduled.from_enrollment_id,
@@ -1058,7 +1087,7 @@ BEGIN
   WHERE scheduled.tenant_id = v_tenant_id
     AND scheduled.transition_id = p_transition_id
     AND scheduled.event_type = 'scheduled'
-  FOR UPDATE;
+  ;
 
   IF v_person_id IS NULL
     OR EXISTS (

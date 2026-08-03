@@ -262,34 +262,8 @@ function tenantRoleTemplates(options: {
   ]
 }
 
-const legacyParityBundle = createPolicyBundle({
-  version: POLICY_VERSION_LEGACY_PARITY,
-  // The rollback bundle preserves the accepted Tenant grant surface but keeps
-  // the same safeguarding obligations; rollback never weakens MFA or audit.
-  roleTemplates: tenantRoleTemplates({
-    supportAccess: false,
-    academicStructure: false,
-    enrollmentLifecycle: false,
-  }),
-})
-
-const academicStructureBundle = createPolicyBundle({
-  version: POLICY_VERSION_ACADEMIC_STRUCTURE,
-  roleTemplates: tenantRoleTemplates({
-    supportAccess: true,
-    academicStructure: true,
-    enrollmentLifecycle: false,
-  }),
-})
-
-const currentBundle = createPolicyBundle({
-  version: POLICY_VERSION_CURRENT,
-  roleTemplates: [
-    ...tenantRoleTemplates({
-      supportAccess: true,
-      academicStructure: true,
-      enrollmentLifecycle: true,
-    }),
+function platformRoleTemplates(): RoleTemplateDefinition[] {
+  return [
     {
       key: 'super_admin',
       description: 'Operates the OpenSchool platform without implicit Tenant data access.',
@@ -364,6 +338,41 @@ const currentBundle = createPolicyBundle({
         ],
       ]),
     },
+  ]
+}
+
+const legacyParityBundle = createPolicyBundle({
+  version: POLICY_VERSION_LEGACY_PARITY,
+  // The rollback bundle preserves the accepted Tenant grant surface but keeps
+  // the same safeguarding obligations; rollback never weakens MFA or audit.
+  roleTemplates: tenantRoleTemplates({
+    supportAccess: false,
+    academicStructure: false,
+    enrollmentLifecycle: false,
+  }),
+})
+
+const academicStructureBundle = createPolicyBundle({
+  version: POLICY_VERSION_ACADEMIC_STRUCTURE,
+  roleTemplates: [
+    ...tenantRoleTemplates({
+      supportAccess: true,
+      academicStructure: true,
+      enrollmentLifecycle: false,
+    }),
+    ...platformRoleTemplates(),
+  ],
+})
+
+const currentBundle = createPolicyBundle({
+  version: POLICY_VERSION_CURRENT,
+  roleTemplates: [
+    ...tenantRoleTemplates({
+      supportAccess: true,
+      academicStructure: true,
+      enrollmentLifecycle: true,
+    }),
+    ...platformRoleTemplates(),
   ],
 })
 

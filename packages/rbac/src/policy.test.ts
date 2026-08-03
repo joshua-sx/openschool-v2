@@ -670,6 +670,17 @@ describe('versioned Role Template bundles', () => {
     assert.equal(selectPolicyBundle('unknown'), undefined)
   })
 
+  it('preserves platform operators in the academic-structure rollback bundle', () => {
+    const rollback = selectPolicyBundle(POLICY_VERSION_ACADEMIC_STRUCTURE)
+    assert.ok(rollback)
+    assert.deepEqual(
+      ['super_admin', 'support_agent', 'break_glass_operator'].filter(
+        (role) => rollback.roleTemplates[role]
+      ),
+      ['super_admin', 'support_agent', 'break_glass_operator']
+    )
+  })
+
   it('composes immutable custom roles from explicit grant bundles', () => {
     const bundle = createPolicyBundle({
       version: 'custom.v1',

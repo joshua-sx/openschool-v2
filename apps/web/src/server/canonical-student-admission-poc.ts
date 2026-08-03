@@ -226,6 +226,7 @@ async function runProof(): Promise<void> {
     assert.equal(enrollment?.personId, created.personId)
     assert.equal(enrollment?.status, 'enrolled')
     assert.equal(enrollment?.source, 'native')
+    assert.ok(enrollment?.organizationTreeVersionId)
     assert.equal(legacy?.firstName, created.firstName)
     assert.equal(legacy?.studentNumber, STUDENT_NUMBER)
 

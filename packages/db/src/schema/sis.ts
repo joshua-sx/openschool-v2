@@ -69,6 +69,12 @@ export const schoolEnrollments = pgTable(
   },
   (table) => [
     unique('school_enrollments_tenant_id_id_unique').on(table.tenantId, table.id),
+    unique('school_enrollments_transition_reference_unique').on(
+      table.tenantId,
+      table.id,
+      table.personId,
+      table.schoolId
+    ),
     foreignKey({
       name: 'school_enrollments_tenant_person_fk',
       columns: [table.tenantId, table.personId],
@@ -146,6 +152,10 @@ export const schoolEnrollments = pgTable(
       'school_enrollments_legacy_source_check',
       sql`${table.source} <> 'legacy_backfill' OR ${table.legacyStudentId} IS NOT NULL`
     ),
+    check(
+      'school_enrollments_native_tree_version_check',
+      sql`${table.source} = 'legacy_backfill' OR ${table.organizationTreeVersionId} IS NOT NULL`
+    ),
     check('school_enrollments_version_positive', sql`${table.version} > 0`),
     check(
       'school_enrollments_end_evidence_check',
@@ -219,7 +229,7 @@ export const schoolEnrollments = pgTable(
         AND current_user = 'openschool_student_admitter'
         AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
         AND nullif(current_setting('app.policy_capability', true), '')
-          IN ('tenant.students.update', 'tenant.student_enrollments.manage')
+          = 'tenant.student_enrollments.manage'
         AND public.openschool_canonical_student_scope_allows(
           ${table.tenantId}, ${table.schoolId}, ${table.personId}
         )
@@ -229,7 +239,7 @@ export const schoolEnrollments = pgTable(
         AND current_user = 'openschool_student_admitter'
         AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
         AND nullif(current_setting('app.policy_capability', true), '')
-          IN ('tenant.students.update', 'tenant.student_enrollments.manage')
+          = 'tenant.student_enrollments.manage'
         AND public.openschool_canonical_student_scope_allows(
           ${table.tenantId}, ${table.schoolId}, ${table.personId}
         )
@@ -293,15 +303,25 @@ export const schoolEnrollmentTransitionEvents = pgTable(
       .onUpdate('restrict'),
     foreignKey({
       name: 'school_enrollment_transition_events_tenant_from_fk',
-      columns: [table.tenantId, table.fromEnrollmentId],
-      foreignColumns: [schoolEnrollments.tenantId, schoolEnrollments.id],
+      columns: [table.tenantId, table.fromEnrollmentId, table.personId, table.sourceSchoolId],
+      foreignColumns: [
+        schoolEnrollments.tenantId,
+        schoolEnrollments.id,
+        schoolEnrollments.personId,
+        schoolEnrollments.schoolId,
+      ],
     })
       .onDelete('restrict')
       .onUpdate('restrict'),
     foreignKey({
       name: 'school_enrollment_transition_events_tenant_to_fk',
-      columns: [table.tenantId, table.toEnrollmentId],
-      foreignColumns: [schoolEnrollments.tenantId, schoolEnrollments.id],
+      columns: [table.tenantId, table.toEnrollmentId, table.personId, table.destinationSchoolId],
+      foreignColumns: [
+        schoolEnrollments.tenantId,
+        schoolEnrollments.id,
+        schoolEnrollments.personId,
+        schoolEnrollments.schoolId,
+      ],
     })
       .onDelete('restrict')
       .onUpdate('restrict'),
@@ -361,8 +381,31 @@ export const schoolEnrollmentTransitionEvents = pgTable(
     ),
     check(
       'school_enrollment_transition_events_shape_check',
-      sql`(${table.transitionType} IN ('withdraw', 'transfer', 'graduate', 'end_secondary') AND ${table.fromEnrollmentId} IS NOT NULL)
-        OR (${table.transitionType} IN ('reenroll', 'add_secondary'))`
+      sql`(
+          ${table.transitionType} IN ('withdraw', 'graduate', 'end_secondary')
+          AND ${table.fromEnrollmentId} IS NOT NULL
+          AND ${table.sourceSchoolId} IS NOT NULL
+          AND ${table.destinationSchoolId} IS NULL
+          AND ${table.toEnrollmentId} IS NULL
+        ) OR (
+          ${table.transitionType} = 'transfer'
+          AND ${table.fromEnrollmentId} IS NOT NULL
+          AND ${table.sourceSchoolId} IS NOT NULL
+          AND ${table.destinationSchoolId} IS NOT NULL
+          AND (
+            (${table.eventType} = 'applied' AND ${table.toEnrollmentId} IS NOT NULL)
+            OR (${table.eventType} IN ('scheduled', 'cancelled') AND ${table.toEnrollmentId} IS NULL)
+          )
+        ) OR (
+          ${table.transitionType} IN ('reenroll', 'add_secondary')
+          AND ${table.fromEnrollmentId} IS NULL
+          AND ${table.sourceSchoolId} IS NULL
+          AND ${table.destinationSchoolId} IS NOT NULL
+          AND (
+            (${table.eventType} = 'applied' AND ${table.toEnrollmentId} IS NOT NULL)
+            OR (${table.eventType} IN ('scheduled', 'cancelled') AND ${table.toEnrollmentId} IS NULL)
+          )
+        )`
     ),
     pgPolicy('school_enrollment_transition_events_runtime_select', {
       for: 'select',

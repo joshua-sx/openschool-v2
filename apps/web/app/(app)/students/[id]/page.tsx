@@ -423,7 +423,7 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
         </div>
       </form>
 
-      <StudentEnrollmentLifecycle personId={student.personId} />
+      <StudentEnrollmentLifecycle personId={student.personId} studentLookupId={id} />
 
       <div className="mt-6 border-t border-gray-200 pt-4 text-xs text-gray-500">
         <p>

@@ -123,7 +123,27 @@ describe('database migration baseline', () => {
       'ENROLLMENT_TRANSITION_UNAVAILABLE',
       'OWNER TO "openschool_student_admitter"',
       'REVOKE INSERT, UPDATE, DELETE ON "school_enrollment_transition_events"',
-      'GRANT INSERT, UPDATE ON "school_enrollment_transition_events"',
+      'GRANT INSERT ON "school_enrollment_transition_events"',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+  })
+
+  it('hardens lifecycle references, event shapes, and hierarchy evidence', () => {
+    const migration = readFileSync(
+      join(migrationsDirectory, '0031_curved_rumiko_fujikawa.sql'),
+      'utf8'
+    )
+    for (const expected of [
+      'school_enrollments_transition_reference_unique',
+      'school_enrollment_transition_events_tenant_from_fk',
+      'school_enrollment_transition_events_tenant_to_fk',
+      'school_enrollment_transition_events_shape_check',
+      'school_enrollments_native_tree_version_check',
+      'openschool_private"."assign_school_enrollment_tree_version',
+      'school_enrollments_assign_tree_version',
+      "= 'tenant.student_enrollments.manage'",
+      'SCHOOL_ENROLLMENT_TREE_CONTEXT_STALE',
     ]) {
       assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
     }
