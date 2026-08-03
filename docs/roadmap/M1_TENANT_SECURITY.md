@@ -37,7 +37,7 @@ flowchart TD
 | 2. Identity records | #83 | Account/Person separation and effective Affiliations/Relationships | dual-read; legacy records remain until parity |
 | 3. Trusted context | #84 | verified identity and canonical Tenant Request Context | compare in development; production fails closed |
 | 4. Enforcement modules | #85 and #86 | Policy Decision module plus non-owner transaction adapter | versioned policy rollback; never owner-bypass DB access |
-| 5. Evidence and audit | #87 and #88 | forced-RLS student vertical slice and atomic audit/outbox | slice feature flag; audit never disabled/deleted |
+| 5. Evidence and audit | #87, #88, and #99 | forced-RLS student vertical slice, atomic audit/outbox, and partition lifecycle | slice feature flag; audit never disabled/deleted |
 | 6. Privileged identity | #89 (#100, #101, #102) | invitation, MFA, revocation, support/break-glass | pause invites only; revocation/MFA/audit remain |
 | 7. System proof | #90 | full cross-path Isolation Matrix and automated NO-GO gate | security failures disable feature/release, not tests |
 
@@ -50,8 +50,17 @@ flowchart TD
 5. Product epics #2–#6 do not expand protected data paths until #87 proves the first complete slice.
 6. Jurisdiction-specific privacy/legal decisions remain named human approvals in the Production Gate, never inferred from passing code.
 
-## Phase 6 status
+## Phase 5 and 6 status
 
-- #100 invitation-only onboarding: implementation candidate complete; live PostgreSQL/CI and review evidence required before closure.
-- #101 privileged MFA and immediate revocation: implementation candidate complete, including Tenant administrator Account/session/MFA/Affiliation/role controls, isolated platform Tenant suspension/reactivation, and durable provider MFA reconciliation; clean live PostgreSQL/CI and review evidence are required before closure.
-- #102 tenant-approved support and break-glass access: implementation candidate complete, including Person-free grant-bound context, exact-scope read diagnostics, separate break-glass authority, visible Tenant/operator workflows, durable notifications, expiry/delivery worker seams, and a guarded PostgreSQL proof; clean live PostgreSQL/CI, external provider/scheduler rehearsal, and review evidence are required before closure.
+- #100 invitation-only onboarding: merged with guarded live PostgreSQL/CI evidence; production
+  provider delivery rehearsal remains a launch gate.
+- #101 privileged MFA and immediate revocation: merged with Tenant administrator controls, isolated
+  platform Tenant lifecycle, provider reconciliation, and guarded live PostgreSQL/CI evidence;
+  production provider deletion/reconciliation rehearsal remains a launch gate.
+- #102 tenant-approved support and break-glass access: merged with exact-scope diagnostics, separate
+  break-glass authority, visible workflows, durable notifications, worker seams, and guarded live
+  PostgreSQL/CI evidence; deployed scheduler, delivery provider, and paging drills remain launch
+  gates.
+- #99 Audit Ledger partition lifecycle: implementation includes a least-privilege daily maintenance
+  seam, 45-day engineering gate, critical default-occupancy alert, and disposable recovery proof;
+  target-environment scheduling, paging, and runbook exercise remain launch gates.

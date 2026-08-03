@@ -79,13 +79,20 @@ collisions. An invalid transition or anchor change raises SQLSTATE `55000`.
 
 ## Partition, retention, legal hold, and archive procedure
 
-`audit_events` is range-partitioned on `occurred_at` with a current quarterly partition and a
-default safety partition. Q4 2026 and Q1 2027 are created ahead of use. Migration
-`0015_atomic_audit_outbox.sql` hand-maintains the partition
-clauses, attached partitions, triggers, and FORCE RLS details that Drizzle cannot model; schema
-generation must never replace that SQL. Operations must create the next partition before each
-quarter and alert on any rows entering the default partition; automation and alert evidence are
-tracked in issue #99.
+`audit_events` is range-partitioned on `occurred_at` with quarterly partitions and a default safety
+partition. Migrations `0015_atomic_audit_outbox.sql` and
+`0027_audit_partition_lifecycle.sql` hand-maintain partition clauses, ownership, triggers, and
+FORCE RLS details that Drizzle cannot model; schema generation must never replace that SQL.
+
+The daily `audit:partition-maintain` job creates exact quarterly partitions until the ledger has at
+least 45 days of future coverage. It serializes maintenance with an advisory lock, refuses invalid
+or overlapping bounds, verifies inherited indexes, RLS, ownership, and immutable triggers, and
+fails closed when the default partition contains any rows. Any default occupancy or insufficient
+horizon is a critical Security Operations alert and a production NO-GO. The dedicated
+`openschool_audit_partition_manager` owns the partition tree but cannot log in; the worker can
+execute only the reviewed security-definer maintenance function and cannot perform direct DDL or
+assume the manager role. Deployment, recovery, and evidence requirements are in the
+[Audit partition operations runbook](../../docs/operations/AUDIT_PARTITIONS.md).
 
 Retention class is a routing label, not an authorization to delete. Before production, qualified
 privacy/legal owners must approve jurisdiction-specific schedules for operational, security,
@@ -114,6 +121,9 @@ schedules remains a deployment go-live requirement.
 - `bun test packages/audit/src/redaction.test.ts` proves default-deny redaction.
 - `bun run audit:poc` proves atomic rollback, forced RLS/privileges, append-only triggers, hashes,
   Tenant isolation, denied/failed/support evidence, audited reads/exports, and outbox retry.
+- `bun run audit:partition-poc` proves least-privilege partition creation, idempotence, the
+  engineering gate, critical default-occupancy alerts, and a non-destructive recovery rehearsal on
+  a disposable partition tree.
 - Monitor pending/failed/dead-letter counts, oldest available row, publish latency, default-partition
   occupancy, hash/manifest reconciliation, read/export volume, and evidence-write failures.
 - Required mutation failure caused by audit unavailability is an availability incident, not a
