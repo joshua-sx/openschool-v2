@@ -32,6 +32,13 @@ export class InvitationAcceptanceRateLimitError extends Error {
   }
 }
 
+export class InvitationAcceptanceRateLimitContextError extends Error {
+  constructor(readonly cause: unknown) {
+    super('INVITATION_ACCEPTANCE_RATE_LIMIT_CONTEXT_INVALID')
+    this.name = 'InvitationAcceptanceRateLimitContextError'
+  }
+}
+
 export interface AcceptedInvitation {
   invitationId: string
   tenantId: string
@@ -73,6 +80,25 @@ function identityTransactionContext(identity: VerifiedAccountIdentity, requestId
   }
 }
 
+function isRateLimitContextFailure(error: unknown): boolean {
+  const seen = new Set<object>()
+  let current = error
+
+  while (typeof current === 'object' && current !== null && !seen.has(current)) {
+    seen.add(current)
+    const record = current as Record<string, unknown>
+    if (
+      typeof record.message === 'string' &&
+      record.message.includes('INVITATION_RATE_LIMIT_CONTEXT_INVALID')
+    ) {
+      return true
+    }
+    current = record.cause
+  }
+
+  return false
+}
+
 export async function enforceInvitationAcceptanceRateLimit(
   identity: VerifiedAccountIdentity,
   requestId = crypto.randomUUID()
@@ -80,15 +106,21 @@ export async function enforceInvitationAcceptanceRateLimit(
   const keyHash = createHash('sha256')
     .update(JSON.stringify([identity.provider, identity.subject]))
     .digest('hex')
-  const result = await withIdentityTransaction(
-    identityTransactionContext(identity, requestId),
-    (tx) =>
+  let result: RateLimitRow[]
+  try {
+    result = await withIdentityTransaction(identityTransactionContext(identity, requestId), (tx) =>
       tx.execute<RateLimitRow>(sql`
-        select openschool_private.consume_invitation_acceptance_rate_limit(
-          ${keyHash}
-        ) as "allowed"
-      `)
-  )
+          select openschool_private.consume_invitation_acceptance_rate_limit(
+            ${keyHash}
+          ) as "allowed"
+        `)
+    )
+  } catch (error) {
+    if (isRateLimitContextFailure(error)) {
+      throw new InvitationAcceptanceRateLimitContextError(error)
+    }
+    throw error
+  }
   if (result[0]?.allowed !== true) throw new InvitationAcceptanceRateLimitError()
 }
 
