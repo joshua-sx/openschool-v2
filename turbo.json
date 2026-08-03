@@ -106,6 +106,17 @@
         "OPENSCHOOL_POLICY_VERSION"
       ]
     },
+    "audit:poc": {
+      "cache": false,
+      "env": [
+        "ALLOW_AUDIT_POC",
+        "DATABASE_MIGRATION_URL",
+        "DATABASE_MIGRATION_ROLE",
+        "DATABASE_RUNTIME_URL",
+        "DATABASE_WORKER_URL",
+        "OPENSCHOOL_STUDENT_SLICE_MODE"
+      ]
+    },
     "db:prepare-upgrade-fixture": {
       "cache": false,
       "env": ["ALLOW_TENANT_FOUNDATION_POC", "DATABASE_MIGRATION_URL", "DATABASE_MIGRATION_ROLE"]
