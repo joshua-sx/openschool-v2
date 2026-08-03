@@ -173,6 +173,7 @@ async function provePolicyMetadata(admin: ReturnType<typeof createMigrationClien
       'schools_runtime_insert_deny',
       'schools_runtime_select',
       'schools_runtime_update_deny',
+      'schools_support_manager_select',
       'schools_worker_delete_deny',
       'schools_worker_insert_deny',
       'schools_worker_select',
