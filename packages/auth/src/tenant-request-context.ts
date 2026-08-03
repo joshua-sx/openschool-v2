@@ -687,19 +687,6 @@ async function resolveTenantRequestContextInTransaction(
 
   let schoolGovernanceOrganizationId: string | null = null
   if (selectedSchoolId) {
-    await bindIdentityTenantResolutionContext(db, {
-      tenantId: link.tenantId,
-      personId: link.personId,
-      queryConstraints: [{ kind: 'school', tenantId: link.tenantId, schoolId: selectedSchoolId }],
-    })
-    const [school] = await db
-      .select({ name: schools.name, status: schools.status })
-      .from(schools)
-      .where(and(eq(schools.tenantId, link.tenantId), eq(schools.id, selectedSchoolId)))
-      .limit(1)
-    if (!school || school.status !== 'active') denial('SCHOOL_DENIED', 'School is not active')
-    selectedSchoolName = school.name
-
     schoolGovernanceOrganizationId = await currentSchoolGovernanceOrganization(
       db,
       link.tenantId,
@@ -709,23 +696,6 @@ async function resolveTenantRequestContextInTransaction(
     if (!schoolGovernanceOrganizationId) {
       denial('SCHOOL_DENIED', 'School has no current governance assignment')
     }
-  }
-
-  if (selectedOrganizationId) {
-    const [organization] = await db
-      .select({ name: educationOrganizations.name, status: educationOrganizations.status })
-      .from(educationOrganizations)
-      .where(
-        and(
-          eq(educationOrganizations.tenantId, link.tenantId),
-          eq(educationOrganizations.id, selectedOrganizationId)
-        )
-      )
-      .limit(1)
-    if (!organization || organization.status !== 'active') {
-      denial('ORG_DENIED', 'Education Organization is not active')
-    }
-    selectedOrganizationName = organization.name
   }
 
   const treeVersionId = await currentOrganizationTreeVersionId(db, link.tenantId, at)
@@ -790,6 +760,40 @@ async function resolveTenantRequestContextInTransaction(
   }
   if (roleTemplateKeys.length > MAX_CONTEXT_ROLE_KEYS) {
     denial('POLICY_DENIED', 'Context role safety limit exceeded')
+  }
+
+  if (selectedSchoolId) {
+    // The scope is bound only after current Affiliations/Relationships prove
+    // that this Account may select the School. Client selectors never bind RLS.
+    await bindIdentityTenantResolutionContext(db, {
+      tenantId: link.tenantId,
+      personId: link.personId,
+      queryConstraints: [{ kind: 'school', tenantId: link.tenantId, schoolId: selectedSchoolId }],
+    })
+    const [school] = await db
+      .select({ name: schools.name, status: schools.status })
+      .from(schools)
+      .where(and(eq(schools.tenantId, link.tenantId), eq(schools.id, selectedSchoolId)))
+      .limit(1)
+    if (!school || school.status !== 'active') denial('SCHOOL_DENIED', 'School is not active')
+    selectedSchoolName = school.name
+  }
+
+  if (selectedOrganizationId) {
+    const [organization] = await db
+      .select({ name: educationOrganizations.name, status: educationOrganizations.status })
+      .from(educationOrganizations)
+      .where(
+        and(
+          eq(educationOrganizations.tenantId, link.tenantId),
+          eq(educationOrganizations.id, selectedOrganizationId)
+        )
+      )
+      .limit(1)
+    if (!organization || organization.status !== 'active') {
+      denial('ORG_DENIED', 'Education Organization is not active')
+    }
+    selectedOrganizationName = organization.name
   }
 
   let legacyComparison: TenantRequestContext['legacyComparison'] = 'not_applicable'
