@@ -5,7 +5,7 @@ import { ISOLATION_EVIDENCE_IDS, ISOLATION_MATRIX, evaluateIsolationMatrixGate }
 const metadata = {
   commit: 'abc123',
   ciRun: 'local',
-  migration: '0029_overconfident_iron_lad',
+  migration: '0030_milky_lord_tyger',
   postgresVersion: '17.10',
   roleEvidenceDigest: 'a'.repeat(64),
   policyEvidenceDigest: 'b'.repeat(64),

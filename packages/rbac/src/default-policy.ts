@@ -9,7 +9,8 @@ import type {
 } from './types'
 
 export const POLICY_VERSION_LEGACY_PARITY = '2026-08-02.legacy-parity'
-export const POLICY_VERSION_CURRENT = '2026-08-03.v4'
+export const POLICY_VERSION_ACADEMIC_STRUCTURE = '2026-08-03.v4'
+export const POLICY_VERSION_CURRENT = '2026-08-03.v5'
 
 const audit = (event: string): PolicyObligation => ({ kind: 'audit', event })
 const mfa: PolicyObligation = { kind: 'mfa', assuranceLevel: 'aal2' }
@@ -33,6 +34,7 @@ function grants(
 function tenantRoleTemplates(options: {
   supportAccess: boolean
   academicStructure: boolean
+  enrollmentLifecycle: boolean
 }): RoleTemplateDefinition[] {
   const protectedAdmin = (event: string): readonly PolicyObligation[] => [mfa, audit(event)]
   const academicStructureAdmin = (): readonly PolicyObligation[] => [
@@ -41,6 +43,12 @@ function tenantRoleTemplates(options: {
     audit('academic_year.review'),
     audit('academic_year.publish'),
     audit('academic_year.close'),
+  ]
+  const enrollmentAdmin = (): readonly PolicyObligation[] => [
+    mfa,
+    audit('student.enrollment.schedule'),
+    audit('student.enrollment.apply'),
+    audit('student.enrollment.cancel'),
   ]
   const recorded = (event: string): readonly PolicyObligation[] => [audit(event)]
 
@@ -57,6 +65,16 @@ function tenantRoleTemplates(options: {
                 CAPABILITIES.ACADEMIC_STRUCTURE_MANAGE,
                 SCOPES.ORGANIZATION_SUBTREE,
                 academicStructureAdmin(),
+              ] as const,
+            ]
+          : []),
+        ...(options.enrollmentLifecycle
+          ? [
+              [CAPABILITIES.STUDENT_ENROLLMENTS_READ, SCOPES.ORGANIZATION_SUBTREE] as const,
+              [
+                CAPABILITIES.STUDENT_ENROLLMENTS_MANAGE,
+                SCOPES.ORGANIZATION_SUBTREE,
+                enrollmentAdmin(),
               ] as const,
             ]
           : []),
@@ -116,6 +134,9 @@ function tenantRoleTemplates(options: {
         ...(options.academicStructure
           ? [[CAPABILITIES.ACADEMIC_STRUCTURE_READ, SCOPES.ORGANIZATION_SUBTREE] as const]
           : []),
+        ...(options.enrollmentLifecycle
+          ? [[CAPABILITIES.STUDENT_ENROLLMENTS_READ, SCOPES.ORGANIZATION_SUBTREE] as const]
+          : []),
         [CAPABILITIES.STUDENTS_READ, SCOPES.ORGANIZATION_SUBTREE],
         [CAPABILITIES.GRADES_READ, SCOPES.ORGANIZATION_SUBTREE],
         [CAPABILITIES.CLASSES_READ, SCOPES.ORGANIZATION_SUBTREE],
@@ -138,6 +159,12 @@ function tenantRoleTemplates(options: {
                 SCOPES.SCHOOL,
                 academicStructureAdmin(),
               ] as const,
+            ]
+          : []),
+        ...(options.enrollmentLifecycle
+          ? [
+              [CAPABILITIES.STUDENT_ENROLLMENTS_READ, SCOPES.SCHOOL] as const,
+              [CAPABILITIES.STUDENT_ENROLLMENTS_MANAGE, SCOPES.SCHOOL, enrollmentAdmin()] as const,
             ]
           : []),
         [CAPABILITIES.STUDENTS_CREATE, SCOPES.SCHOOL, recorded('student.create')],
@@ -239,13 +266,30 @@ const legacyParityBundle = createPolicyBundle({
   version: POLICY_VERSION_LEGACY_PARITY,
   // The rollback bundle preserves the accepted Tenant grant surface but keeps
   // the same safeguarding obligations; rollback never weakens MFA or audit.
-  roleTemplates: tenantRoleTemplates({ supportAccess: false, academicStructure: false }),
+  roleTemplates: tenantRoleTemplates({
+    supportAccess: false,
+    academicStructure: false,
+    enrollmentLifecycle: false,
+  }),
+})
+
+const academicStructureBundle = createPolicyBundle({
+  version: POLICY_VERSION_ACADEMIC_STRUCTURE,
+  roleTemplates: tenantRoleTemplates({
+    supportAccess: true,
+    academicStructure: true,
+    enrollmentLifecycle: false,
+  }),
 })
 
 const currentBundle = createPolicyBundle({
   version: POLICY_VERSION_CURRENT,
   roleTemplates: [
-    ...tenantRoleTemplates({ supportAccess: true, academicStructure: true }),
+    ...tenantRoleTemplates({
+      supportAccess: true,
+      academicStructure: true,
+      enrollmentLifecycle: true,
+    }),
     {
       key: 'super_admin',
       description: 'Operates the OpenSchool platform without implicit Tenant data access.',
@@ -325,6 +369,7 @@ const currentBundle = createPolicyBundle({
 
 export const POLICY_BUNDLES: Readonly<Record<string, PolicyBundle>> = Object.freeze({
   [legacyParityBundle.version]: legacyParityBundle,
+  [academicStructureBundle.version]: academicStructureBundle,
   [currentBundle.version]: currentBundle,
 })
 

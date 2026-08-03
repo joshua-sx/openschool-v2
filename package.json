@@ -35,6 +35,7 @@
     "api:isolation-poc": "turbo run api:isolation-poc --filter=web",
     "canonical:student-admission-poc": "turbo run canonical:student-admission-poc --filter=web",
     "academic:structure-poc": "turbo run academic:structure-poc --filter=web",
+    "student:enrollment-lifecycle-poc": "turbo run student:enrollment-lifecycle-poc --filter=web",
     "provider:mfa-reconcile": "turbo run provider:mfa-reconcile --filter=web",
     "platform:tenant-lifecycle-poc": "turbo run db:platform-tenant-lifecycle-poc --filter=@openschool/db",
     "support:access-poc": "turbo run db:support-access-poc --filter=@openschool/db",

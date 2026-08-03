@@ -5,6 +5,7 @@ import { exampleRouter } from './example'
 import { invitationsRouter } from './invitations'
 import { platformRouter } from './platform'
 import { schoolsRouter } from './schools'
+import { studentEnrollmentsRouter } from './student-enrollments'
 import { studentsRouter } from './students'
 import { supportAccessRouter } from './support-access'
 
@@ -13,6 +14,7 @@ export const appRouter = router({
   accountSecurity: accountSecurityRouter,
   academicStructure: academicStructureRouter,
   students: studentsRouter,
+  studentEnrollments: studentEnrollmentsRouter,
   schools: schoolsRouter,
   invitations: invitationsRouter,
   platform: platformRouter,

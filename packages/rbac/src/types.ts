@@ -16,6 +16,7 @@ export type ResourceKind =
   | 'education_organization'
   | 'school'
   | 'academic_structure'
+  | 'student_enrollment'
   | 'class'
   | 'student'
   | 'grade'

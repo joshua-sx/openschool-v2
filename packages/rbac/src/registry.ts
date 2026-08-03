@@ -17,6 +17,7 @@ export const RESOURCE_KINDS = Object.freeze({
   EDUCATION_ORGANIZATION: 'education_organization',
   SCHOOL: 'school',
   ACADEMIC_STRUCTURE: 'academic_structure',
+  STUDENT_ENROLLMENT: 'student_enrollment',
   CLASS: 'class',
   STUDENT: 'student',
   GRADE: 'grade',
@@ -39,6 +40,8 @@ export const CAPABILITIES = Object.freeze({
   SCHOOLS_READ: 'tenant.schools.read',
   ACADEMIC_STRUCTURE_READ: 'tenant.academic_structure.read',
   ACADEMIC_STRUCTURE_MANAGE: 'tenant.academic_structure.manage',
+  STUDENT_ENROLLMENTS_READ: 'tenant.student_enrollments.read',
+  STUDENT_ENROLLMENTS_MANAGE: 'tenant.student_enrollments.manage',
   STUDENTS_CREATE: 'tenant.students.create',
   STUDENTS_READ: 'tenant.students.read',
   STUDENTS_UPDATE: 'tenant.students.update',
@@ -118,6 +121,14 @@ export const CAPABILITY_REGISTRY = Object.freeze({
   },
   [CAPABILITIES.ACADEMIC_STRUCTURE_MANAGE]: {
     resourceKinds: [RESOURCE_KINDS.ACADEMIC_STRUCTURE],
+    scopes: tenantBroadScopes,
+  },
+  [CAPABILITIES.STUDENT_ENROLLMENTS_READ]: {
+    resourceKinds: [RESOURCE_KINDS.STUDENT_ENROLLMENT],
+    scopes: tenantBroadScopes,
+  },
+  [CAPABILITIES.STUDENT_ENROLLMENTS_MANAGE]: {
+    resourceKinds: [RESOURCE_KINDS.STUDENT_ENROLLMENT],
     scopes: tenantBroadScopes,
   },
   [CAPABILITIES.STUDENTS_CREATE]: {

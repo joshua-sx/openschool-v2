@@ -106,6 +106,28 @@ describe('database migration baseline', () => {
     }
   })
 
+  it('installs an append-only learner enrollment transition authority', () => {
+    const migration = readFileSync(join(migrationsDirectory, '0030_milky_lord_tyger.sql'), 'utf8')
+    for (const expected of [
+      'CREATE TABLE "school_enrollment_transition_events"',
+      'ALTER TABLE "school_enrollment_transition_events" FORCE ROW LEVEL SECURITY',
+      'school_enrollments_period_guard',
+      'school_enrollment_transition_events_append_only',
+      'openschool_enrollment_transition_scope_allows',
+      'openschool_private"."schedule_school_enrollment_transition',
+      'openschool_private"."apply_school_enrollment_transition',
+      'openschool_private"."cancel_school_enrollment_transition',
+      'pg_advisory_xact_lock',
+      'membership_version = account.membership_version + 1',
+      'ENROLLMENT_TRANSITION_STALE',
+      'ENROLLMENT_TRANSITION_UNAVAILABLE',
+      'OWNER TO "openschool_student_admitter"',
+      'REVOKE INSERT, UPDATE, DELETE ON "school_enrollment_transition_events"',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+  })
+
   it('installs a partitioned append-only Audit Ledger and guarded outbox', () => {
     const migration = readFileSync(
       join(migrationsDirectory, '0015_atomic_audit_outbox.sql'),

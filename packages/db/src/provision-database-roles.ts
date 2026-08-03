@@ -197,6 +197,7 @@ async function run(): Promise<void> {
         organization_tree_closure, school_governance_assignments, schools,
         classes, students, enrollments, users_on_org, users_on_school,
         parent_student, school_enrollments, student_compatibility_evidence,
+        school_enrollment_transition_events,
         academic_years, academic_terms, learner_levels, academic_compatibility_evidence,
         support_access_notifications
       to ${runtimeRole}

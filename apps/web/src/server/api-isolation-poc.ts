@@ -15,6 +15,8 @@ import { appRouter } from './routers'
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]'])
 const F = ISOLATION_FIXTURES
 const PERSON_A_PRIMARY = '00000000-0000-4000-8000-000000000911'
+const PERSON_A_HIGH = '00000000-0000-4000-8000-000000000912'
+const PERSON_B = '00000000-0000-4000-8000-000000000913'
 const PROOF_RUN_ID = crypto.randomUUID()
 const SESSION_IDS = [
   `api-isolation-${PROOF_RUN_ID}-organization-admin`,
@@ -162,6 +164,27 @@ async function run(): Promise<void> {
     })
     assert.equal(primaryStudent.id, PERSON_A_PRIMARY)
     assert.equal(primaryStudent.legacyStudentId, F.studentAPrimary)
+    const primaryEnrollmentHistory = await schoolCaller.studentEnrollments.history({
+      personId: PERSON_A_PRIMARY,
+    })
+    assert.equal(primaryEnrollmentHistory.periods.length, 1)
+    assert.equal(primaryEnrollmentHistory.periods[0]?.schoolId, F.schoolAPrimary)
+    assert.deepEqual(await schoolCaller.studentEnrollments.history({ personId: PERSON_A_HIGH }), {
+      periods: [],
+      transitions: [],
+    })
+    assert.deepEqual(await schoolCaller.studentEnrollments.history({ personId: PERSON_B }), {
+      periods: [],
+      transitions: [],
+    })
+    assert.deepEqual(
+      await schoolCaller.studentEnrollments.history({ personId: F.unknownStudent }),
+      { periods: [], transitions: [] }
+    )
+    assert.deepEqual(await trpcFailure(schoolCaller.studentEnrollments.canManage()), {
+      code: 'PRECONDITION_FAILED',
+      message: 'MFA_REQUIRED',
+    })
 
     const [knownSiblingSchool, crossTenantSchool, unknownSchool] = await Promise.all([
       trpcFailure(schoolCaller.schools.getById({ schoolId: F.schoolAHigh })),

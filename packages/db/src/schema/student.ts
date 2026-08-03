@@ -112,7 +112,7 @@ export const students = pgTable(
         AND current_user = 'openschool_student_admitter'
         AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
         AND nullif(current_setting('app.policy_capability', true), '')
-          = 'tenant.students.update'
+          IN ('tenant.students.update', 'tenant.student_enrollments.manage')
         AND public.openschool_school_scope_allows(${table.tenantId}, ${table.schoolId})
       `,
       withCheck: sql`
@@ -120,7 +120,7 @@ export const students = pgTable(
         AND current_user = 'openschool_student_admitter'
         AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
         AND nullif(current_setting('app.policy_capability', true), '')
-          = 'tenant.students.update'
+          IN ('tenant.students.update', 'tenant.student_enrollments.manage')
         AND public.openschool_school_scope_allows(${table.tenantId}, ${table.schoolId})
       `,
     }),

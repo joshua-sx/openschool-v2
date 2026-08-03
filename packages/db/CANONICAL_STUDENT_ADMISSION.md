@@ -5,8 +5,9 @@ workflow onto the M2 identity model. A learner record is now anchored by a Tenan
 Student Profile, current School Enrollment, and School-scoped student Affiliation. The legacy
 `students` row remains a mechanical compatibility mirror; it is no longer a product write API.
 
-This is a narrow pre-production admission workflow, not a full applications, offers,
-re-enrollment, or enrollment-transition module.
+This remains a narrow pre-production admission workflow, not a full applications or offers
+module. The separate [School-enrollment lifecycle](./STUDENT_ENROLLMENT_LIFECYCLE.md) now owns
+post-admission transfer, withdrawal, graduation, re-enrollment, and secondary-enrollment history.
 
 ## Authority and identifiers
 
@@ -18,9 +19,8 @@ re-enrollment, or enrollment-transition module.
 - Detail reads accept either canonical Person ID or legacy Student ID so bookmarked pre-cutover
   routes remain usable; every response returns the canonical Person ID.
 
-The model supports primary and high Schools without separate learner tables. Later School
-Enrollment transition and academic-structure slices add lifecycle and placement detail to the
-same records.
+The model supports primary and high Schools without separate learner tables. Academic structure
+and School-enrollment lifecycle slices add configuration and placement history to the same records.
 
 ## Current class-scope limitation
 
