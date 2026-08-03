@@ -90,6 +90,10 @@ describe('database and policy context binding', () => {
     assert.deepEqual(result.queryConstraints, decision.queryConstraints)
     assert.equal(Object.isFrozen(result), true)
     assert.equal(Object.isFrozen(result.queryConstraints), true)
+    assert.equal(
+      result.queryConstraints.every((constraint) => Object.isFrozen(constraint)),
+      true
+    )
   })
 
   it('never translates platform access into Tenant database scope', () => {
@@ -111,8 +115,9 @@ describe('database and policy context binding', () => {
       process.env.OPENSCHOOL_STUDENT_SLICE_MODE = 'forced_rls'
       assert.doesNotThrow(() => assertStudentSliceEnabled())
     } finally {
-      if (original === undefined) process.env.OPENSCHOOL_STUDENT_SLICE_MODE = undefined
-      else process.env.OPENSCHOOL_STUDENT_SLICE_MODE = original
+      if (original === undefined) {
+        Reflect.deleteProperty(process.env, 'OPENSCHOOL_STUDENT_SLICE_MODE')
+      } else process.env.OPENSCHOOL_STUDENT_SLICE_MODE = original
     }
   })
 })

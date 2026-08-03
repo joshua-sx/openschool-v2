@@ -51,7 +51,7 @@ describe('database migration baseline', () => {
       'openschool_student_scope_allows',
       'REVOKE ALL ON FUNCTION "openschool_policy_constraints"() FROM PUBLIC',
     ]) {
-      assert.match(migration, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
     }
   })
 })

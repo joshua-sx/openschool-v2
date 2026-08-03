@@ -132,6 +132,8 @@ async function run(): Promise<void> {
     await admin.unsafe(`grant connect on database ${databaseName} to ${runtimeRole}, ${workerRole}`)
     await admin.unsafe(`grant usage on schema public to ${runtimeRole}, ${workerRole}`)
 
+    // Reviewed infrastructure allowlist: every interpolated identifier passed
+    // ROLE_NAME validation; PostgreSQL role identifiers cannot be value-bound.
     await admin.unsafe(`
       grant select on
         tenants, tenant_placements, accounts, people, account_links,

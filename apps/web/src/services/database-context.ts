@@ -34,7 +34,7 @@ export function toDatabasePolicyContext(
     if (constraint.kind === 'platform') {
       throw new TRPCError({ code: 'FORBIDDEN', message: 'DATABASE_POLICY_SCOPE_UNSUPPORTED' })
     }
-    return constraint
+    return Object.freeze({ ...constraint })
   })
   return Object.freeze({
     capability: decision.capability,

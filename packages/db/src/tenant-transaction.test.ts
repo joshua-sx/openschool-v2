@@ -196,13 +196,14 @@ describe('database execution context validation', () => {
       {
         capability: 'tenant.students.read',
         policyVersion: '2026-08-02.v1',
-        queryConstraints: [{ kind: 'platform' }],
+        queryConstraints: [{ kind: 'unsupported', tenantId: IDS.tenant }],
       },
     ]
-    for (const policy of invalidPolicies) {
+    for (const [index, policy] of invalidPolicies.entries()) {
       assert.throws(
         () => validateDatabasePolicyContext(policy as never, tenantContext),
-        isInvalidContext
+        isInvalidContext,
+        `invalid policy fixture ${index} must fail closed`
       )
     }
   })

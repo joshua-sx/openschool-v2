@@ -169,6 +169,9 @@ describe('server environment validation', () => {
     assert.deepEqual(parseStudentSliceEnv({ OPENSCHOOL_STUDENT_SLICE_MODE: 'forced_rls' }), {
       OPENSCHOOL_STUDENT_SLICE_MODE: 'forced_rls',
     })
+    assert.deepEqual(parseStudentSliceEnv({ OPENSCHOOL_STUDENT_SLICE_MODE: 'disabled' }), {
+      OPENSCHOOL_STUDENT_SLICE_MODE: 'disabled',
+    })
     assert.throws(
       () => parseStudentSliceEnv({ OPENSCHOOL_STUDENT_SLICE_MODE: 'owner_fallback' }),
       /OPENSCHOOL_STUDENT_SLICE_MODE: must be forced_rls or disabled/

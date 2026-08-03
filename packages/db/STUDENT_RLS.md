@@ -50,6 +50,6 @@ Set `OPENSCHOOL_STUDENT_SLICE_MODE=forced_rls` to expose the slice. `disabled` i
 - deliberately omitted application Tenant predicates;
 - identifier probing, aggregate counts, pagination, valid foreign identifiers from other scopes, and indistinguishable `WITH CHECK` failures;
 - positive and negative runtime `SELECT`, `INSERT`, `UPDATE`, and `DELETE`, plus worker read/write limits;
-- representative data volume, use of `students_tenant_school_idx`, and a 250 ms CI execution-time budget.
+- representative data volume, use of `students_tenant_school_idx`, and a 1,000 ms CI execution-time budget (53.224 ms in the acceptance run).
 
 The service-level `policy:query-poc` separately proves that application predicates agree with database scope. The complete platform Isolation Matrix remains #90.

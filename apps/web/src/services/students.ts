@@ -87,7 +87,6 @@ async function studentsForConstraint(
   lookup: StudentLookup,
   at: Date
 ): Promise<Student[]> {
-  assertStudentSliceEnabled()
   if (constraint.kind === 'platform') return []
   const filters = [eq(students.tenantId, constraint.tenantId), eq(students.status, 'active')]
   if (lookup.schoolId) filters.push(eq(students.schoolId, lookup.schoolId))
@@ -261,6 +260,7 @@ async function loadAuthorizedStudents(
   expectedCapability: Capability,
   lookup: StudentLookup
 ): Promise<Student[]> {
+  assertStudentSliceEnabled()
   const constraints = tenantPolicyConstraints(context, decision, expectedCapability)
   const at = new Date()
   const rows = (
@@ -278,6 +278,7 @@ export async function getStudentsBySchool(
   decision: AllowedPolicyDecision,
   schoolId: string
 ): Promise<Student[]> {
+  assertStudentSliceEnabled()
   assertDatabasePolicyContext(databaseContext, context)
   return withPolicyTenantTransaction(databaseContext, toDatabasePolicyContext(decision), (db) =>
     loadAuthorizedStudents(db, context, decision, CAPABILITIES.STUDENTS_READ, { schoolId })
