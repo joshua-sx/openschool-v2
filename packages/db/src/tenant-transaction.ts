@@ -796,6 +796,7 @@ export interface DatabaseSessionContextEvidence extends Record<string, unknown> 
   jobType: string | null
   membershipVersion: string | null
   securityVersion: string | null
+  reauthenticatedAt: string | null
   contextPolicyVersion: string | null
   policyCapability: string | null
   policyVersion: string | null
@@ -871,6 +872,7 @@ export function createDatabaseExecutionProofHarness(
           nullif(current_setting('app.job_type', true), '') as "jobType",
           nullif(current_setting('app.membership_version', true), '') as "membershipVersion",
           nullif(current_setting('app.security_version', true), '') as "securityVersion",
+          nullif(current_setting('app.reauthenticated_at', true), '') as "reauthenticatedAt",
           nullif(current_setting('app.context_policy_version', true), '') as "contextPolicyVersion"
           ,nullif(current_setting('app.policy_capability', true), '') as "policyCapability"
           ,nullif(current_setting('app.policy_version', true), '') as "policyVersion"

@@ -327,6 +327,17 @@ describe('capability Policy Decisions', () => {
       allowed.obligations.map(({ kind }) => kind),
       ['mfa', 'reauthentication', 'audit']
     )
+    assert.equal(
+      decision({
+        ...request,
+        context: context({
+          assuranceLevel: 'aal2',
+          authenticatedAt: '2026-08-02T11:44:59.999Z',
+        }),
+        attributes: { now: NOW },
+      }).reason,
+      'REAUTHENTICATION_REQUIRED'
+    )
   })
 })
 

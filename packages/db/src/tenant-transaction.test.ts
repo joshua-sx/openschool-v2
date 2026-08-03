@@ -129,6 +129,7 @@ describe('database execution context validation', () => {
       { activeSchoolId: 'not-a-school' },
       { membershipVersion: 1.5 },
       { reauthenticatedAt: 'not-an-instant' },
+      { reauthenticatedAt: '2026-08-02T11:58:00Z' },
     ]) {
       assert.throws(
         () =>

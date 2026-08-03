@@ -23,7 +23,7 @@ import {
   withIdentityTransaction,
   withTenantTransaction,
 } from '@openschool/db'
-import { and, desc, eq, gt, inArray, isNull, lte, or } from 'drizzle-orm'
+import { and, desc, eq, gt, inArray, isNull, lte, or, sql } from 'drizzle-orm'
 import {
   MAX_CONTEXT_CACHE_TTL_MS,
   TENANT_CONTEXT_POLICY_VERSION,
@@ -258,16 +258,25 @@ async function resolveAccountSession(
     newestReauthenticatedAt?.getTime() !== session.reauthenticatedAt?.getTime() ||
     session.lastSeenAt.getTime() <= lastSeenRefreshBoundary
   ) {
-    await db
+    const [updatedSession] = await db
       .update(accountSessions)
       .set({
         assuranceLevel: identity.assuranceLevel,
         expiresAt: tokenExpiresAt,
-        reauthenticatedAt: newestReauthenticatedAt,
+        ...(verifiedReauthenticatedAt
+          ? {
+              reauthenticatedAt: sql<Date>`greatest(
+                coalesce(${accountSessions.reauthenticatedAt}, ${verifiedReauthenticatedAt}),
+                ${verifiedReauthenticatedAt}
+              )`,
+            }
+          : {}),
         lastSeenAt: at,
         updatedAt: at,
       })
       .where(eq(accountSessions.providerSessionId, identity.sessionId))
+      .returning({ reauthenticatedAt: accountSessions.reauthenticatedAt })
+    return updatedSession?.reauthenticatedAt ?? newestReauthenticatedAt
   }
   return newestReauthenticatedAt
 }

@@ -217,6 +217,7 @@ describe('database migration baseline', () => {
     const migration = readFileSync(join(migrationsDirectory, '0022_funny_sunset_bain.sql'), 'utf8')
     for (const expected of [
       'reauthenticated_at',
+      'VALIDATE CONSTRAINT "account_sessions_reauthentication_time_check"',
       'Account Session reauthentication evidence cannot move backwards',
       'apply_identity_revocation',
       'SECURITY DEFINER',
