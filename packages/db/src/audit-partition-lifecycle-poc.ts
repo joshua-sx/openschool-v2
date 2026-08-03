@@ -82,6 +82,10 @@ async function exerciseNonDestructiveRecovery(admin: ReturnType<typeof postgres>
       '00000000-0000-4000-8000-000000000099',
       repeat('a', 64)
     );
+    create trigger recovery_quarantine_update_rejected before update on recovery_default
+      for each row execute function pg_temp.reject_audit_recovery_change();
+    create trigger recovery_quarantine_delete_rejected before delete on recovery_default
+      for each row execute function pg_temp.reject_audit_recovery_change();
     alter table recovery_events detach partition recovery_default;
     alter table recovery_default rename to recovery_quarantine;
     create temp table recovery_default partition of recovery_events default;
@@ -90,23 +94,43 @@ async function exerciseNonDestructiveRecovery(admin: ReturnType<typeof postgres>
     insert into recovery_events select * from recovery_quarantine;
   `)
   const [counts] = await admin<
-    Array<{ canonical: number | string; defaultRows: number | string; source: number | string }>
+    Array<{
+      canonical: number | string
+      defaultRows: number | string
+      quarantineGuards: number | string
+      source: number | string
+    }>
   >`
     select
       (select count(*) from recovery_events) as canonical,
       (select count(*) from recovery_default) as "defaultRows",
+      (
+        select count(*)
+        from pg_trigger
+        where tgrelid = 'recovery_quarantine'::regclass
+          and not tgisinternal
+          and tgname in (
+            'recovery_quarantine_update_rejected',
+            'recovery_quarantine_delete_rejected'
+          )
+      ) as "quarantineGuards",
       (select count(*) from recovery_quarantine) as source
   `
   assert.deepEqual(
     {
       canonical: Number(counts?.canonical),
       defaultRows: Number(counts?.defaultRows),
+      quarantineGuards: Number(counts?.quarantineGuards),
       source: Number(counts?.source),
     },
-    { canonical: 1, defaultRows: 0, source: 1 }
+    { canonical: 1, defaultRows: 0, quarantineGuards: 2, source: 1 }
   )
   await assert.rejects(
     admin`update recovery_quarantine set content_hash = repeat('b', 64)`,
+    (error: unknown) => sqlState(error) === '55000'
+  )
+  await assert.rejects(
+    admin`delete from recovery_quarantine`,
     (error: unknown) => sqlState(error) === '55000'
   )
 }

@@ -57,9 +57,12 @@ database operator and Security Engineering must execute and peer-review the foll
    point-in-time recovery marker before DDL.
 2. Identify the occupied timestamp ranges and reconcile row counts, event IDs, content hashes, and
    legal-hold flags. Never update or delete the source rows.
-3. In a reviewed transaction, detach the occupied default partition and rename it to a dated
-   quarantine table. Immediately attach a new empty default partition with the required owner,
-   RLS, indexes, and immutable triggers so current writes retain a safety destination.
+3. In a reviewed transaction, install independent update/delete rejection triggers on the occupied
+   default table and verify they fire, because PostgreSQL removes parent-cloned triggers when a
+   partition is detached. Detach the occupied default partition, rename it to a dated quarantine
+   table, and verify both independent guards remain. Immediately attach a new empty default
+   partition with the required owner, RLS, indexes, and immutable triggers so current writes retain
+   a safety destination.
 4. Create exact non-overlapping quarterly partitions for every quarantined timestamp. Refuse the
    operation if any existing bound overlaps or if required controls cannot be reproduced.
 5. Copy rows from quarantine through the partitioned parent in bounded batches. Preserve the
@@ -73,9 +76,10 @@ database operator and Security Engineering must execute and peer-review the foll
    post-incident action owner with due date.
 
 The guarded `audit:partition-poc` rehearses this algorithm on a disposable partition tree: it
-detaches and preserves the source, installs a new default and exact quarter, copies without deleting
-the source, reconciles rows, and proves append-only triggers still reject mutation. The proof does
-not authorize running destructive recovery steps against production without the approvals above.
+installs independent quarantine guards, detaches and preserves the source, installs a new default
+and exact quarter, copies without deleting the source, reconciles rows, and proves both update and
+delete still fail on the quarantine. The proof does not authorize running destructive recovery
+steps against production without the approvals above.
 
 ## Routine evidence review
 
