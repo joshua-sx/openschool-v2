@@ -146,10 +146,11 @@ async function run(): Promise<void> {
     `)
     await admin.unsafe(`grant select, insert, update on account_sessions to ${runtimeRole}`)
     await admin.unsafe(`grant insert, update, delete on students to ${runtimeRole}`)
-    await admin.unsafe(`grant insert on audit_logs to ${runtimeRole}`)
+    await admin.unsafe(`grant select, insert on audit_events, audit_outbox to ${runtimeRole}`)
 
-    await admin.unsafe(`grant select on tenant_placements, students to ${workerRole}`)
-    await admin.unsafe(`grant insert on audit_logs to ${workerRole}`)
+    await admin.unsafe(`grant select on tenant_placements, students, audit_outbox to ${workerRole}`)
+    await admin.unsafe(`grant select, insert on audit_events to ${workerRole}`)
+    await admin.unsafe(`grant update on audit_outbox to ${workerRole}`)
 
     if (migrationRole !== 'postgres' && !ROLE_NAME.test(migrationRole)) {
       throw new Error('Role provisioning refused: migration role name must be safe.')
