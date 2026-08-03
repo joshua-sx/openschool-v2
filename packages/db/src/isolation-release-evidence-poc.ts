@@ -190,15 +190,25 @@ async function run(): Promise<void> {
           where tenant_id = ${F.tenantA}::uuid
             and school_id = ${F.schoolAPrimary}::uuid
             and status = 'enrolled'
+          order by valid_from, valid_until, person_id
           limit 50
         `)
         return planDocument(result[0]?.['QUERY PLAN'])
       }
     )
     const indexNames = [...collectIndexNames(plan)].sort()
-    assert.equal(indexNames.includes('school_enrollments_tenant_school_current_idx'), true)
+    const expectedIndexName = 'school_enrollments_tenant_school_current_idx'
+    assert.equal(
+      indexNames.includes(expectedIndexName),
+      true,
+      `Expected ${expectedIndexName}; observed indexes: ${indexNames.join(', ') || 'none'}`
+    )
     const executionTimeMs = plan['Execution Time']
     assert.equal(typeof executionTimeMs, 'number')
+    assert.ok(
+      (executionTimeMs as number) < 1000,
+      `Canonical enrollment query took ${String(executionTimeMs)}ms`
+    )
 
     const evidence = Object.freeze({
       metadata: Object.freeze({
@@ -209,7 +219,7 @@ async function run(): Promise<void> {
         roleEvidenceDigest: sha256(roles),
         policyEvidenceDigest: sha256(policies),
         planEvidence: Object.freeze({
-          indexName: 'students_tenant_school_idx',
+          indexName: expectedIndexName,
           executionTimeMs,
         }),
       }),
