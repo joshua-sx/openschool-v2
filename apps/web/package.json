@@ -11,7 +11,8 @@
     "audit:poc": "bun run src/server/audit-poc.ts",
     "policy:query-poc": "bun run src/server/policy-query-poc.ts",
     "invitation:deliver": "bun run src/server/invitation-delivery-job.ts",
-    "invitation:onboarding-poc": "bun run src/server/invitation-onboarding-poc.ts"
+    "invitation:onboarding-poc": "bun run src/server/invitation-onboarding-poc.ts",
+    "identity:revocation-poc": "bun run src/server/identity-revocation-poc.ts"
   },
   "dependencies": {
     "@openschool/audit": "workspace:*",

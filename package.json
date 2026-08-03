@@ -31,6 +31,7 @@
     "policy:query-poc": "turbo run policy:query-poc --filter=web",
     "invitation:deliver": "turbo run invitation:deliver --filter=web",
     "invitation:onboarding-poc": "turbo run invitation:onboarding-poc --filter=web",
+    "identity:revocation-poc": "turbo run identity:revocation-poc --filter=web",
     "db:prepare-upgrade-fixture": "turbo run db:prepare-upgrade-fixture --filter=@openschool/db",
     "db:verify-upgrade-fixture": "turbo run db:verify-upgrade-fixture --filter=@openschool/db",
     "db:seed": "turbo run db:seed --filter=@openschool/db",

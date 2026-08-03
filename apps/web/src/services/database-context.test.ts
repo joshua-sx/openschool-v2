@@ -16,6 +16,7 @@ const databaseContext: TenantDatabaseContext = {
   sessionId: 'verified-session',
   requestId: 'verified-request',
   assuranceLevel: 'aal1',
+  reauthenticatedAt: '2026-08-02T11:58:00.000Z',
   membershipVersion: 1,
   securityVersion: 1,
   contextPolicyVersion: 1,
@@ -27,6 +28,7 @@ const policyContext: PolicyContext = {
   personId: databaseContext.personId,
   tenantId: databaseContext.tenantId,
   assuranceLevel: databaseContext.assuranceLevel,
+  authenticatedAt: databaseContext.reauthenticatedAt,
   roleTemplateKeys: ['school_admin'],
   activeSchoolId: databaseContext.activeSchoolId,
 }
@@ -62,6 +64,7 @@ describe('database and policy context binding', () => {
       { personId: '00000000-0000-4000-8000-000000000902' },
       { tenantId: '00000000-0000-4000-8000-000000000002' },
       { assuranceLevel: 'aal2' },
+      { reauthenticatedAt: '2026-08-02T11:57:00.000Z' },
       { activeEducationOrganizationId: '00000000-0000-4000-8000-000000000013' },
       { activeSchoolId: '00000000-0000-4000-8000-000000000102' },
     ]
