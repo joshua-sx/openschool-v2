@@ -54,6 +54,7 @@ describe('database execution context validation', () => {
         sessionId: 'verified-session',
         requestId: IDS.request,
         assuranceLevel: 'aal1',
+        reauthenticatedAt: '2026-08-02T11:58:00.000Z',
         membershipVersion: 1,
         securityVersion: 1,
         contextPolicyVersion: 1,
@@ -127,6 +128,8 @@ describe('database execution context validation', () => {
       { activeEducationOrganizationId: 'not-an-organization' },
       { activeSchoolId: 'not-a-school' },
       { membershipVersion: 1.5 },
+      { reauthenticatedAt: 'not-an-instant' },
+      { reauthenticatedAt: '2026-08-02T11:58:00Z' },
     ]) {
       assert.throws(
         () =>

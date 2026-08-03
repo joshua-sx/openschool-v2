@@ -19,6 +19,7 @@ export function toPolicyContext(
     ...(identity?.email ? { userEmail: identity.email } : {}),
     roleTemplateKeys: Object.freeze([...context.roleTemplateKeys]),
     assuranceLevel: context.assuranceLevel,
+    ...(context.reauthenticatedAt ? { authenticatedAt: context.reauthenticatedAt } : {}),
     ...(context.activeEducationOrganizationId
       ? { activeEducationOrganizationId: context.activeEducationOrganizationId }
       : {}),

@@ -9,10 +9,14 @@ import type {
 } from './types'
 
 export const POLICY_VERSION_LEGACY_PARITY = '2026-08-02.legacy-parity'
-export const POLICY_VERSION_CURRENT = '2026-08-02.v1'
+export const POLICY_VERSION_CURRENT = '2026-08-03.v2'
 
 const audit = (event: string): PolicyObligation => ({ kind: 'audit', event })
 const mfa: PolicyObligation = { kind: 'mfa', assuranceLevel: 'aal2' }
+const recentReauthentication: PolicyObligation = {
+  kind: 'reauthentication',
+  maxAgeSeconds: 900,
+}
 
 function grants(
   role: string,
@@ -70,7 +74,7 @@ function tenantRoleTemplates(): RoleTemplateDefinition[] {
         [
           CAPABILITIES.ACCOUNTS_MANAGE,
           SCOPES.ORGANIZATION_SUBTREE,
-          protectedAdmin('account.manage'),
+          [mfa, recentReauthentication, audit('account.manage')],
         ],
         [CAPABILITIES.AUDIT_READ, SCOPES.ORGANIZATION_SUBTREE, recorded('audit.read')],
       ]),
@@ -118,7 +122,11 @@ function tenantRoleTemplates(): RoleTemplateDefinition[] {
           protectedAdmin('settings.school.manage'),
         ],
         [CAPABILITIES.ACCOUNTS_INVITE, SCOPES.SCHOOL, protectedAdmin('account.invite')],
-        [CAPABILITIES.ACCOUNTS_MANAGE, SCOPES.SCHOOL, protectedAdmin('account.manage')],
+        [
+          CAPABILITIES.ACCOUNTS_MANAGE,
+          SCOPES.SCHOOL,
+          [mfa, recentReauthentication, audit('account.manage')],
+        ],
         [CAPABILITIES.AUDIT_READ, SCOPES.SCHOOL, recorded('audit.read')],
       ]),
     },
@@ -195,7 +203,7 @@ const currentBundle = createPolicyBundle({
         [
           CAPABILITIES.PLATFORM_TENANTS_MANAGE,
           SCOPES.PLATFORM,
-          [mfa, audit('platform.tenant.manage')],
+          [mfa, recentReauthentication, audit('platform.tenant.manage')],
         ],
       ]),
     },
@@ -208,7 +216,7 @@ const currentBundle = createPolicyBundle({
           SCOPES.PLATFORM,
           [
             mfa,
-            { kind: 'reauthentication', maxAgeSeconds: 900 },
+            recentReauthentication,
             { kind: 'purpose', allowed: ['incident_response', 'customer_support'] },
             audit('support.session.use'),
           ],

@@ -19,6 +19,7 @@ export function assertDatabasePolicyContext(
     databaseContext.personId !== policyContext.personId ||
     databaseContext.tenantId !== policyContext.tenantId ||
     databaseContext.assuranceLevel !== policyContext.assuranceLevel ||
+    databaseContext.reauthenticatedAt !== policyContext.authenticatedAt ||
     databaseContext.activeEducationOrganizationId !== policyContext.activeEducationOrganizationId ||
     databaseContext.activeSchoolId !== policyContext.activeSchoolId
   ) {

@@ -27,7 +27,7 @@ export function Header({ user, requestContext }: HeaderProps) {
           <form action="/context/clear" method="POST">
             <button
               type="submit"
-              className="flex items-center space-x-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+              className="flex min-h-10 items-center space-x-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2"
               aria-label={`Change context from ${contextLabel}`}
             >
               <span className="max-w-64 truncate">{contextLabel}</span>
@@ -47,10 +47,10 @@ export function Header({ user, requestContext }: HeaderProps) {
         <form action="/auth/signout" method="POST">
           <button
             type="submit"
-            className="flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            className="flex min-h-10 items-center rounded-md px-2 text-sm text-gray-600 transition-colors hover:text-gray-900 focus-visible:outline-2 focus-visible:outline-offset-2"
           >
-            <LogOut className="w-4 h-4 mr-1" />
-            Sign Out
+            <LogOut aria-hidden="true" className="w-4 h-4 mr-1" />
+            Sign out
           </button>
         </form>
       </div>

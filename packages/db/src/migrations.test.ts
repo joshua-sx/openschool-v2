@@ -212,4 +212,35 @@ describe('database migration baseline', () => {
     assert.equal(acceptancePolicyMigration.includes('app.invitation_token_hash'), true)
     assert.equal(acceptancePolicyMigration.includes('app.tenant_id'), true)
   })
+
+  it('installs recent-auth session evidence and a narrow identity revocation authority', () => {
+    const migration = readFileSync(join(migrationsDirectory, '0022_funny_sunset_bain.sql'), 'utf8')
+    for (const expected of [
+      'reauthenticated_at',
+      'VALIDATE CONSTRAINT "account_sessions_reauthentication_time_check"',
+      'Account Session reauthentication evidence cannot move backwards',
+      'apply_identity_revocation',
+      'SECURITY DEFINER',
+      'IDENTITY_REVOCATION_CONTEXT_STALE',
+      'IDENTITY_REVOCATION_TARGET_OUT_OF_SCOPE',
+      "current_user <> 'openschool_identity_revoker'",
+      "current_setting('app.reauthenticated_at', true)",
+      "current_setting('app.policy_capability', true)",
+      'CREATE POLICY "schools_identity_revoker_select"',
+      "current_setting('app.assurance_level', true)",
+      'openschool_invitation_scope_allows',
+      'OWNER TO "openschool_identity_revoker"',
+      'TO "openschool_runtime"',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+    assert.equal(
+      migration.includes('GRANT UPDATE ON TABLE public.accounts TO "openschool_runtime"'),
+      false
+    )
+    assert.equal(
+      migration.includes('GRANT UPDATE ON TABLE public.affiliations TO "openschool_runtime"'),
+      false
+    )
+  })
 })

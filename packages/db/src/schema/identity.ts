@@ -71,6 +71,7 @@ export const accountSessions = pgTable(
     assuranceLevel: text('assurance_level', { enum: ['aal1', 'aal2'] }).notNull(),
     securityVersion: bigint('security_version', { mode: 'number' }).notNull(),
     authenticatedAt: timestamp('authenticated_at', { withTimezone: true }).notNull(),
+    reauthenticatedAt: timestamp('reauthenticated_at', { withTimezone: true }),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).defaultNow().notNull(),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
@@ -100,6 +101,10 @@ export const accountSessions = pgTable(
     ),
     check('account_sessions_security_version_positive', sql`${table.securityVersion} > 0`),
     check('account_sessions_time_order_check', sql`${table.expiresAt} > ${table.authenticatedAt}`),
+    check(
+      'account_sessions_reauthentication_time_check',
+      sql`${table.reauthenticatedAt} IS NULL OR ${table.reauthenticatedAt} < ${table.expiresAt}`
+    ),
     check(
       'account_sessions_revocation_evidence_check',
       sql`${table.status} <> 'revoked' OR (${table.revokedAt} IS NOT NULL AND ${table.revocationReason} IS NOT NULL AND btrim(${table.revocationReason}) <> '')`

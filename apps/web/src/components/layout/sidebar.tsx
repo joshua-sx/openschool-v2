@@ -21,18 +21,21 @@ const navigation = [
   { name: 'Reports', href: '/reports', icon: BarChart3 },
 ]
 
-const secondaryNavigation = [{ name: 'Settings', href: '/settings', icon: Settings }]
+const secondaryNavigation = [{ name: 'Settings', href: '/settings/security', icon: Settings }]
 
 export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="flex flex-col w-64 bg-white border-r border-gray-200 min-h-screen">
+    <aside
+      aria-label="Primary navigation"
+      className="flex min-h-screen w-64 flex-col border-r border-gray-200 bg-white"
+    >
       {/* Logo */}
       <div className="flex items-center h-16 px-6 border-b border-gray-200">
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
-            <BookOpen className="w-4 h-4 text-white" />
+            <BookOpen aria-hidden="true" className="w-4 h-4 text-white" />
           </div>
           <span className="text-lg font-bold tracking-tight">OpenSchool</span>
         </div>
@@ -46,13 +49,14 @@ export function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
-              className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+              aria-current={isActive ? 'page' : undefined}
+              className={`flex min-h-10 items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 ${
                 isActive
                   ? 'bg-gray-100 text-gray-900'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`}
             >
-              <item.icon className="w-5 h-5 mr-3" />
+              <item.icon aria-hidden="true" className="w-5 h-5 mr-3" />
               {item.name}
             </Link>
           )
@@ -67,13 +71,14 @@ export function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
-              className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+              aria-current={isActive ? 'page' : undefined}
+              className={`flex min-h-10 items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 ${
                 isActive
                   ? 'bg-gray-100 text-gray-900'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`}
             >
-              <item.icon className="w-5 h-5 mr-3" />
+              <item.icon aria-hidden="true" className="w-5 h-5 mr-3" />
               {item.name}
             </Link>
           )

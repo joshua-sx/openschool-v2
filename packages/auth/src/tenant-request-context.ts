@@ -23,7 +23,7 @@ import {
   withIdentityTransaction,
   withTenantTransaction,
 } from '@openschool/db'
-import { and, desc, eq, gt, inArray, isNull, lte, or } from 'drizzle-orm'
+import { and, desc, eq, gt, inArray, isNull, lte, or, sql } from 'drizzle-orm'
 import {
   MAX_CONTEXT_CACHE_TTL_MS,
   TENANT_CONTEXT_POLICY_VERSION,
@@ -70,6 +70,8 @@ export interface TenantRequestContext {
   membershipVersion: number
   securityVersion: number
   assuranceLevel: AssuranceLevel
+  /** Newest provider-verified interactive authentication observed for this session. */
+  reauthenticatedAt?: string
   activeEducationOrganizationId?: string
   activeEducationOrganizationName?: string
   activeSchoolId?: string
@@ -193,7 +195,7 @@ async function resolveAccountSession(
   account: AccountRecord,
   identity: VerifiedAccountIdentity,
   at: Date
-): Promise<void> {
+): Promise<Date | null> {
   const loadSession = () =>
     db
       .select({
@@ -201,6 +203,7 @@ async function resolveAccountSession(
         assuranceLevel: accountSessions.assuranceLevel,
         expiresAt: accountSessions.expiresAt,
         lastSeenAt: accountSessions.lastSeenAt,
+        reauthenticatedAt: accountSessions.reauthenticatedAt,
         status: accountSessions.status,
         securityVersion: accountSessions.securityVersion,
       })
@@ -218,6 +221,9 @@ async function resolveAccountSession(
         assuranceLevel: identity.assuranceLevel,
         securityVersion: account.securityVersion,
         authenticatedAt: new Date(identity.issuedAt),
+        ...(identity.reauthenticatedAt
+          ? { reauthenticatedAt: new Date(identity.reauthenticatedAt) }
+          : {}),
         expiresAt: new Date(identity.expiresAt),
         lastSeenAt: at,
       })
@@ -236,22 +242,43 @@ async function resolveAccountSession(
   }
 
   const tokenExpiresAt = new Date(identity.expiresAt)
+  const verifiedReauthenticatedAt = identity.reauthenticatedAt
+    ? new Date(identity.reauthenticatedAt)
+    : null
+  const newestReauthenticatedAt =
+    verifiedReauthenticatedAt &&
+    (!session.reauthenticatedAt ||
+      verifiedReauthenticatedAt.getTime() > session.reauthenticatedAt.getTime())
+      ? verifiedReauthenticatedAt
+      : session.reauthenticatedAt
   const lastSeenRefreshBoundary = at.getTime() - 60_000
   if (
     session.assuranceLevel !== identity.assuranceLevel ||
     session.expiresAt.getTime() !== tokenExpiresAt.getTime() ||
+    newestReauthenticatedAt?.getTime() !== session.reauthenticatedAt?.getTime() ||
     session.lastSeenAt.getTime() <= lastSeenRefreshBoundary
   ) {
-    await db
+    const [updatedSession] = await db
       .update(accountSessions)
       .set({
         assuranceLevel: identity.assuranceLevel,
         expiresAt: tokenExpiresAt,
+        ...(verifiedReauthenticatedAt
+          ? {
+              reauthenticatedAt: sql<Date>`greatest(
+                coalesce(${accountSessions.reauthenticatedAt}, ${verifiedReauthenticatedAt}),
+                ${verifiedReauthenticatedAt}
+              )`,
+            }
+          : {}),
         lastSeenAt: at,
         updatedAt: at,
       })
       .where(eq(accountSessions.providerSessionId, identity.sessionId))
+      .returning({ reauthenticatedAt: accountSessions.reauthenticatedAt })
+    return updatedSession?.reauthenticatedAt ?? newestReauthenticatedAt
   }
+  return newestReauthenticatedAt
 }
 
 /** Registers or refreshes the revocable Account session for a verified identity. */
@@ -501,7 +528,7 @@ async function resolveTenantRequestContextInTransaction(
   }
 
   const account = await resolveActiveAccount(db, identity)
-  await resolveAccountSession(db, account, identity, at)
+  const reauthenticatedAt = await resolveAccountSession(db, account, identity, at)
 
   const linkWhere = [
     eq(accountLinks.accountId, account.id),
@@ -552,6 +579,7 @@ async function resolveTenantRequestContextInTransaction(
     membershipVersion: account.membershipVersion,
     securityVersion: account.securityVersion,
     assuranceLevel: identity.assuranceLevel,
+    ...(reauthenticatedAt ? { reauthenticatedAt: reauthenticatedAt.toISOString() } : {}),
     policyVersion: TENANT_CONTEXT_POLICY_VERSION,
     comparisonMode,
     educationOrganizationId: selectors.educationOrganizationId,
@@ -673,6 +701,7 @@ async function resolveTenantRequestContextInTransaction(
     membershipVersion: account.membershipVersion,
     securityVersion: account.securityVersion,
     assuranceLevel: identity.assuranceLevel,
+    ...(reauthenticatedAt ? { reauthenticatedAt: reauthenticatedAt.toISOString() } : {}),
     policyVersion: TENANT_CONTEXT_POLICY_VERSION,
     comparisonMode,
     educationOrganizationId: selectedOrganizationId,
@@ -825,6 +854,7 @@ async function resolveTenantRequestContextInTransaction(
     membershipVersion: account.membershipVersion,
     securityVersion: account.securityVersion,
     assuranceLevel: identity.assuranceLevel,
+    ...(reauthenticatedAt ? { reauthenticatedAt: reauthenticatedAt.toISOString() } : {}),
     ...(selectedOrganizationId ? { activeEducationOrganizationId: selectedOrganizationId } : {}),
     ...(selectedOrganizationName
       ? { activeEducationOrganizationName: selectedOrganizationName }

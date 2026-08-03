@@ -10,6 +10,7 @@ export interface TenantContextCacheKeyInput {
   membershipVersion: number
   securityVersion: number
   assuranceLevel: AssuranceLevel
+  reauthenticatedAt?: string
   policyVersion: number
   comparisonMode: 'off' | 'observe' | 'enforce'
   educationOrganizationId?: string
@@ -24,6 +25,7 @@ export function buildTenantContextCacheKey(input: TenantContextCacheKeyInput): s
     `membership=${input.membershipVersion}`,
     `security=${input.securityVersion}`,
     `assurance=${input.assuranceLevel}`,
+    `reauthenticated=${input.reauthenticatedAt ?? '-'}`,
     `policy=${input.policyVersion}`,
     `comparison=${input.comparisonMode}`,
     `organization=${input.educationOrganizationId ?? '-'}`,

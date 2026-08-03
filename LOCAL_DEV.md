@@ -38,6 +38,7 @@ The supported variables are:
 | `DATABASE_WORKER_ROLE` | server only, non-secret | Expected worker role name used for three-way role separation |
 | `OPENSCHOOL_STUDENT_SLICE_MODE` | server only | `forced_rls` enables the reviewed slice; `disabled` is the fail-closed rollback switch |
 | `OPENSCHOOL_POLICY_VERSION` | server only | Optional accepted capability-policy rollback version; an unknown value fails closed |
+| `SUPABASE_SECRET_KEY` | server only | Supabase administrative MFA and invitation-delivery adapter; never expose to the browser |
 | `NEXT_PUBLIC_APP_URL` | browser | Authenticated application origin |
 | `NEXT_PUBLIC_WWW_URL` | browser | Marketing and authentication origin |
 
@@ -123,7 +124,7 @@ bun run db:boundary-check
 bun run build
 ```
 
-GitHub Actions additionally provisions a clean PostgreSQL service, creates named identities, applies all migrations, seeds it, repeats both operations, applies runtime/worker grants, and runs the guarded [database execution proof](./packages/db/DATABASE_EXECUTION.md), [transaction-scoped RLS proof](./packages/db/security-poc/README.md), and [School/Student forced-RLS proof](./packages/db/STUDENT_RLS.md). The proofs are destructive and intentionally refuse non-loopback database hosts.
+GitHub Actions additionally provisions a clean PostgreSQL service, creates named identities, applies all migrations, seeds it, repeats both operations, applies runtime/worker grants, and runs the guarded [database execution proof](./packages/db/DATABASE_EXECUTION.md), [transaction-scoped RLS proof](./packages/db/security-poc/README.md), [School/Student forced-RLS proof](./packages/db/STUDENT_RLS.md), and [identity revocation proof](./docs/security/IDENTITY_REVOCATION.md). The proofs are destructive and intentionally refuse non-loopback database hosts.
 
 CI also runs the guarded [Tenant and Education Organization proof](./packages/db/TENANT_HIERARCHY.md) and a separate upgrade job that starts with representative data at migration `0002`, applies the Tenant foundation twice, and verifies the backfill and constraints.
 

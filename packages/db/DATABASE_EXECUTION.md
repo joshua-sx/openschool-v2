@@ -12,6 +12,7 @@ OpenSchool separates schema ownership from product and background execution:
 | `DATABASE_WORKER_ROLE` | non-secret role-separation assertion | fixed `openschool_worker` role used by named RLS policies |
 | `openschool_backup` | future restore delegation | `NOLOGIN`; never granted to runtime or worker |
 | `openschool_emergency` | future controlled break-glass delegation | `NOLOGIN`; never granted to runtime or worker |
+| `openschool_identity_revoker` | private Account/session/Affiliation/role transitions | `NOLOGIN`, `NOBYPASSRLS`; runtime may execute its reviewed function but cannot assume the role |
 
 Migration, runtime, and worker configuration are parsed separately so the web process never needs the owner or worker credential. Local validation/provisioning rejects reused database usernames. Runtime startup also checks the connected PostgreSQL role, ownership, schema creation, truncation, privileged memberships, and the configured migration-role relationship before exposing an operation callback.
 
@@ -30,7 +31,7 @@ Every context value is parameterized through `set_config(..., true)` inside the 
 
 `db:provision-roles` is a guarded, loopback-only development/CI provisioner. Its `identities` phase creates or rotates the named roles before migrations containing explicit `TO` clauses. Its `grants` phase resets runtime/worker table and schema privileges after migration and applies the reviewed minimum. Production roles must be created by controlled infrastructure using the same contract; this local script intentionally refuses remote databases.
 
-Every new product table or operation requires an explicit grant review. Do not add `GRANT ... ON ALL TABLES`, schema `CREATE`, table ownership, `BYPASSRLS`, a service-role credential, or migration-role membership to runtime infrastructure.
+Every new product table or operation requires an explicit grant review. Identity lifecycle changes use column-level grants held by `openschool_identity_revoker`; runtime receives only `EXECUTE` on the private function, while worker receives neither execution nor role membership. Do not add `GRANT ... ON ALL TABLES`, schema `CREATE`, table ownership, `BYPASSRLS`, a service-role credential, or migration-role membership to runtime infrastructure.
 
 ## Reviewed raw SQL allowlist
 
@@ -44,6 +45,6 @@ The `db:boundary-check` CI gate scans tracked TypeScript under `apps`, `packages
 
 ## Evidence and rollback
 
-`db:execution-poc` runs through real runtime and worker logins. It proves role separation and grants, unknown-placement denial before the operation, identity/Tenant/worker settings, cleanup after commit/rollback/SQL error, reuse of the same physical session, and queued work through an exhausted one-connection pool. `db:student-rls-poc` adds forced-policy, scope, write, side-channel, and query-plan evidence for the first slice.
+`db:execution-poc` runs through real runtime and worker logins. It proves role separation and grants, private identity-revocation execution boundaries, unknown-placement denial before the operation, identity/Tenant/worker settings, cleanup after commit/rollback/SQL error, reuse of the same physical session, and queued work through an exhausted one-connection pool. `db:student-rls-poc` adds forced-policy, scope, write, side-channel, and query-plan evidence for the first slice.
 
 The application may disable the School/Student slice with `OPENSCHOOL_STUDENT_SLICE_MODE=disabled`. Owner or service-role application access is not an accepted rollback path. Platform-wide RLS remains #90; atomic audit/outbox work remains #88.

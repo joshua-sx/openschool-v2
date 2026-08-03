@@ -80,6 +80,15 @@ export const schools = pgTable(
         )
       `,
     }),
+    pgPolicy('schools_identity_revoker_select', {
+      for: 'select',
+      to: 'openschool_identity_revoker',
+      using: sql`
+        ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.accounts.manage'
+        AND nullif(current_setting('app.assurance_level', true), '') = 'aal2'
+      `,
+    }),
     pgPolicy('schools_worker_select', {
       for: 'select',
       to: 'openschool_worker',

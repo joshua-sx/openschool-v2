@@ -15,6 +15,7 @@ const requestContext: TenantRequestContext = {
   membershipVersion: 1,
   securityVersion: 1,
   assuranceLevel: 'aal2',
+  reauthenticatedAt: '2026-08-02T11:58:00.000Z',
   activeEducationOrganizationId: 'organization-1',
   activeSchoolId: 'school-1',
   roleTemplateKeys: ['custom_registrar', 'school_admin'],
@@ -45,6 +46,7 @@ describe('Policy Context adapter', () => {
       userEmail: 'person@example.test',
       roleTemplateKeys: ['custom_registrar', 'school_admin'],
       assuranceLevel: 'aal2',
+      authenticatedAt: '2026-08-02T11:58:00.000Z',
       activeEducationOrganizationId: 'organization-1',
       activeSchoolId: 'school-1',
     })
@@ -53,7 +55,15 @@ describe('Policy Context adapter', () => {
   })
 
   it('does not treat token issuance as interactive reauthentication evidence', () => {
-    const policyContext = toPolicyContext(requestContext, identity)
+    const { reauthenticatedAt: _reauthenticatedAt, ...contextWithoutReauthentication } =
+      requestContext
+    const policyContext = toPolicyContext(contextWithoutReauthentication, identity)
     assert.equal(policyContext.authenticatedAt, undefined)
+  })
+
+  it('preserves verified interactive reauthentication evidence', () => {
+    const policyContext = toPolicyContext(requestContext, identity)
+
+    assert.equal(policyContext.authenticatedAt, '2026-08-02T11:58:00.000Z')
   })
 })

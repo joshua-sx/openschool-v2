@@ -18,6 +18,7 @@ const JOB = '00000000-0000-4000-8000-000000000399'
 const PROOF_RUN_ID = crypto.randomUUID()
 const SESSION_A = `database-execution-${PROOF_RUN_ID}-a`
 const SESSION_B = `database-execution-${PROOF_RUN_ID}-b`
+const REAUTHENTICATED_AT = '2026-08-02T11:58:00.000Z'
 
 interface PostgresErrorLike {
   code?: string
@@ -46,6 +47,7 @@ function tenantContext(tenantId = TENANT_A, requestId = REQUEST) {
     assuranceLevel: 'aal2' as const,
     membershipVersion: 1,
     securityVersion: 1,
+    reauthenticatedAt: REAUTHENTICATED_AT,
     contextPolicyVersion: 1,
     ...(!isTenantB && tenantId !== UNKNOWN_TENANT
       ? { activeEducationOrganizationId: ORGANIZATION, activeSchoolId: SCHOOL }
@@ -73,6 +75,7 @@ function assertContextCleared(
       jobType: evidence.jobType,
       membershipVersion: evidence.membershipVersion,
       securityVersion: evidence.securityVersion,
+      reauthenticatedAt: evidence.reauthenticatedAt,
       contextPolicyVersion: evidence.contextPolicyVersion,
       policyCapability: evidence.policyCapability,
       policyVersion: evidence.policyVersion,
@@ -90,6 +93,7 @@ function assertContextCleared(
       jobType: null,
       membershipVersion: null,
       securityVersion: null,
+      reauthenticatedAt: null,
       contextPolicyVersion: null,
       policyCapability: null,
       policyVersion: null,
@@ -110,10 +114,10 @@ async function run(): Promise<void> {
     await admin`
       insert into account_sessions (
         account_id, provider_session_id, status, assurance_level,
-        security_version, authenticated_at, expires_at
+        security_version, authenticated_at, reauthenticated_at, expires_at
       ) values
-        (${ACCOUNT}, ${SESSION_A}, 'active', 'aal2', 1, ${authenticatedAt}, ${expiresAt}),
-        (${ACCOUNT_B}, ${SESSION_B}, 'active', 'aal2', 1, ${authenticatedAt}, ${expiresAt})
+        (${ACCOUNT}, ${SESSION_A}, 'active', 'aal2', 1, ${authenticatedAt}, ${REAUTHENTICATED_AT}, ${expiresAt}),
+        (${ACCOUNT_B}, ${SESSION_B}, 'active', 'aal2', 1, ${authenticatedAt}, ${REAUTHENTICATED_AT}, ${expiresAt})
     `
     const [ownership] = await admin<
       Array<{ migrationUser: string; studentsOwner: string; runtimeIsMember: boolean }>

@@ -8,6 +8,7 @@ const RESERVED_EXECUTION_ROLES = new Set([
   'postgres',
   'openschool_backup',
   'openschool_emergency',
+  'openschool_identity_revoker',
   'openschool_invitation_acceptor',
 ])
 const PROVISIONING_PHASES = new Set(['all', 'identities', 'grants'])
@@ -118,9 +119,12 @@ async function run(): Promise<void> {
     await ensureExecutionRole(admin, workerRole, decodeURIComponent(worker.password))
     await ensureNoLoginRole(admin, 'openschool_backup')
     await ensureNoLoginRole(admin, 'openschool_emergency')
+    await ensureNoLoginRole(admin, 'openschool_identity_revoker')
     await ensureNoLoginRole(admin, 'openschool_invitation_acceptor')
     if (migrationRole !== 'postgres') {
-      await admin.unsafe(`grant openschool_invitation_acceptor to ${migrationRole}`)
+      await admin.unsafe(
+        `grant openschool_identity_revoker, openschool_invitation_acceptor to ${migrationRole}`
+      )
     }
 
     if (phase === 'identities') {
@@ -171,7 +175,7 @@ async function run(): Promise<void> {
 
     for (const executionRole of [runtimeRole, workerRole]) {
       await admin.unsafe(
-        `revoke openschool_backup, openschool_emergency, openschool_invitation_acceptor from ${executionRole}`
+        `revoke openschool_backup, openschool_emergency, openschool_identity_revoker, openschool_invitation_acceptor from ${executionRole}`
       )
       if (migrationRole !== 'postgres') {
         await admin.unsafe(`revoke ${migrationRole} from ${executionRole}`)
