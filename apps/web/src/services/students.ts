@@ -1,4 +1,4 @@
-import { logAuditEvent } from '@openschool/audit'
+import { appendAuditEventInTransaction, recordAuditAttempt } from '@openschool/audit'
 import {
   type DatabaseTransaction,
   type NewStudent,
@@ -33,8 +33,35 @@ import { getSchoolByIdInTransaction } from './schools'
 const MAX_STUDENT_ROWS = 500
 const MAX_POLICY_CONSTRAINTS = 16
 
-function studentAuditSnapshot(student: Student): Record<string, unknown> {
+function studentAuditSnapshot(student: Student): { schoolId: string; status: string } {
   return { schoolId: student.schoolId, status: student.status }
+}
+
+async function recordStudentMutationFailure(
+  error: unknown,
+  databaseContext: TenantDatabaseContext,
+  context: PolicyContext,
+  decision: AllowedPolicyDecision,
+  eventType: 'student.create' | 'student.update',
+  targetId?: string
+): Promise<never> {
+  const outcome = error instanceof TRPCError && error.code === 'FORBIDDEN' ? 'denied' : 'failed'
+  try {
+    await recordAuditAttempt(databaseContext, context, decision, {
+      eventType,
+      outcome,
+      targetType: 'student',
+      ...(targetId ? { targetId } : {}),
+      dataClasses: ['student_personal'],
+      change: { changedFields: ['operation'] },
+    })
+  } catch (auditError) {
+    throw new AggregateError(
+      [error, auditError],
+      'Student mutation failed and its failure evidence could not be recorded'
+    )
+  }
+  throw error
 }
 
 function policyScopeDenied(): never {
@@ -314,34 +341,47 @@ export async function createStudent(
   assertStudentSliceEnabled()
   assertDatabasePolicyContext(databaseContext, context)
   if (decision.capability !== CAPABILITIES.STUDENTS_CREATE) policyScopeDenied()
-  const student = await withPolicyTenantTransaction(
-    databaseContext,
-    toDatabasePolicyContext(decision),
-    async (db) => {
-      const school = await getSchoolByIdInTransaction(
-        db,
-        context,
-        decision,
-        data.schoolId,
-        CAPABILITIES.STUDENTS_CREATE
-      )
-      if (!school) policyScopeDenied()
-      const [created] = await db
-        .insert(students)
-        .values({ ...data, tenantId: school.tenantId })
-        .returning()
-      return created
-    }
-  )
-  if (!student) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'CREATE_FAILED' })
-
-  await logAuditEvent(databaseContext, context, {
-    action: 'create',
-    resource: 'student',
-    resourceId: student.id,
-    newValues: studentAuditSnapshot(student),
-  })
-  return student
+  try {
+    return await withPolicyTenantTransaction(
+      databaseContext,
+      toDatabasePolicyContext(decision),
+      async (db) => {
+        const school = await getSchoolByIdInTransaction(
+          db,
+          context,
+          decision,
+          data.schoolId,
+          CAPABILITIES.STUDENTS_CREATE
+        )
+        if (!school) policyScopeDenied()
+        const [created] = await db
+          .insert(students)
+          .values({ ...data, tenantId: school.tenantId })
+          .returning()
+        if (!created) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'CREATE_FAILED' })
+        }
+        await appendAuditEventInTransaction(db, databaseContext, context, decision, {
+          eventType: 'student.create',
+          outcome: 'succeeded',
+          targetType: 'student',
+          targetId: created.id,
+          dataClasses: ['student_personal'],
+          change: {
+            changedFields: Object.keys(data).sort(),
+            after: studentAuditSnapshot(created),
+          },
+          outbox: {
+            topic: 'audit.event.committed',
+            deduplicationKey: `student.create:${databaseContext.requestId}:${created.id}`,
+          },
+        })
+        return created
+      }
+    )
+  } catch (error) {
+    return recordStudentMutationFailure(error, databaseContext, context, decision, 'student.create')
+  }
 }
 
 export async function updateStudent(
@@ -354,57 +394,74 @@ export async function updateStudent(
   assertStudentSliceEnabled()
   assertDatabasePolicyContext(databaseContext, context)
   if (decision.capability !== CAPABILITIES.STUDENTS_UPDATE) policyScopeDenied()
-  const result = await withPolicyTenantTransaction(
-    databaseContext,
-    toDatabasePolicyContext(decision),
-    async (db) => {
-      const [existing] = await loadAuthorizedStudents(
-        db,
-        context,
-        decision,
-        CAPABILITIES.STUDENTS_UPDATE,
-        { studentId }
-      )
-      if (!existing) throw new TRPCError({ code: 'NOT_FOUND', message: 'Student not found' })
-      const [locked] = await db
-        .select()
-        .from(students)
-        .where(
-          and(
-            eq(students.tenantId, existing.tenantId),
-            eq(students.id, existing.id),
-            eq(students.schoolId, existing.schoolId),
-            eq(students.status, 'active')
-          )
+  try {
+    return await withPolicyTenantTransaction(
+      databaseContext,
+      toDatabasePolicyContext(decision),
+      async (db) => {
+        const [existing] = await loadAuthorizedStudents(
+          db,
+          context,
+          decision,
+          CAPABILITIES.STUDENTS_UPDATE,
+          { studentId }
         )
-        .for('update')
-        .limit(1)
-      if (!locked) throw new TRPCError({ code: 'CONFLICT', message: 'RESOURCE_CHANGED' })
-      const [updated] = await db
-        .update(students)
-        .set({ ...data, updatedAt: new Date() })
-        .where(
-          and(
-            eq(students.tenantId, existing.tenantId),
-            eq(students.id, existing.id),
-            eq(students.schoolId, existing.schoolId)
+        if (!existing) throw new TRPCError({ code: 'NOT_FOUND', message: 'Student not found' })
+        const [locked] = await db
+          .select()
+          .from(students)
+          .where(
+            and(
+              eq(students.tenantId, existing.tenantId),
+              eq(students.id, existing.id),
+              eq(students.schoolId, existing.schoolId),
+              eq(students.status, 'active')
+            )
           )
-        )
-        .returning()
-      return { existing: locked, updated }
-    }
-  )
-  if (!result.updated) throw new TRPCError({ code: 'CONFLICT', message: 'RESOURCE_CHANGED' })
-
-  await logAuditEvent(databaseContext, context, {
-    action: 'update',
-    resource: 'student',
-    resourceId: studentId,
-    oldValues: studentAuditSnapshot(result.existing),
-    newValues: studentAuditSnapshot(result.updated),
-    metadata: { changedFields: Object.keys(data).sort() },
-  })
-  return result.updated
+          .for('update')
+          .limit(1)
+        if (!locked) throw new TRPCError({ code: 'CONFLICT', message: 'RESOURCE_CHANGED' })
+        const [updated] = await db
+          .update(students)
+          .set({ ...data, updatedAt: new Date() })
+          .where(
+            and(
+              eq(students.tenantId, existing.tenantId),
+              eq(students.id, existing.id),
+              eq(students.schoolId, existing.schoolId)
+            )
+          )
+          .returning()
+        if (!updated) throw new TRPCError({ code: 'CONFLICT', message: 'RESOURCE_CHANGED' })
+        await appendAuditEventInTransaction(db, databaseContext, context, decision, {
+          eventType: 'student.update',
+          outcome: 'succeeded',
+          targetType: 'student',
+          targetId: studentId,
+          dataClasses: ['student_personal'],
+          change: {
+            changedFields: Object.keys(data).sort(),
+            before: studentAuditSnapshot(locked),
+            after: studentAuditSnapshot(updated),
+          },
+          outbox: {
+            topic: 'audit.event.committed',
+            deduplicationKey: `student.update:${databaseContext.requestId}:${studentId}`,
+          },
+        })
+        return updated
+      }
+    )
+  } catch (error) {
+    return recordStudentMutationFailure(
+      error,
+      databaseContext,
+      context,
+      decision,
+      'student.update',
+      studentId
+    )
+  }
 }
 
 interface StudentValidationData {

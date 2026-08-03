@@ -54,4 +54,37 @@ describe('database migration baseline', () => {
       assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
     }
   })
+
+  it('installs a partitioned append-only Audit Ledger and guarded outbox', () => {
+    const migration = readFileSync(
+      join(migrationsDirectory, '0015_atomic_audit_outbox.sql'),
+      'utf8'
+    )
+    for (const expected of [
+      'PARTITION BY RANGE ("occurred_at")',
+      'CREATE TABLE "audit_events_2026_q4" PARTITION OF "audit_events"',
+      'CREATE TABLE "audit_events_2027_q1" PARTITION OF "audit_events"',
+      'CREATE TABLE "audit_events_default" PARTITION OF "audit_events" DEFAULT',
+      'ALTER TABLE "audit_events" FORCE ROW LEVEL SECURITY',
+      'ALTER TABLE "audit_outbox" FORCE ROW LEVEL SECURITY',
+      'ALTER TABLE "audit_archive_manifests" FORCE ROW LEVEL SECURITY',
+      'CREATE POLICY "audit_events_runtime_insert"',
+      'CREATE POLICY "audit_events_runtime_update_deny"',
+      'CREATE POLICY "audit_events_runtime_delete_deny"',
+      'CREATE POLICY "audit_outbox_worker_update"',
+      'openschool_hash_audit_event_on_insert',
+      "'hashSchemaVersion', 1",
+      'SET search_path = pg_catalog, extensions, public',
+      'openschool_guard_audit_event_insert',
+      'openschool_guard_audit_outbox_change',
+      "OLD.status = 'processing' AND NEW.status = 'processing'",
+      "context\" ->> 'actorAccountId' = nullif(current_setting('app.account_id'",
+      'audit_archive_manifest_delete_rejected',
+      'REVOKE ALL ON FUNCTION "openschool_audit_scope_allows"',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+    assert.equal(migration.includes('to_jsonb(NEW)'), false)
+    assert.equal(migration.includes('to_jsonb(event)'), false)
+  })
 })

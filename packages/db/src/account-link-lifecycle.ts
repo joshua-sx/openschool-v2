@@ -1,6 +1,19 @@
 import { and, eq, sql } from 'drizzle-orm'
+import { appendSanitizedAuditLedgerEvent } from './audit-ledger'
 import { accountLinks, accounts, identityMigrationEvents } from './schema'
 import type { DatabaseTransaction } from './tenant-transaction'
+
+export interface AccountLinkLifecycleAuditContext {
+  actorPersonId: string
+  requestId: string
+  correlationId: string
+  capability: string
+  policyVersion: string
+  policyReason: string
+  purpose: string
+  educationOrganizationId?: string
+  schoolId?: string
+}
 
 export interface ActivateAccountLinkInput {
   tenantId: string
@@ -8,7 +21,7 @@ export interface ActivateAccountLinkInput {
   actorAccountId: string
   reason: string
   at?: Date
-  evidence?: Record<string, unknown>
+  audit: AccountLinkLifecycleAuditContext
 }
 
 export interface RevokeAccountLinkInput extends ActivateAccountLinkInput {}
@@ -21,8 +34,14 @@ export interface AccountLinkLifecycleResult {
   tenantId: string
 }
 
+interface AccountLinkAuditAppendInput {
+  actorAccountId: string
+  audit: AccountLinkLifecycleAuditContext
+}
+
 export type AccountLinkLifecycleErrorCode =
   | 'account_disabled'
+  | 'audit_context_invalid'
   | 'invalid_status'
   | 'invalid_validity'
   | 'link_not_found'
@@ -44,6 +63,87 @@ function requireReason(reason: string): string {
     throw new AccountLinkLifecycleError('reason_required', 'Account Link change requires a reason')
   }
   return normalized
+}
+
+const SAFE_AUDIT_REFERENCE = /^[A-Za-z0-9_.:/-]{1,512}$/
+const SAFE_PURPOSE_CODE = /^[a-z][a-z0-9_.-]{2,63}$/
+const UUID_REFERENCE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function validateAuditContext(context: AccountLinkLifecycleAuditContext): void {
+  for (const value of [
+    context.requestId,
+    context.correlationId,
+    context.capability,
+    context.policyVersion,
+    context.policyReason,
+  ]) {
+    if (!SAFE_AUDIT_REFERENCE.test(value)) {
+      throw new AccountLinkLifecycleError('audit_context_invalid', 'Audit context is invalid')
+    }
+  }
+  for (const value of [context.actorPersonId, context.educationOrganizationId, context.schoolId]) {
+    if (value && !UUID_REFERENCE.test(value)) {
+      throw new AccountLinkLifecycleError('audit_context_invalid', 'Audit scope is invalid')
+    }
+  }
+  if (!UUID_REFERENCE.test(context.actorPersonId)) {
+    throw new AccountLinkLifecycleError('audit_context_invalid', 'Audit actor is invalid')
+  }
+  if (!SAFE_PURPOSE_CODE.test(context.purpose)) {
+    throw new AccountLinkLifecycleError('audit_context_invalid', 'Audit purpose must be a code')
+  }
+}
+
+async function appendAccountLinkAuditEvent(
+  tx: DatabaseTransaction,
+  input: AccountLinkAuditAppendInput,
+  link: { id: string; tenantId: string; status: string },
+  membershipVersion: number,
+  eventType: 'account_link.activate' | 'account_link.revoke',
+  nextStatus: 'active' | 'revoked',
+  at: Date
+): Promise<void> {
+  validateAuditContext(input.audit)
+  await appendSanitizedAuditLedgerEvent(
+    tx,
+    {
+      occurredAt: at,
+      eventVersion: 1,
+      eventType,
+      outcome: 'succeeded',
+      tenantId: link.tenantId,
+      ...(input.audit.educationOrganizationId
+        ? { educationOrganizationId: input.audit.educationOrganizationId }
+        : {}),
+      ...(input.audit.schoolId ? { schoolId: input.audit.schoolId } : {}),
+      actorType: 'account',
+      actorAccountId: input.actorAccountId,
+      actorPersonId: input.audit.actorPersonId,
+      capability: input.audit.capability,
+      policyVersion: input.audit.policyVersion,
+      policyDecision: {
+        effect: 'allow',
+        reason: input.audit.policyReason,
+        capability: input.audit.capability,
+        policyVersion: input.audit.policyVersion,
+      },
+      requestId: input.audit.requestId,
+      correlationId: input.audit.correlationId,
+      targetType: 'account_link',
+      targetId: link.id,
+      dataClasses: ['internal', 'credential'],
+      changeSummary: {
+        changedFields: ['membershipVersion', 'status'],
+      },
+      purpose: input.audit.purpose,
+      source: 'web',
+      retentionClass: 'security',
+    },
+    {
+      topic: 'audit.event.committed',
+      deduplicationKey: `${eventType}:${input.audit.requestId}:${link.id}:${membershipVersion}:${nextStatus}`,
+    }
+  )
 }
 
 function revokedValidUntil(
@@ -146,9 +246,18 @@ export async function activateAccountLink(
     eventType: 'account_link_activated',
     membershipVersion,
     actorAccountId: input.actorAccountId,
-    evidence: { ...input.evidence, reason },
+    evidence: { reason },
     createdAt: at,
   })
+  await appendAccountLinkAuditEvent(
+    tx,
+    input,
+    link,
+    membershipVersion,
+    'account_link.activate',
+    'active',
+    at
+  )
 
   return {
     tenantId: link.tenantId,
@@ -215,9 +324,18 @@ export async function revokeAccountLink(
     eventType: 'account_link_revoked',
     membershipVersion,
     actorAccountId: input.actorAccountId,
-    evidence: { ...input.evidence, reason },
+    evidence: { reason },
     createdAt: at,
   })
+  await appendAccountLinkAuditEvent(
+    tx,
+    input,
+    link,
+    membershipVersion,
+    'account_link.revoke',
+    'revoked',
+    at
+  )
 
   return {
     tenantId: link.tenantId,

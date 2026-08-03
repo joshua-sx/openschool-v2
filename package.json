@@ -23,6 +23,7 @@
     "db:provision-roles": "turbo run db:provision-roles --filter=@openschool/db",
     "db:execution-poc": "turbo run db:execution-poc --filter=@openschool/db",
     "db:student-rls-poc": "turbo run db:student-rls-poc --filter=@openschool/db",
+    "audit:poc": "turbo run audit:poc --filter=web",
     "db:security-poc": "turbo run db:security-poc --filter=@openschool/db",
     "db:tenant-foundation-poc": "turbo run db:tenant-foundation-poc --filter=@openschool/db",
     "db:identity-foundation-poc": "turbo run db:identity-foundation-poc --filter=@openschool/db",

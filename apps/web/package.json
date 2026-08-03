@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit --incremental false",
+    "audit:poc": "bun run src/server/audit-poc.ts",
     "policy:query-poc": "bun run src/server/policy-query-poc.ts"
   },
   "dependencies": {

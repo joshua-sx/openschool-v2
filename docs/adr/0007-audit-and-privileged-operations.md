@@ -34,6 +34,19 @@ Access grants/revocations, invitations, MFA changes, Organization Tree edits, Sc
 
 Mutation modules own business change and audit intent together; append implementation and retention remain deep behind the audit interface. Audit unavailability becomes a visible operational failure and blocks required access/operations. The tenant audit ledger and independently administered operational sink both need capacity, reconciliation, retention, restore, and alerting plans.
 
+## Implemented boundary
+
+Issue #88 implements event version 1, classification-aware redaction, transaction-scoped append,
+the durable outbox state machine, range partitioning, database-computed content/payload hashes,
+forced RLS, append-only triggers, audited readers/export requests, and the archive-manifest schema.
+Student create/update and Account Link activation/revocation are the first migrated mutations. The
+[Audit Ledger operating contract](../../packages/audit/AUDIT_LEDGER.md) defines integration and
+operations requirements.
+
+Production remains blocked on provisioning and exercising the independently administered archive
+and operational evidence sink, signing-key custody, approved retention schedules, monitoring, and
+the remaining privileged mutation integrations.
+
 ## Migration path and rollback
 
 Introduce versioned events and a transactional writer, migrate highest-risk mutations first, then remove asynchronous logging. Rollback may switch event schema versions but cannot disable required audit or delete committed evidence.

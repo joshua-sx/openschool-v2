@@ -239,6 +239,13 @@ interface RuntimeRoleEvidence extends Record<string, unknown> {
   ownsProductTables: boolean
   canCreateInPublic: boolean
   canTruncateStudents: boolean
+  canUpdateAuditEvents: boolean
+  canDeleteAuditEvents: boolean
+  canInsertAuditEvents: boolean
+  canInsertAuditOutbox: boolean
+  canUpdateAuditOutbox: boolean
+  canDeleteAuditOutbox: boolean
+  canAccessAuditArchiveManifests: boolean
   canAssumeMigrationRole: boolean
   canAssumeOtherExecutionRole: boolean
   canAssumeBackupRole: boolean
@@ -251,7 +258,8 @@ async function assertSafeExecutionRole(
   database: RuntimeDatabase,
   expectedUsername: string,
   migrationUsername: string,
-  otherExecutionUsername: string
+  otherExecutionUsername: string,
+  canProcessAuditOutbox: boolean
 ): Promise<void> {
   const result = await database.execute<RuntimeRoleEvidence>(sql`
     select
@@ -270,6 +278,17 @@ async function assertSafeExecutionRole(
       ) as "ownsProductTables",
       has_schema_privilege(current_user, 'public', 'CREATE') as "canCreateInPublic",
       has_table_privilege(current_user, 'public.students', 'TRUNCATE') as "canTruncateStudents",
+      has_table_privilege(current_user, 'public.audit_events', 'UPDATE') as "canUpdateAuditEvents",
+      has_table_privilege(current_user, 'public.audit_events', 'DELETE') as "canDeleteAuditEvents",
+      has_table_privilege(current_user, 'public.audit_events', 'INSERT') as "canInsertAuditEvents",
+      has_table_privilege(current_user, 'public.audit_outbox', 'INSERT') as "canInsertAuditOutbox",
+      has_table_privilege(current_user, 'public.audit_outbox', 'UPDATE') as "canUpdateAuditOutbox",
+      has_table_privilege(current_user, 'public.audit_outbox', 'DELETE') as "canDeleteAuditOutbox",
+      has_table_privilege(
+        current_user,
+        'public.audit_archive_manifests',
+        'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'
+      ) as "canAccessAuditArchiveManifests",
       exists (
         select 1 from pg_roles candidate
         where candidate.rolname = ${migrationUsername}
@@ -318,6 +337,13 @@ async function assertSafeExecutionRole(
     evidence.ownsProductTables ||
     evidence.canCreateInPublic ||
     evidence.canTruncateStudents ||
+    evidence.canUpdateAuditEvents ||
+    evidence.canDeleteAuditEvents ||
+    !evidence.canInsertAuditEvents ||
+    evidence.canInsertAuditOutbox !== !canProcessAuditOutbox ||
+    evidence.canUpdateAuditOutbox !== canProcessAuditOutbox ||
+    evidence.canDeleteAuditOutbox ||
+    evidence.canAccessAuditArchiveManifests ||
     evidence.canAssumeMigrationRole ||
     evidence.canAssumeOtherExecutionRole ||
     evidence.canAssumeBackupRole ||
@@ -359,7 +385,8 @@ async function assertRuntimeSecurity(): Promise<void> {
       runtime(),
       databaseUsername(environment.DATABASE_RUNTIME_URL),
       environment.DATABASE_MIGRATION_ROLE,
-      environment.DATABASE_WORKER_ROLE
+      environment.DATABASE_WORKER_ROLE,
+      false
     ).catch((error) => {
       runtimeSecurityAssertion = undefined
       throw error
@@ -375,7 +402,8 @@ async function assertWorkerSecurity(): Promise<void> {
       worker(),
       databaseUsername(environment.DATABASE_WORKER_URL),
       environment.DATABASE_MIGRATION_ROLE,
-      environment.DATABASE_RUNTIME_ROLE
+      environment.DATABASE_RUNTIME_ROLE,
+      true
     ).catch((error) => {
       workerSecurityAssertion = undefined
       throw error
@@ -708,7 +736,8 @@ export function createDatabaseExecutionProofHarness(
       database,
       databaseUsername(connectionString),
       environment.DATABASE_MIGRATION_ROLE,
-      kind === 'runtime' ? environment.DATABASE_WORKER_ROLE : environment.DATABASE_RUNTIME_ROLE
+      kind === 'runtime' ? environment.DATABASE_WORKER_ROLE : environment.DATABASE_RUNTIME_ROLE,
+      kind === 'worker'
     ).catch((error) => {
       securityAssertion = undefined
       throw error

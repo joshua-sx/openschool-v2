@@ -39,6 +39,19 @@ for (const trackedFile of trackedFiles) {
   ) {
     violations.push(`${path}: the pre-policy RLS binder is restricted to Tenant context resolution`)
   }
+  if (
+    source.includes('appendSanitizedAuditLedgerEvent') &&
+    path !== 'packages/audit/src/logger.ts'
+  ) {
+    violations.push(`${path}: sanitized Audit Ledger writes must pass through the audit package`)
+  }
+  if (
+    /\b(?:auditEvents|auditOutbox)\b/.test(source) &&
+    !path.startsWith('packages/audit/src/') &&
+    !path.endsWith('-poc.ts')
+  ) {
+    violations.push(`${path}: Audit Ledger tables are restricted to the audit package`)
+  }
 }
 
 if (violations.length > 0) {

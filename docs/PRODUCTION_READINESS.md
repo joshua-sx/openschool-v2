@@ -25,7 +25,7 @@ OpenSchool remains **NO-GO** for real school data and users until every blocking
 - [ ] The target Tenant Placement adapter is implemented and covered by the current threat model and complete Isolation Matrix; bridge/silo placement remains disabled until placement-specific evidence is accepted.
 - [ ] Runtime startup/CI proves `NOBYPASSRLS`, non-ownership, least privilege, and no service-role credential.
 - [ ] The [Isolation Matrix](./security/TENANT_ISOLATION_MATRIX.md) passes across API, query, DB, files, jobs, cache, search, import, export, analytics, and support paths.
-- [ ] Privileged mutations and durable work have atomic audit/outbox evidence; app roles cannot edit/delete audit events.
+- [ ] Every privileged mutation and durable worker path uses the accepted atomic audit/outbox boundary; the first Student and Account Link integrations, immutable runtime boundary, and replay proof are complete.
 - [ ] MFA, reauthentication, invitation, session revocation, support, and break-glass controls pass security tests.
 - [ ] Threat model is reviewed after penetration test; all critical/high findings are closed or launch is blocked.
 - [ ] Dependency, secret, artifact, image, CI, and deployment supply-chain controls pass.
@@ -71,4 +71,4 @@ OpenSchool remains **NO-GO** for real school data and users until every blocking
 
 ## Current status
 
-NO-GO. The M0 repository foundation plus additive Tenant, Organization Tree, Account, Person, effective-affiliation, verified-session, bounded Tenant Request Context, versioned capability Policy Decisions, non-owner transaction adapter, and first forced-RLS School/Student slice are not sufficient production evidence. Forced RLS for every remaining Tenant table and access path, production credential infrastructure, atomic audit/outbox with durable cross-node invalidation, privileged identity controls, complete isolation testing, operational recovery, and jurisdiction-specific approvals remain blocking.
+NO-GO. The M0 repository foundation plus additive Tenant, Organization Tree, Account, Person, effective-affiliation, verified-session, bounded Tenant Request Context, versioned capability Policy Decisions, non-owner transaction adapter, first forced-RLS School/Student slice, and atomic Audit Ledger/outbox foundation are not sufficient production evidence. Forced RLS for every remaining Tenant table and access path, production credential infrastructure, independently administered audit archival/signing, remaining privileged mutation integrations, durable cross-node invalidation, privileged identity controls, complete isolation testing, operational recovery, and jurisdiction-specific approvals remain blocking.

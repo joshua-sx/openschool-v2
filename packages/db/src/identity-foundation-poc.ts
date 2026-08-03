@@ -23,6 +23,7 @@ import {
 const TENANT_A = '00000000-0000-4000-8000-000000000001'
 const TENANT_B = '00000000-0000-4000-8000-000000000002'
 const ACTOR_ACCOUNT = '00000000-0000-4000-8000-000000000201'
+const ACTOR_PERSON = '00000000-0000-4000-8000-000000000901'
 const SHARED_ACCOUNT = '00000000-0000-4000-8000-000000000203'
 const SHARED_PERSON_A = '00000000-0000-4000-8000-000000000903'
 const SHARED_PERSON_B = '00000000-0000-4000-8000-000000000904'
@@ -272,6 +273,16 @@ async function run(): Promise<void> {
         actorAccountId: ACTOR_ACCOUNT,
         reason: 'Identity proof accepted',
         at: NOW,
+        audit: {
+          actorPersonId: ACTOR_PERSON,
+          requestId: 'identity-proof-activate',
+          correlationId: 'identity-proof-lifecycle',
+          capability: 'identity.account_link.activate',
+          policyVersion: 'identity-proof.v1',
+          policyReason: 'GRANT_MATCHED',
+          purpose: 'identity.lifecycle',
+          educationOrganizationId: TENANT_A,
+        },
       })
     )
     assert.equal(activated.membershipVersion, 2)
@@ -283,6 +294,16 @@ async function run(): Promise<void> {
         actorAccountId: ACTOR_ACCOUNT,
         reason: 'Proof access withdrawn',
         at: new Date('2026-08-02T13:00:00Z'),
+        audit: {
+          actorPersonId: ACTOR_PERSON,
+          requestId: 'identity-proof-revoke',
+          correlationId: 'identity-proof-lifecycle',
+          capability: 'identity.account_link.revoke',
+          policyVersion: 'identity-proof.v1',
+          policyReason: 'GRANT_MATCHED',
+          purpose: 'identity.lifecycle',
+          educationOrganizationId: TENANT_A,
+        },
       })
     )
     assert.equal(revoked.membershipVersion, 3)
@@ -314,6 +335,16 @@ async function run(): Promise<void> {
           actorAccountId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
           reason: 'This event must fail its actor foreign key',
           at: NOW,
+          audit: {
+            actorPersonId: ACTOR_PERSON,
+            requestId: 'identity-proof-rollback',
+            correlationId: 'identity-proof-rollback',
+            capability: 'identity.account_link.activate',
+            policyVersion: 'identity-proof.v1',
+            policyReason: 'GRANT_MATCHED',
+            purpose: 'identity.lifecycle',
+            educationOrganizationId: TENANT_A,
+          },
         })
       )
     )
