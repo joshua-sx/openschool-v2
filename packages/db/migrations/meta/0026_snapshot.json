@@ -7360,7 +7360,7 @@
           "as": "PERMISSIVE",
           "for": "SELECT",
           "to": ["openschool_runtime"],
-          "using": "\"support_access_notifications\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.support.grants.manage'"
+          "using": "\"support_access_notifications\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.support.grants.manage'\n        AND openschool_private.tenant_admin_can_view_support_notification(\n          \"support_access_notifications\".\"tenant_id\",\n          nullif(current_setting('app.person_id', true), '')::uuid,\n          \"support_access_notifications\".\"support_grant_id\",\n          statement_timestamp()\n        )"
         },
         "support_access_notifications_manager_insert": {
           "name": "support_access_notifications_manager_insert",

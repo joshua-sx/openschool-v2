@@ -353,6 +353,7 @@ describe('database migration baseline', () => {
       'support_access_grants_no_live_overlap',
       'Support Access Grant anchors are immutable',
       'issue_support_access_grant',
+      'tenant_admin_can_view_support_notification',
       'resolve_support_access',
       'close_support_access',
       'revoke_support_access_grant',

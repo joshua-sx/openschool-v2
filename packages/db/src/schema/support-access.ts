@@ -335,7 +335,13 @@ export const supportAccessNotifications = pgTable(
       for: 'select',
       to: 'openschool_runtime',
       using: sql`${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
-        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.support.grants.manage'`,
+        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.support.grants.manage'
+        AND openschool_private.tenant_admin_can_view_support_notification(
+          ${table.tenantId},
+          nullif(current_setting('app.person_id', true), '')::uuid,
+          ${table.supportGrantId},
+          statement_timestamp()
+        )`,
     }),
     pgPolicy('support_access_notifications_manager_insert', {
       for: 'insert',

@@ -31,7 +31,10 @@ const TENANT_A = '00000000-0000-4000-8000-000000000001'
 const TENANT_B = '00000000-0000-4000-8000-000000000002'
 const TENANT_ADMIN_ACCOUNT = '00000000-0000-4000-8000-000000000201'
 const TENANT_ADMIN_PERSON = '00000000-0000-4000-8000-000000000901'
+const SCHOOL_ADMIN_ACCOUNT = '00000000-0000-4000-8000-000000000202'
+const SCHOOL_ADMIN_PERSON = '00000000-0000-4000-8000-000000000902'
 const SCHOOL_A = '00000000-0000-4000-8000-000000000101'
+const SCHOOL_B = '00000000-0000-4000-8000-000000000102'
 const PROOF_TIMEOUT_MS = 90_000
 
 interface VersionRow {
@@ -107,6 +110,7 @@ async function run(): Promise<void> {
   const breakGlassProviderSubject = `break-glass-proof-${breakGlassAccountId}`
   const breakGlassSession = `break-glass-proof-${breakGlassAccountId}`
   const adminSession = `support-admin-proof-${supportAccountId}`
+  const schoolAdminSession = `support-school-admin-proof-${supportAccountId}`
   const freshReauthentication = new Date(Date.now() - 30_000)
   const authenticatedAt = new Date(Date.now() - 60_000)
   const platformValidUntil = new Date(Date.now() + 60 * 60 * 1000)
@@ -118,11 +122,20 @@ async function run(): Promise<void> {
       select membership_version as "membershipVersion", security_version as "securityVersion"
       from accounts where id = ${TENANT_ADMIN_ACCOUNT}
     `
+    const [schoolAdminVersion] = await admin<VersionRow[]>`
+      select membership_version as "membershipVersion", security_version as "securityVersion"
+      from accounts where id = ${SCHOOL_ADMIN_ACCOUNT}
+    `
     assert.ok(adminVersion)
+    assert.ok(schoolAdminVersion)
     const membershipVersion = Number(adminVersion.membershipVersion)
     const securityVersion = Number(adminVersion.securityVersion)
+    const schoolAdminMembershipVersion = Number(schoolAdminVersion.membershipVersion)
+    const schoolAdminSecurityVersion = Number(schoolAdminVersion.securityVersion)
     assert.equal(Number.isSafeInteger(membershipVersion), true)
     assert.equal(Number.isSafeInteger(securityVersion), true)
+    assert.equal(Number.isSafeInteger(schoolAdminMembershipVersion), true)
+    assert.equal(Number.isSafeInteger(schoolAdminSecurityVersion), true)
 
     await admin`
       insert into accounts (
@@ -140,6 +153,8 @@ async function run(): Promise<void> {
         security_version, authenticated_at, reauthenticated_at, expires_at
       ) values
         (${TENANT_ADMIN_ACCOUNT}, ${adminSession}, 'active', 'aal2', ${securityVersion},
+          ${authenticatedAt}, ${freshReauthentication}, ${platformValidUntil}),
+        (${SCHOOL_ADMIN_ACCOUNT}, ${schoolAdminSession}, 'active', 'aal2', ${schoolAdminSecurityVersion},
           ${authenticatedAt}, ${freshReauthentication}, ${platformValidUntil}),
         (${supportAccountId}, ${supportSessionA}, 'active', 'aal2', 1,
           ${authenticatedAt}, ${freshReauthentication}, ${platformValidUntil}),
@@ -178,6 +193,25 @@ async function run(): Promise<void> {
       capability: 'tenant.support.grants.manage',
       policyVersion: '2026-08-03.v3',
       queryConstraints: [{ kind: 'tenant' as const, tenantId: TENANT_A }],
+      correlationId: crypto.randomUUID(),
+    }
+    const schoolAdminContext = {
+      accountId: SCHOOL_ADMIN_ACCOUNT,
+      personId: SCHOOL_ADMIN_PERSON,
+      tenantId: TENANT_A,
+      sessionId: schoolAdminSession,
+      requestId: crypto.randomUUID(),
+      assuranceLevel: 'aal2' as const,
+      reauthenticatedAt: freshReauthentication.toISOString(),
+      membershipVersion: schoolAdminMembershipVersion,
+      securityVersion: schoolAdminSecurityVersion,
+      contextPolicyVersion: 1,
+      activeSchoolId: SCHOOL_A,
+    }
+    const schoolManagementPolicy = {
+      capability: 'tenant.support.grants.manage',
+      policyVersion: '2026-08-03.v3',
+      queryConstraints: [{ kind: 'school' as const, tenantId: TENANT_A, schoolId: SCHOOL_A }],
       correlationId: crypto.randomUUID(),
     }
 
@@ -308,7 +342,7 @@ async function run(): Promise<void> {
         issueSupportAccessGrant(transaction, {
           supportAccountId,
           scopeType: 'school',
-          schoolId: SCHOOL_A,
+          schoolId: SCHOOL_B,
           allowedCapabilities: ['support.schools.read'],
           purpose: 'customer_support',
           ticketReference: 'SUPPORT-POC-2',
@@ -339,6 +373,32 @@ async function run(): Promise<void> {
         )
     )
     assert.equal(reviewed.reviewStatus, 'completed')
+
+    proofStage = 'prove school administrators see notifications only for their authority scope'
+    const schoolAdminNotifications = await withPolicyTenantTransaction(
+      schoolAdminContext,
+      schoolManagementPolicy,
+      (transaction) =>
+        transaction.execute<{ supportGrantId: string }>(sql`
+          select support_grant_id as "supportGrantId"
+          from support_access_notifications
+          where tenant_id = ${TENANT_A}::uuid
+          order by occurred_at, id
+        `)
+    )
+    assert.equal(
+      schoolAdminNotifications.some(
+        (notification) => notification.supportGrantId === approval.supportGrantId
+      ),
+      true
+    )
+    assert.equal(
+      schoolAdminNotifications.some(
+        (notification) => notification.supportGrantId === revocable.supportGrantId
+      ),
+      false
+    )
+
     const visibleGrants = await withPolicyTenantTransaction(
       { ...adminContext, requestId: crypto.randomUUID() },
       { ...managementPolicy, correlationId: crypto.randomUUID() },

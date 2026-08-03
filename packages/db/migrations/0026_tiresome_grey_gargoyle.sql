@@ -657,6 +657,55 @@ AS $$
   )
 $$;--> statement-breakpoint
 
+CREATE FUNCTION "openschool_private"."tenant_admin_can_view_support_notification"(
+  p_tenant_id uuid,
+  p_person_id uuid,
+  p_support_grant_id uuid,
+  p_at timestamp with time zone
+)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog
+AS $$
+  SELECT
+    session_user = 'openschool_runtime'
+    AND current_user = 'openschool_support_grant_manager'
+    AND p_tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid
+    AND p_person_id = nullif(current_setting('app.person_id', true), '')::uuid
+    AND EXISTS (
+      SELECT 1
+      FROM public.support_access_grants AS support_grant
+      WHERE support_grant.tenant_id = p_tenant_id
+        AND support_grant.id = p_support_grant_id
+        AND openschool_private.tenant_admin_can_manage_support(
+          p_tenant_id,
+          p_person_id,
+          support_grant.scope_type,
+          support_grant.education_organization_id,
+          support_grant.school_id,
+          p_at
+        )
+    )
+$$;--> statement-breakpoint
+
+DROP POLICY "support_access_notifications_runtime_select"
+  ON "support_access_notifications";--> statement-breakpoint
+CREATE POLICY "support_access_notifications_runtime_select"
+  ON "support_access_notifications"
+  AS PERMISSIVE FOR SELECT TO "openschool_runtime"
+  USING (
+    "support_access_notifications"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid
+    AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.support.grants.manage'
+    AND openschool_private.tenant_admin_can_view_support_notification(
+      "support_access_notifications"."tenant_id",
+      nullif(current_setting('app.person_id', true), '')::uuid,
+      "support_access_notifications"."support_grant_id",
+      statement_timestamp()
+    )
+  );--> statement-breakpoint
+
 CREATE FUNCTION "openschool_private"."issue_support_access_grant"(
   p_support_account_id uuid,
   p_scope_type text,
@@ -1895,6 +1944,8 @@ ALTER FUNCTION "openschool_private"."append_support_notification"(uuid, uuid, uu
   OWNER TO "openschool_support_grant_manager";--> statement-breakpoint
 ALTER FUNCTION "openschool_private"."tenant_admin_can_manage_support"(uuid, uuid, text, uuid, uuid, timestamp with time zone)
   OWNER TO "openschool_support_grant_manager";--> statement-breakpoint
+ALTER FUNCTION "openschool_private"."tenant_admin_can_view_support_notification"(uuid, uuid, uuid, timestamp with time zone)
+  OWNER TO "openschool_support_grant_manager";--> statement-breakpoint
 ALTER FUNCTION "openschool_private"."issue_support_access_grant"(uuid, text, uuid, uuid, jsonb, text, text, text, timestamp with time zone)
   OWNER TO "openschool_support_grant_manager";--> statement-breakpoint
 ALTER FUNCTION "openschool_private"."revoke_support_access_grant"(uuid, text)
@@ -1914,6 +1965,7 @@ REVOKE CREATE ON SCHEMA "openschool_private"
 
 REVOKE ALL ON FUNCTION "openschool_private"."append_support_notification"(uuid, uuid, uuid, text, uuid, timestamp with time zone) FROM PUBLIC;--> statement-breakpoint
 REVOKE ALL ON FUNCTION "openschool_private"."tenant_admin_can_manage_support"(uuid, uuid, text, uuid, uuid, timestamp with time zone) FROM PUBLIC;--> statement-breakpoint
+REVOKE ALL ON FUNCTION "openschool_private"."tenant_admin_can_view_support_notification"(uuid, uuid, uuid, timestamp with time zone) FROM PUBLIC;--> statement-breakpoint
 REVOKE ALL ON FUNCTION "openschool_private"."issue_support_access_grant"(uuid, text, uuid, uuid, jsonb, text, text, text, timestamp with time zone) FROM PUBLIC;--> statement-breakpoint
 REVOKE ALL ON FUNCTION "openschool_private"."revoke_support_access_grant"(uuid, text) FROM PUBLIC;--> statement-breakpoint
 REVOKE ALL ON FUNCTION "openschool_private"."review_support_access_grant"(uuid, text, text) FROM PUBLIC;--> statement-breakpoint
@@ -1940,6 +1992,8 @@ GRANT EXECUTE ON FUNCTION "openschool_private"."append_support_notification"(uui
   TO "openschool_support_grant_manager", "openschool_support_access_resolver";--> statement-breakpoint
 GRANT EXECUTE ON FUNCTION "openschool_private"."tenant_admin_can_manage_support"(uuid, uuid, text, uuid, uuid, timestamp with time zone)
   TO "openschool_support_grant_manager";--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION "openschool_private"."tenant_admin_can_view_support_notification"(uuid, uuid, uuid, timestamp with time zone)
+  TO "openschool_runtime";--> statement-breakpoint
 
 REVOKE ALL ON TABLE
   public.support_access_grants, public.support_access_notifications,
