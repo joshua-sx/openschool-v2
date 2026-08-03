@@ -380,5 +380,7 @@ describe('database migration baseline', () => {
       migration.includes('GRANT SELECT ON TABLE public.students TO "openschool_worker"'),
       false
     )
+    assert.equal(migration.includes('CHECK (("audit_events".'), false)
+    assert.equal(migration.includes('CHECK ("platform_access_grants".'), false)
   })
 })
