@@ -226,6 +226,7 @@ async function resolveLearnerAnchor(
   requireCurrent: boolean
 ): Promise<LearnerContactAnchor> {
   const at = new Date()
+  const atIso = at.toISOString()
   const filters = [
     eq(schoolEnrollments.tenantId, tenantId),
     or(eq(schoolEnrollments.personId, learnerId), eq(schoolEnrollments.legacyStudentId, learnerId)),
@@ -243,8 +244,11 @@ async function resolveLearnerAnchor(
       schoolId: schoolEnrollments.schoolId,
       current: sql<boolean>`
         ${schoolEnrollments.status} = 'enrolled'
-        AND ${schoolEnrollments.validFrom} <= ${at}
-        AND (${schoolEnrollments.validUntil} IS NULL OR ${schoolEnrollments.validUntil} > ${at})
+        AND ${schoolEnrollments.validFrom} <= ${atIso}::timestamptz
+        AND (
+          ${schoolEnrollments.validUntil} IS NULL
+          OR ${schoolEnrollments.validUntil} > ${atIso}::timestamptz
+        )
       `,
     })
     .from(schoolEnrollments)
