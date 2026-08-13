@@ -17,7 +17,7 @@ import {
   type PolicyContext,
 } from '@openschool/rbac'
 import { TRPCError } from '@trpc/server'
-import { and, asc, desc, eq, ilike, isNull, lte, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm'
 import {
   assertDatabasePolicyContext,
   assertStudentSliceEnabled,
@@ -326,7 +326,8 @@ async function loadContacts(
     .where(
       and(
         eq(personRelationships.tenantId, tenantId),
-        eq(personRelationships.relatedPersonId, learnerPersonId)
+        eq(personRelationships.relatedPersonId, learnerPersonId),
+        inArray(personRelationships.type, ['parent_of', 'guardian_of', 'emergency_contact_of'])
       )
     )
     .orderBy(

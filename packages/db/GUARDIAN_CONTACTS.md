@@ -8,7 +8,8 @@ not authorize real school data.
 - A contact is a Tenant-scoped **Person**. An **Account** and **Account Link** are optional.
 - A **Relationship** links that Person to one learner as `parent_of`, `guardian_of`, or
   `emergency_contact_of`. One Person may have effective relationships to multiple learners in the
-  same Tenant.
+  same Tenant. At most one of those relationship types may be active for the same Person and
+  learner; a partial unique index enforces the rule under concurrent requests.
 - Relationship type, legal authority, decision authority, emergency priority, pickup authority,
   and portal eligibility are independent facts. Emergency contacts cannot be portal eligible.
 - Contact method and phone belong to the contact profile. Relationship powers belong to the
@@ -36,7 +37,9 @@ functions require, and cannot be assumed by runtime, worker, or control-plane lo
   canonical learner in the approved scope;
 - use a fixed empty catalog search path and schema-qualified objects;
 - expose execution only to the runtime role after revoking `PUBLIC`;
-- preserve forced RLS through the narrow function owner rather than a superuser/schema owner; and
+- preserve forced RLS through the narrow function owner rather than a superuser/schema owner;
+- reject non-guardian relationship types even when their identifiers are in an otherwise approved
+  learner scope; and
 - increment a linked Account's membership version whenever portal authorization is enabled,
   disabled, or ended.
 
@@ -59,9 +62,10 @@ errors.
 
 `guardian:contacts-poc` runs through the real non-owner runtime role on disposable PostgreSQL. It
 proves Account-optional creation, independent facts, scoped duplicate suggestions, explicit reuse,
-sibling/cross-Tenant denial, direct-write denial, portal-only guardian context, immediate
-membership invalidation, retained history, and redacted atomic audit/outbox evidence. The proof is
-part of the automated Tenant Isolation Matrix.
+concurrent duplicate rejection, non-guardian relationship exclusion, sibling/cross-Tenant denial,
+direct-write denial, portal-only guardian context, immediate membership invalidation, retained
+history, and redacted atomic audit/outbox evidence. The proof is part of the automated Tenant
+Isolation Matrix.
 
 Policy bundle `2026-08-03.v5` is the accepted rollback before guardian-contact capabilities. A
 rollback may disable the new workflow and select that bundle, but it must retain relationships,

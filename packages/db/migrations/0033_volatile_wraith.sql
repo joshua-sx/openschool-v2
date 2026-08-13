@@ -23,6 +23,7 @@ ALTER TABLE "person_relationships" ADD COLUMN "version" bigint DEFAULT 1 NOT NUL
 ALTER TABLE "contact_profiles" ADD CONSTRAINT "contact_profiles_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE restrict ON UPDATE restrict;--> statement-breakpoint
 ALTER TABLE "contact_profiles" ADD CONSTRAINT "contact_profiles_tenant_person_fk" FOREIGN KEY ("tenant_id","person_id") REFERENCES "public"."people"("tenant_id","id") ON DELETE restrict ON UPDATE restrict;--> statement-breakpoint
 CREATE INDEX "contact_profiles_tenant_phone_idx" ON "contact_profiles" USING btree ("tenant_id","normalized_phone");--> statement-breakpoint
+CREATE UNIQUE INDEX "person_relationships_one_active_contact_per_learner_idx" ON "person_relationships" USING btree ("tenant_id","subject_person_id","related_person_id") WHERE "person_relationships"."status" = 'active' AND "person_relationships"."type" IN ('parent_of', 'guardian_of', 'emergency_contact_of');--> statement-breakpoint
 ALTER TABLE "person_relationships" ADD CONSTRAINT "person_relationships_decision_authority_check" CHECK ("person_relationships"."decision_authority" IN ('none', 'shared', 'sole', 'limited'));--> statement-breakpoint
 ALTER TABLE "person_relationships" ADD CONSTRAINT "person_relationships_emergency_priority_check" CHECK ("person_relationships"."emergency_priority" IS NULL OR "person_relationships"."emergency_priority" BETWEEN 1 AND 99);--> statement-breakpoint
 ALTER TABLE "person_relationships" ADD CONSTRAINT "person_relationships_portal_eligibility_check" CHECK (NOT "person_relationships"."portal_eligible" OR "person_relationships"."type" IN ('guardian_of', 'parent_of'));--> statement-breakpoint
@@ -97,6 +98,7 @@ AS $$
     FROM public.person_relationships AS relationship
     WHERE relationship.tenant_id = row_tenant_id
       AND relationship.subject_person_id = contact_person_id
+      AND relationship.type IN ('parent_of', 'guardian_of', 'emergency_contact_of')
       AND public.openschool_guardian_contact_read_scope_allows(
         relationship.tenant_id, relationship.related_person_id
       )
@@ -118,6 +120,7 @@ AS $$
     FROM public.person_relationships AS relationship
     WHERE relationship.tenant_id = row_tenant_id
       AND relationship.subject_person_id = contact_person_id
+      AND relationship.type IN ('parent_of', 'guardian_of', 'emergency_contact_of')
       AND public.openschool_guardian_contact_manage_scope_allows(
         relationship.tenant_id, relationship.related_person_id
       )
@@ -524,6 +527,7 @@ BEGIN
   FROM public.person_relationships AS relationship
   WHERE relationship.tenant_id = v_tenant_id
     AND relationship.id = p_relationship_id
+    AND relationship.type IN ('parent_of', 'guardian_of', 'emergency_contact_of')
     AND relationship.status = 'active'
   FOR UPDATE;
 
@@ -618,6 +622,7 @@ BEGIN
   FROM public.person_relationships AS relationship
   WHERE relationship.tenant_id = v_tenant_id
     AND relationship.id = p_relationship_id
+    AND relationship.type IN ('parent_of', 'guardian_of', 'emergency_contact_of')
     AND relationship.status = 'active'
   FOR UPDATE;
 

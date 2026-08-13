@@ -3140,6 +3140,34 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "person_relationships_one_active_contact_per_learner_idx": {
+          "name": "person_relationships_one_active_contact_per_learner_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject_person_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "related_person_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"person_relationships\".\"status\" = 'active' AND \"person_relationships\".\"type\" IN ('parent_of', 'guardian_of', 'emergency_contact_of')",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {

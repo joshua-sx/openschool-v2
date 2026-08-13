@@ -274,6 +274,55 @@ async function runProof(): Promise<void> {
       )
     assert.equal(linksBeforeInvitation.length, 0)
 
+    const unrelatedRelationshipId = crypto.randomUUID()
+    await admin.insert(personRelationships).values({
+      id: unrelatedRelationshipId,
+      tenantId: TENANT_A,
+      subjectPersonId: primary.contactPersonId,
+      relatedPersonId: LEARNER_HIGH,
+      type: 'other',
+      status: 'active',
+      validFrom: now,
+      issuedByAccountId: ORG_ADMIN_ACCOUNT,
+      issuanceReason: 'Non-guardian relationship mutation denial fixture',
+    })
+    const unrelatedContacts = await getGuardianContacts(
+      databaseContext('read-unrelated-type'),
+      orgContext,
+      orgRead,
+      LEARNER_HIGH
+    )
+    assert.equal(
+      unrelatedContacts.some(({ relationshipId }) => relationshipId === unrelatedRelationshipId),
+      false
+    )
+    assert.equal(
+      await failureFingerprint(
+        updateGuardianContact(databaseContext('update-unrelated-type'), orgContext, orgManage, {
+          relationshipId: unrelatedRelationshipId,
+          expectedVersion: 1,
+          legalAuthority: true,
+          decisionAuthority: 'sole',
+          pickupAuthority: true,
+          portalEligible: false,
+        })
+      ),
+      'NOT_FOUND:Contact not found'
+    )
+    assert.equal(
+      await failureFingerprint(
+        endGuardianContact(
+          databaseContext('end-unrelated-type'),
+          orgContext,
+          orgManage,
+          unrelatedRelationshipId,
+          1,
+          'Non-guardian relationships cannot be ended through guardian contacts'
+        )
+      ),
+      'NOT_FOUND:Contact not found'
+    )
+
     const candidates = await findGuardianContactCandidates(
       databaseContext('candidate-org'),
       orgContext,
@@ -312,11 +361,8 @@ async function runProof(): Promise<void> {
     assert.ok(duplicate)
     assert.notEqual(duplicate.contactPersonId, primary.contactPersonId)
 
-    const reusedContacts = await createGuardianContact(
-      databaseContext('reuse-primary'),
-      orgContext,
-      orgManage,
-      {
+    const reuseAttempts = await Promise.allSettled([
+      createGuardianContact(databaseContext('reuse-primary-a'), orgContext, orgManage, {
         learnerId: LEARNER_HIGH,
         contact: { kind: 'existing', personId: primary.contactPersonId },
         relationshipType: 'guardian_of',
@@ -324,9 +370,33 @@ async function runProof(): Promise<void> {
         decisionAuthority: 'none',
         pickupAuthority: false,
         portalEligible: false,
-        issuanceReason: 'Same-Tenant contact reuse proof',
-      }
+        issuanceReason: 'Concurrent same-Tenant contact reuse proof A',
+      }),
+      createGuardianContact(databaseContext('reuse-primary-b'), orgContext, orgManage, {
+        learnerId: LEARNER_HIGH,
+        contact: { kind: 'existing', personId: primary.contactPersonId },
+        relationshipType: 'guardian_of',
+        legalAuthority: false,
+        decisionAuthority: 'none',
+        pickupAuthority: false,
+        portalEligible: false,
+        issuanceReason: 'Concurrent same-Tenant contact reuse proof B',
+      }),
+    ])
+    const successfulReuse = reuseAttempts.filter(
+      (
+        attempt
+      ): attempt is PromiseFulfilledResult<Awaited<ReturnType<typeof createGuardianContact>>> =>
+        attempt.status === 'fulfilled'
     )
+    const rejectedReuse = reuseAttempts.filter(
+      (attempt): attempt is PromiseRejectedResult => attempt.status === 'rejected'
+    )
+    assert.equal(successfulReuse.length, 1)
+    assert.equal(rejectedReuse.length, 1)
+    assert.ok(rejectedReuse[0]?.reason instanceof TRPCError)
+    assert.equal(rejectedReuse[0]?.reason.code, 'CONFLICT')
+    const reusedContacts = successfulReuse[0]?.value ?? []
     assert.ok(
       reusedContacts.some(({ contactPersonId }) => contactPersonId === primary.contactPersonId)
     )
@@ -591,7 +661,7 @@ async function runProof(): Promise<void> {
     assert.equal(serializedChanges.includes('5550101'), false)
 
     console.log(
-      'Guardian contact proof passed: Account-optional People, explicit operational and authorization facts, duplicate suggestions without merging, same-Tenant reuse, sibling/cross-Tenant indistinguishable denial, forced-RLS mutation denial, current portal-only guardian context, membership invalidation, history, and atomic redacted audit/outbox evidence.'
+      'Guardian contact proof passed: Account-optional People, explicit operational and authorization facts, concurrent duplicate rejection, non-guardian relationship exclusion, same-Tenant reuse, sibling/cross-Tenant indistinguishable denial, forced-RLS mutation denial, current portal-only guardian context, membership invalidation, history, and atomic redacted audit/outbox evidence.'
     )
   } catch (error) {
     failure = error

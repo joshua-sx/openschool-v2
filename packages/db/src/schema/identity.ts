@@ -14,6 +14,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
 import { classes } from './classes'
@@ -449,6 +450,11 @@ export const personRelationships = pgTable(
   },
   (table) => [
     unique('person_relationships_tenant_id_id_unique').on(table.tenantId, table.id),
+    uniqueIndex('person_relationships_one_active_contact_per_learner_idx')
+      .on(table.tenantId, table.subjectPersonId, table.relatedPersonId)
+      .where(
+        sql`${table.status} = 'active' AND ${table.type} IN ('parent_of', 'guardian_of', 'emergency_contact_of')`
+      ),
     foreignKey({
       name: 'person_relationships_tenant_subject_fk',
       columns: [table.tenantId, table.subjectPersonId],

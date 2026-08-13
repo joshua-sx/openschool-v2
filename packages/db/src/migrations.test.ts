@@ -169,6 +169,8 @@ describe('database migration baseline', () => {
       'ALTER TABLE "person_relationships" FORCE ROW LEVEL SECURITY',
       'ALTER TABLE "contact_profiles" FORCE ROW LEVEL SECURITY',
       'person_relationships_portal_eligibility_check',
+      'person_relationships_one_active_contact_per_learner_idx',
+      "relationship.type IN ('parent_of', 'guardian_of', 'emergency_contact_of')",
       'openschool_guardian_contact_manage_scope_allows',
       'openschool_private"."create_guardian_contact',
       'openschool_private"."update_guardian_contact',
