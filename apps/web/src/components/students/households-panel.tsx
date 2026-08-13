@@ -26,8 +26,8 @@ type MembershipKind = 'resident' | 'associated'
 type PanelAction =
   | { kind: 'create' }
   | { kind: 'member'; householdId: string }
-  | { kind: 'preferences'; membershipId: string; version: number }
-  | { kind: 'end'; membershipId: string; version: number }
+  | { kind: 'preferences'; membershipId: string; version: number; validFrom: string }
+  | { kind: 'end'; membershipId: string; version: number; validFrom: string }
   | { kind: 'address'; householdId: string }
   | {
       kind: 'edit-address'
@@ -44,12 +44,22 @@ type PanelAction =
         countryCode: string
         deliveryInstructions: string | null
         isPrimary: boolean
+        validFrom: string
       }
     }
 
 function todayLocal(): string {
   const now = new Date()
   return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10)
+}
+
+function nextEffectiveDate(validFrom: string): string {
+  const next = new Date(validFrom)
+  next.setDate(next.getDate() + 1)
+  const nextLocal = new Date(next.getTime() - next.getTimezoneOffset() * 60_000)
+    .toISOString()
+    .slice(0, 10)
+  return nextLocal > todayLocal() ? nextLocal : todayLocal()
 }
 
 function effectiveAt(form: FormData): Date {
@@ -561,6 +571,7 @@ export function HouseholdsPanel({ learnerId }: { learnerId: string }) {
                               kind: 'preferences',
                               membershipId: membership.id,
                               version: membership.version,
+                              validFrom: membership.validFrom,
                             })
                           }
                           className={BUTTON_CLASS}
@@ -575,6 +586,7 @@ export function HouseholdsPanel({ learnerId }: { learnerId: string }) {
                               kind: 'end',
                               membershipId: membership.id,
                               version: membership.version,
+                              validFrom: membership.validFrom,
                             })
                           }
                           className={BUTTON_CLASS}
@@ -819,7 +831,8 @@ export function HouseholdsPanel({ learnerId }: { learnerId: string }) {
                             name="effectiveDate"
                             type="date"
                             required
-                            defaultValue={todayLocal()}
+                            min={nextEffectiveDate(action.validFrom)}
+                            defaultValue={nextEffectiveDate(action.validFrom)}
                             className={INPUT_CLASS}
                           />
                         </label>
@@ -855,7 +868,8 @@ export function HouseholdsPanel({ learnerId }: { learnerId: string }) {
                             name="effectiveDate"
                             type="date"
                             required
-                            defaultValue={todayLocal()}
+                            min={nextEffectiveDate(action.validFrom)}
+                            defaultValue={nextEffectiveDate(action.validFrom)}
                             className={INPUT_CLASS}
                           />
                         </label>
@@ -930,7 +944,8 @@ export function HouseholdsPanel({ learnerId }: { learnerId: string }) {
                               name="effectiveDate"
                               type="date"
                               required
-                              defaultValue={todayLocal()}
+                              min={nextEffectiveDate(action.address.validFrom)}
+                              defaultValue={nextEffectiveDate(action.address.validFrom)}
                               className={INPUT_CLASS}
                             />
                           </label>
