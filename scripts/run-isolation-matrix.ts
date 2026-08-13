@@ -67,7 +67,7 @@ function fallbackMetadata(): IsolationReleaseMetadata {
   return {
     commit: process.env.GITHUB_SHA ?? 'local-uncommitted',
     ciRun: process.env.GITHUB_RUN_ID ?? 'local',
-    migration: '0033_volatile_wraith',
+    migration: '0034_futuristic_rafael_vega',
     postgresVersion: 'not-recorded',
     roleEvidenceDigest: '0'.repeat(64),
     policyEvidenceDigest: '0'.repeat(64),
