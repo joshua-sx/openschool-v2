@@ -396,6 +396,12 @@ CREATE POLICY "household_memberships_scope_resolver_select" ON "household_member
 GRANT USAGE ON SCHEMA "public" TO "openschool_household_scope_resolver";--> statement-breakpoint
 GRANT SELECT ON "school_enrollments", "person_relationships", "household_memberships"
   TO "openschool_household_scope_resolver";--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION "openschool_policy_constraints"(),
+  "openschool_school_scope_allows"(uuid, uuid),
+  "openschool_canonical_student_scope_allows"(uuid, uuid, uuid),
+  "openschool_guardian_contact_read_scope_allows"(uuid, uuid),
+  "openschool_guardian_contact_manage_scope_allows"(uuid, uuid)
+  TO "openschool_household_scope_resolver";--> statement-breakpoint
 CREATE POLICY "household_addresses_runtime_select" ON "household_addresses" AS PERMISSIVE FOR SELECT TO "openschool_runtime" USING (
   "household_addresses"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid
   AND nullif(current_setting('app.policy_capability', true), '')
