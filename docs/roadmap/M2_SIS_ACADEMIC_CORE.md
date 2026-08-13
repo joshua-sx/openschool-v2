@@ -65,7 +65,7 @@ flowchart TD
 | 4 | [#115](https://github.com/joshua-sx/openschool-v2/issues/115) | link guardians and emergency contacts with explicit powers | **Implemented:** informal contact fields to effective relationships and explicit portal eligibility |
 | 5 | [#116](https://github.com/joshua-sx/openschool-v2/issues/116) | represent multiple households and residences | **Implemented:** one-household assumptions to versioned residence, mailing, and sibling-membership history |
 | 6 | [#117](https://github.com/joshua-sx/openschool-v2/issues/117) | create courses/sections and roster enrolled learners | **Implemented:** class schema placeholders to effective, authoritative rosters with legacy parity evidence |
-| 7 | [#118](https://github.com/joshua-sx/openschool-v2/issues/118) | review explainable possible duplicates without mutation | hidden duplicate risk to conservative queue |
+| 7 | [#118](https://github.com/joshua-sx/openschool-v2/issues/118) | review explainable possible duplicates without mutation | **Implemented:** hidden duplicate risk to a conservative, versioned, approval-only queue |
 | 8 | [#119](https://github.com/joshua-sx/openschool-v2/issues/119) | approve and execute a controlled same-Tenant Person merge | manual repair to audited compensating workflow |
 | 9 | [#120](https://github.com/joshua-sx/openschool-v2/issues/120) | search current and historical learners at authorized scope | client filtering to server-owned pagination and scope |
 | 10 | [#121](https://github.com/joshua-sx/openschool-v2/issues/121) | prove the joined SIS journey and retire legacy authority | compatibility mode to supported canonical boundary |

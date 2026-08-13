@@ -7,6 +7,7 @@ import {
   ClipboardList,
   GraduationCap,
   LayoutDashboard,
+  ScanSearch,
   Settings,
   ShieldCheck,
   Users,
@@ -35,6 +36,7 @@ export function Sidebar({ roleTemplateKeys = [] }: { roleTemplateKeys?: readonly
         ...secondaryNavigation,
         { name: 'Academic structure', href: '/settings/academic', icon: CalendarRange },
         { name: 'Courses and sections', href: '/settings/sections', icon: GraduationCap },
+        { name: 'Duplicate review', href: '/settings/duplicate-people', icon: ScanSearch },
         { name: 'Support access', href: '/settings/support-access', icon: ShieldCheck },
       ]
     : secondaryNavigation

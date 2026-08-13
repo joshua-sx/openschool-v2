@@ -680,6 +680,10 @@ describe('database migration baseline', () => {
       "p_action NOT IN ('mark_distinct', 'request_merge_approval')",
       "v_case.status = 'merge_approval_requested'",
       'v_case.current_evidence_hash IS DISTINCT FROM v_candidate.evidence_hash',
+      'person_relationships_duplicate_manager_select',
+      "'tenant.people_duplicates.read', 'tenant.people_duplicates.review'",
+      "SET status = 'superseded'",
+      "'evidence_no_longer_matches'",
       'Execution roles must not assume the duplicate review manager',
     ]) {
       assert.equal(workflow.includes(expected), true, `workflow must include ${expected}`)

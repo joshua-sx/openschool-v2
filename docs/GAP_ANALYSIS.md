@@ -79,8 +79,8 @@ This document provides a comprehensive gap analysis between what's currently imp
 | Component | Gap | Priority |
 |-----------|-----|----------|
 | Required Field Validation | Add validation for required student fields | P1 |
-| Duplicate Detection | Implement duplicate detection algorithm | P1 |
-| Duplicate Resolution UI | Admin UI to merge/resolve duplicates | P1 |
+| Duplicate Detection | ✅ Preview: bounded, explainable School-scoped candidates | P1 |
+| Duplicate Resolution UI | ⚠️ Partial: distinct/approval-request review exists; controlled merge is #119 | P1 |
 | Soft Delete Prevention | Prevent deletion of active students | P1 |
 | Historical Read-only Views | Read-only views for past academic years | P1 |
 | Student Profile UI | Admin UI for managing student records | P1 |
@@ -91,8 +91,8 @@ This document provides a comprehensive gap analysis between what's currently imp
 |-----------|-----|----------|
 | Household closure and bulk move workflows | Core effective household, membership, and address history now exists; add household closure, coordinated family moves, and address verification | P1 |
 | Section operations beyond roster authority | Canonical Courses, homerooms/course Sections, staff assignments, and effective rosters now exist; add periods, rooms, timetable solving, bulk roster import, and joined teacher/guardian/student portals | P1 |
-| Duplicate Detection Logic | Algorithm to detect potential duplicates | P1 |
-| Duplicate Resolution Workflow | Merge/resolve duplicate records | P1 |
+| Duplicate Detection Logic | ✅ Preview: deterministic evidence with suppression/reopening | P1 |
+| Duplicate Resolution Workflow | ⚠️ Review queue exists; merge preview/execution/compensation remains #119 | P1 |
 
 ---
 

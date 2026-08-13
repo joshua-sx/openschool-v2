@@ -23,6 +23,7 @@ import {
   assertStudentSliceEnabled,
   toDatabasePolicyContext,
 } from './database-context'
+import { refreshPersonDuplicateCandidatesInTransaction } from './duplicate-people'
 
 const MAX_CONTACTS = 100
 const MAX_CANDIDATES = 10
@@ -495,7 +496,14 @@ export async function createGuardianContact(
             ${input.issuanceReason.trim()}
           )
         `)
-        if (!rows[0]) throw new Error('GUARDIAN_CONTACT_CREATE_FAILED')
+        const created = rows[0]
+        if (!created) throw new Error('GUARDIAN_CONTACT_CREATE_FAILED')
+        await refreshPersonDuplicateCandidatesInTransaction(
+          db,
+          created.contactPersonId,
+          learner.schoolId,
+          'Candidate refresh after guardian contact creation'
+        )
         await appendAuditEventInTransaction(db, databaseContext, context, decision, {
           eventType: 'guardian.contact.create',
           outcome: 'succeeded',

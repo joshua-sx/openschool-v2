@@ -1,6 +1,7 @@
 import { router } from '../trpc/context'
 import { academicStructureRouter } from './academic-structure'
 import { accountSecurityRouter } from './account-security'
+import { duplicatePeopleRouter } from './duplicate-people'
 import { exampleRouter } from './example'
 import { guardianContactsRouter } from './guardian-contacts'
 import { householdsRouter } from './households'
@@ -22,6 +23,7 @@ export const appRouter = router({
   studentEnrollments: studentEnrollmentsRouter,
   schools: schoolsRouter,
   sections: sectionsRouter,
+  duplicatePeople: duplicatePeopleRouter,
   invitations: invitationsRouter,
   platform: platformRouter,
   supportAccess: supportAccessRouter,

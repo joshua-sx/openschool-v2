@@ -50,7 +50,14 @@ export default function NewStudentPage() {
   const selectedSchool = schools?.find(({ id }) => id === effectiveSchoolId)
 
   const createMutation = trpc.students.create.useMutation({
-    onSuccess: (student) => router.push(`/students/${student.id}`),
+    onSuccess: (student) => {
+      const warning = student.possibleDuplicateCount ?? 0
+      router.push(
+        warning > 0
+          ? `/students/${student.id}?possibleDuplicates=${warning}`
+          : `/students/${student.id}`
+      )
+    },
     onError: (error) => setServerError(error.message),
   })
 

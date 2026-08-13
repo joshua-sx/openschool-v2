@@ -28,9 +28,62 @@ CREATE POLICY "school_enrollments_duplicate_manager_select" ON "school_enrollmen
   );
 --> statement-breakpoint
 
+CREATE POLICY "person_relationships_duplicate_manager_select" ON "person_relationships"
+  AS PERMISSIVE FOR SELECT TO "openschool_duplicate_review_manager" USING (
+    session_user = 'openschool_runtime'
+    AND current_user = 'openschool_duplicate_review_manager'
+    AND "person_relationships"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid
+    AND "person_relationships"."status" = 'active'
+    AND "person_relationships"."valid_from" <= now()
+    AND (
+      "person_relationships"."valid_until" IS NULL
+      OR "person_relationships"."valid_until" > now()
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM public.school_enrollments AS learner_enrollment
+      WHERE learner_enrollment.tenant_id = "person_relationships"."tenant_id"
+        AND learner_enrollment.person_id = "person_relationships"."related_person_id"
+        AND learner_enrollment.status = 'enrolled'
+        AND learner_enrollment.valid_from <= now()
+        AND (
+          learner_enrollment.valid_until IS NULL
+          OR learner_enrollment.valid_until > now()
+        )
+        AND public.openschool_school_scope_allows(
+          learner_enrollment.tenant_id, learner_enrollment.school_id
+        )
+    )
+  );
+--> statement-breakpoint
+
+ALTER POLICY "schools_runtime_select" ON "schools" TO openschool_runtime USING (
+  "schools"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid
+  AND (
+    "schools"."id" = nullif(current_setting('app.school_id', true), '')::uuid
+    OR (
+      nullif(current_setting('app.policy_capability', true), '') IN (
+        'tenant.schools.read',
+        'tenant.students.create', 'tenant.students.read',
+        'tenant.students.update', 'tenant.students.delete',
+        'support.schools.read', 'support.students.read',
+        'tenant.accounts.invite', 'tenant.accounts.manage',
+        'tenant.academic_structure.read', 'tenant.academic_structure.manage',
+        'tenant.student_enrollments.read', 'tenant.student_enrollments.manage',
+        'tenant.guardian_contacts.read', 'tenant.guardian_contacts.manage',
+        'tenant.sections.read', 'tenant.sections.manage',
+        'tenant.people_duplicates.read', 'tenant.people_duplicates.review',
+        'identity.context.resolve'
+      )
+      AND public.openschool_school_scope_allows("schools"."tenant_id", "schools"."id")
+    )
+  )
+);
+--> statement-breakpoint
+
 GRANT USAGE ON SCHEMA "public", "openschool_private" TO "openschool_duplicate_review_manager";
 GRANT SELECT ON TABLE
-  "people", "affiliations", "school_enrollments",
+  "people", "affiliations", "school_enrollments", "person_relationships",
   "person_duplicate_cases", "person_duplicate_case_events",
   "school_governance_assignments", "organization_tree_closure", "organization_tree_versions"
   TO "openschool_duplicate_review_manager";
@@ -71,6 +124,7 @@ DECLARE
   v_second_person_id uuid;
   v_next_version integer;
   v_next_status text;
+  v_seen_case_ids uuid[] := ARRAY[]::uuid[];
   v_now timestamptz := clock_timestamp();
 BEGIN
   IF session_user <> 'openschool_runtime'
@@ -110,6 +164,23 @@ BEGIN
         AND enrollment.status = 'enrolled'
         AND enrollment.valid_from <= v_now
         AND (enrollment.valid_until IS NULL OR enrollment.valid_until > v_now)
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM public.person_relationships AS relationship
+      INNER JOIN public.school_enrollments AS learner_enrollment
+        ON learner_enrollment.tenant_id = relationship.tenant_id
+        AND learner_enrollment.person_id = relationship.related_person_id
+      WHERE relationship.tenant_id = v_tenant_id
+        AND relationship.subject_person_id = p_person_id
+        AND relationship.type IN ('guardian_of', 'parent_of', 'emergency_contact_of')
+        AND relationship.status = 'active'
+        AND relationship.valid_from <= v_now
+        AND (relationship.valid_until IS NULL OR relationship.valid_until > v_now)
+        AND learner_enrollment.school_id = p_school_id
+        AND learner_enrollment.status = 'enrolled'
+        AND learner_enrollment.valid_from <= v_now
+        AND (learner_enrollment.valid_until IS NULL OR learner_enrollment.valid_until > v_now)
     )
   ) THEN
     RAISE EXCEPTION 'PERSON_DUPLICATE_REFRESH_TARGET_INVALID' USING ERRCODE = '42501';
@@ -188,6 +259,23 @@ BEGIN
               AND enrollment.valid_from <= v_now
               AND (enrollment.valid_until IS NULL OR enrollment.valid_until > v_now)
           )
+          OR EXISTS (
+            SELECT 1
+            FROM public.person_relationships AS relationship
+            INNER JOIN public.school_enrollments AS learner_enrollment
+              ON learner_enrollment.tenant_id = relationship.tenant_id
+              AND learner_enrollment.person_id = relationship.related_person_id
+            WHERE relationship.tenant_id = v_tenant_id
+              AND relationship.subject_person_id = person.id
+              AND relationship.type IN ('guardian_of', 'parent_of', 'emergency_contact_of')
+              AND relationship.status = 'active'
+              AND relationship.valid_from <= v_now
+              AND (relationship.valid_until IS NULL OR relationship.valid_until > v_now)
+              AND learner_enrollment.school_id = p_school_id
+              AND learner_enrollment.status = 'enrolled'
+              AND learner_enrollment.valid_from <= v_now
+              AND (learner_enrollment.valid_until IS NULL OR learner_enrollment.valid_until > v_now)
+          )
         )
     )
     SELECT
@@ -249,7 +337,9 @@ BEGIN
         AND duplicate_case.second_person_id = v_second_person_id
       FOR UPDATE;
 
-      IF v_case.current_evidence_hash IS DISTINCT FROM v_candidate.evidence_hash THEN
+      IF v_case.current_evidence_hash IS DISTINCT FROM v_candidate.evidence_hash
+        OR v_case.status = 'superseded'
+      THEN
         v_next_version := v_case.current_version + 1;
         v_next_status := CASE
           WHEN v_case.status = 'merge_approval_requested' THEN v_case.status
@@ -280,6 +370,32 @@ BEGIN
       RETURN QUERY SELECT v_case.id, v_candidate.id, v_candidate.score,
         v_candidate.signals, v_case.status;
     END IF;
+    v_seen_case_ids := array_append(v_seen_case_ids, v_case.id);
+  END LOOP;
+
+  FOR v_case IN
+    SELECT duplicate_case.*
+    FROM public.person_duplicate_cases AS duplicate_case
+    WHERE duplicate_case.tenant_id = v_tenant_id
+      AND duplicate_case.review_school_id = p_school_id
+      AND duplicate_case.status = 'open'
+      AND p_person_id IN (duplicate_case.first_person_id, duplicate_case.second_person_id)
+      AND NOT (duplicate_case.id = ANY(v_seen_case_ids))
+    ORDER BY duplicate_case.id
+    FOR UPDATE
+  LOOP
+    v_next_version := v_case.current_version + 1;
+    UPDATE public.person_duplicate_cases AS duplicate_case
+    SET status = 'superseded', current_version = v_next_version, updated_at = v_now
+    WHERE duplicate_case.tenant_id = v_tenant_id AND duplicate_case.id = v_case.id;
+    INSERT INTO public.person_duplicate_case_events (
+      tenant_id, review_school_id, case_id, version, event_type, score,
+      signals, evidence_hash, reason, actor_account_id, created_at
+    ) VALUES (
+      v_tenant_id, p_school_id, v_case.id, v_next_version,
+      'evidence_no_longer_matches', v_case.current_score, v_case.current_signals,
+      v_case.current_evidence_hash, btrim(p_reason), v_account_id, v_now
+    );
   END LOOP;
 END
 $$;
