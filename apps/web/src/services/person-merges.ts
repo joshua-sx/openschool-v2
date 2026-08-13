@@ -152,7 +152,7 @@ export async function createPersonMergePreview(
           targetType: 'person_merge_operation',
           targetId: result.operationId,
           dataClasses: ['student_personal', 'credential'],
-          change: { changedFields: ['status', 'preview_digest', 'dependency_count'] },
+          change: { changedFields: ['status', 'previewDigest', 'dependencyCount'] },
           outbox: {
             topic: 'audit.event.committed',
             deduplicationKey: `person_merge.preview:${databaseContext.requestId}:${result.operationId}`,
@@ -171,7 +171,7 @@ export async function createPersonMergePreview(
         targetType: 'person_duplicate_case',
         targetId: input.caseId,
         dataClasses: ['student_personal', 'credential'],
-        change: { changedFields: ['merge_preview'] },
+        change: { changedFields: ['mergePreview'] },
       })
     } catch (auditError) {
       throw new AggregateError(
@@ -225,7 +225,7 @@ export async function approvePersonMergePreview(
           targetType: 'person_merge_operation',
           targetId: result.operationId,
           dataClasses: ['student_personal', 'credential'],
-          change: { changedFields: ['status', 'approved_by', 'version'] },
+          change: { changedFields: ['status', 'approvedBy', 'version'] },
           outbox: {
             topic: 'audit.event.committed',
             deduplicationKey: `person_merge.approve:${databaseContext.requestId}:${result.operationId}:${result.version}`,

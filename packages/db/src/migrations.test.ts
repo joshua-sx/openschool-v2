@@ -761,6 +761,7 @@ describe('database migration baseline', () => {
     for (const expected of [
       'openschool_private"."create_person_merge_preview',
       'people_person_merge_manager_select',
+      'GRANT EXECUTE ON FUNCTION "openschool_policy_constraints"()',
       'GRANT SELECT ON TABLE "people", "person_duplicate_cases"',
       'GRANT UPDATE ON TABLE "people", "person_duplicate_cases"',
       'people_person_merge_manager_lock',

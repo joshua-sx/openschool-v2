@@ -4,6 +4,10 @@
 GRANT USAGE ON SCHEMA "public", "openschool_private"
   TO "openschool_person_merge_manager";
 --> statement-breakpoint
+GRANT EXECUTE ON FUNCTION "openschool_policy_constraints"(),
+  "openschool_school_scope_allows"(uuid, uuid)
+  TO "openschool_person_merge_manager";
+--> statement-breakpoint
 GRANT SELECT ON TABLE "people", "person_duplicate_cases"
   TO "openschool_person_merge_manager";
 --> statement-breakpoint
