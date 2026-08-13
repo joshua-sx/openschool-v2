@@ -508,8 +508,7 @@ BEGIN
   WHERE operation.tenant_id = v_tenant_id AND operation.id = p_operation_id
     AND public.openschool_school_scope_allows(
       operation.tenant_id, operation.review_school_id
-    )
-  FOR UPDATE;
+    );
   IF NOT FOUND THEN
     RAISE EXCEPTION 'PERSON_MERGE_OPERATION_NOT_FOUND' USING ERRCODE = '42501';
   END IF;
@@ -524,6 +523,17 @@ BEGIN
       0
     )
   );
+
+  SELECT operation.* INTO v_operation
+  FROM public.person_merge_operations AS operation
+  WHERE operation.tenant_id = v_tenant_id AND operation.id = p_operation_id
+    AND public.openschool_school_scope_allows(
+      operation.tenant_id, operation.review_school_id
+    )
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'PERSON_MERGE_OPERATION_NOT_FOUND' USING ERRCODE = '42501';
+  END IF;
 
   IF v_operation.status <> 'pending_approval'
     OR v_operation.current_version <> p_expected_operation_version
