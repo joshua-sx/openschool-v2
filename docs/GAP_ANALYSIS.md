@@ -90,6 +90,7 @@ This document provides a comprehensive gap analysis between what's currently imp
 | Component | Gap | Priority |
 |-----------|-----|----------|
 | Household closure and bulk move workflows | Core effective household, membership, and address history now exists; add household closure, coordinated family moves, and address verification | P1 |
+| Section operations beyond roster authority | Canonical Courses, homerooms/course Sections, staff assignments, and effective rosters now exist; add periods, rooms, timetable solving, bulk roster import, and joined teacher/guardian/student portals | P1 |
 | Duplicate Detection Logic | Algorithm to detect potential duplicates | P1 |
 | Duplicate Resolution Workflow | Merge/resolve duplicate records | P1 |
 

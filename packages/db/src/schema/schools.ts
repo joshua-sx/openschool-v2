@@ -78,6 +78,7 @@ export const schools = pgTable(
                 'tenant.academic_structure.read', 'tenant.academic_structure.manage',
                 'tenant.student_enrollments.read', 'tenant.student_enrollments.manage',
                 'tenant.guardian_contacts.read', 'tenant.guardian_contacts.manage',
+                'tenant.sections.read', 'tenant.sections.manage',
                 'identity.context.resolve'
               )
             AND public.openschool_school_scope_allows(

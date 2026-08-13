@@ -11,6 +11,7 @@ export const ISOLATION_EVIDENCE_IDS = [
   'student_enrollment_lifecycle',
   'guardian_contacts',
   'household_residences',
+  'sections',
   'student_rls',
   'audit_ledger',
   'invitation_onboarding',
@@ -105,6 +106,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'student_enrollment_lifecycle',
       'guardian_contacts',
       'household_residences',
+      'sections',
     ],
     negativeEvidence: [
       'policy_query',
@@ -114,6 +116,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'student_enrollment_lifecycle',
       'guardian_contacts',
       'household_residences',
+      'sections',
     ],
   }),
   row({
@@ -127,6 +130,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'student_enrollment_lifecycle',
       'guardian_contacts',
       'household_residences',
+      'sections',
       'release_metadata',
     ],
     negativeEvidence: [
@@ -136,6 +140,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'student_enrollment_lifecycle',
       'guardian_contacts',
       'household_residences',
+      'sections',
       'database_execution',
     ],
   }),
@@ -158,6 +163,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'student_enrollment_lifecycle',
       'guardian_contacts',
       'household_residences',
+      'sections',
     ],
     negativeEvidence: [
       'policy_query',
@@ -167,6 +173,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'student_enrollment_lifecycle',
       'guardian_contacts',
       'household_residences',
+      'sections',
     ],
   }),
   row({
@@ -268,6 +275,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'student_enrollment_lifecycle',
       'guardian_contacts',
       'household_residences',
+      'sections',
       'audit_partition_lifecycle',
     ],
     negativeEvidence: [
@@ -277,6 +285,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'student_enrollment_lifecycle',
       'guardian_contacts',
       'household_residences',
+      'sections',
       'audit_partition_lifecycle',
     ],
   }),

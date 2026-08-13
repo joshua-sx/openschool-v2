@@ -34,6 +34,7 @@ export function Sidebar({ roleTemplateKeys = [] }: { roleTemplateKeys?: readonly
     ? [
         ...secondaryNavigation,
         { name: 'Academic structure', href: '/settings/academic', icon: CalendarRange },
+        { name: 'Courses and sections', href: '/settings/sections', icon: GraduationCap },
         { name: 'Support access', href: '/settings/support-access', icon: ShieldCheck },
       ]
     : secondaryNavigation

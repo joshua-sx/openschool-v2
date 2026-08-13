@@ -18,7 +18,8 @@ import { schools } from './schools'
 import { tenants } from './tenancy'
 
 const ACADEMIC_READ_CAPABILITIES = sql`
-  'tenant.academic_structure.read', 'tenant.academic_structure.manage'
+  'tenant.academic_structure.read', 'tenant.academic_structure.manage',
+  'tenant.sections.read', 'tenant.sections.manage'
 `
 
 const runtimeAcademicSelect = (tenantId: SQLWrapper, schoolId: SQLWrapper) => sql`
@@ -34,6 +35,15 @@ const configuratorAcademicAccess = (tenantId: SQLWrapper, schoolId: SQLWrapper) 
   AND ${tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
   AND nullif(current_setting('app.policy_capability', true), '')
     = 'tenant.academic_structure.manage'
+  AND public.openschool_school_scope_allows(${tenantId}, ${schoolId})
+`
+
+const sectionManagerAcademicAccess = (tenantId: SQLWrapper, schoolId: SQLWrapper) => sql`
+  session_user = 'openschool_runtime'
+  AND current_user = 'openschool_section_manager'
+  AND ${tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+  AND nullif(current_setting('app.policy_capability', true), '')
+    = 'tenant.sections.manage'
   AND public.openschool_school_scope_allows(${tenantId}, ${schoolId})
 `
 
@@ -161,6 +171,11 @@ export const academicYears = pgTable(
       to: 'openschool_academic_configurator',
       using: configuratorAcademicAccess(table.tenantId, table.schoolId),
     }),
+    pgPolicy('academic_years_section_manager_select', {
+      for: 'select',
+      to: 'openschool_section_manager',
+      using: sectionManagerAcademicAccess(table.tenantId, table.schoolId),
+    }),
     pgPolicy('academic_years_configurator_insert', {
       for: 'insert',
       to: 'openschool_academic_configurator',
@@ -255,6 +270,11 @@ export const academicTerms = pgTable(
       for: 'select',
       to: 'openschool_academic_configurator',
       using: configuratorAcademicAccess(table.tenantId, table.schoolId),
+    }),
+    pgPolicy('academic_terms_section_manager_select', {
+      for: 'select',
+      to: 'openschool_section_manager',
+      using: sectionManagerAcademicAccess(table.tenantId, table.schoolId),
     }),
     pgPolicy('academic_terms_configurator_insert', {
       for: 'insert',
@@ -351,6 +371,11 @@ export const learnerLevels = pgTable(
       for: 'select',
       to: 'openschool_academic_configurator',
       using: configuratorAcademicAccess(table.tenantId, table.schoolId),
+    }),
+    pgPolicy('learner_levels_section_manager_select', {
+      for: 'select',
+      to: 'openschool_section_manager',
+      using: sectionManagerAcademicAccess(table.tenantId, table.schoolId),
     }),
     pgPolicy('learner_levels_configurator_insert', {
       for: 'insert',

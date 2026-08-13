@@ -12,7 +12,8 @@ export const POLICY_VERSION_LEGACY_PARITY = '2026-08-02.legacy-parity'
 export const POLICY_VERSION_ACADEMIC_STRUCTURE = '2026-08-03.v4'
 export const POLICY_VERSION_ENROLLMENT_LIFECYCLE = '2026-08-03.v5'
 export const POLICY_VERSION_GUARDIAN_CONTACTS = '2026-08-03.v6'
-export const POLICY_VERSION_CURRENT = '2026-08-13.v7'
+export const POLICY_VERSION_HOUSEHOLDS = '2026-08-13.v7'
+export const POLICY_VERSION_CURRENT = '2026-08-13.v8'
 
 const audit = (event: string): PolicyObligation => ({ kind: 'audit', event })
 const mfa: PolicyObligation = { kind: 'mfa', assuranceLevel: 'aal2' }
@@ -39,6 +40,7 @@ function tenantRoleTemplates(options: {
   enrollmentLifecycle: boolean
   guardianContacts: boolean
   households: boolean
+  sections: boolean
 }): RoleTemplateDefinition[] {
   const protectedAdmin = (event: string): readonly PolicyObligation[] => [mfa, audit(event)]
   const academicStructureAdmin = (): readonly PolicyObligation[] => [
@@ -68,6 +70,16 @@ function tenantRoleTemplates(options: {
     audit('household.member.end'),
     audit('household.address.add'),
     audit('household.address.revise'),
+  ]
+  const sectionAdmin = (): readonly PolicyObligation[] => [
+    mfa,
+    audit('course.create'),
+    audit('section.create'),
+    audit('section.close'),
+    audit('section.staff.assign'),
+    audit('section.staff.end'),
+    audit('section.roster.add'),
+    audit('section.roster.end'),
   ]
   const recorded = (event: string): readonly PolicyObligation[] => [audit(event)]
 
@@ -115,6 +127,12 @@ function tenantRoleTemplates(options: {
                 SCOPES.ORGANIZATION_SUBTREE,
                 householdAdmin(),
               ] as const,
+            ]
+          : []),
+        ...(options.sections
+          ? [
+              [CAPABILITIES.SECTIONS_READ, SCOPES.ORGANIZATION_SUBTREE] as const,
+              [CAPABILITIES.SECTIONS_MANAGE, SCOPES.ORGANIZATION_SUBTREE, sectionAdmin()] as const,
             ]
           : []),
         [CAPABILITIES.STUDENTS_CREATE, SCOPES.ORGANIZATION_SUBTREE, recorded('student.create')],
@@ -182,6 +200,9 @@ function tenantRoleTemplates(options: {
         ...(options.households
           ? [[CAPABILITIES.HOUSEHOLDS_READ, SCOPES.ORGANIZATION_SUBTREE] as const]
           : []),
+        ...(options.sections
+          ? [[CAPABILITIES.SECTIONS_READ, SCOPES.ORGANIZATION_SUBTREE] as const]
+          : []),
         [CAPABILITIES.STUDENTS_READ, SCOPES.ORGANIZATION_SUBTREE],
         [CAPABILITIES.GRADES_READ, SCOPES.ORGANIZATION_SUBTREE],
         [CAPABILITIES.CLASSES_READ, SCOPES.ORGANIZATION_SUBTREE],
@@ -226,6 +247,12 @@ function tenantRoleTemplates(options: {
           ? [
               [CAPABILITIES.HOUSEHOLDS_READ, SCOPES.SCHOOL] as const,
               [CAPABILITIES.HOUSEHOLDS_MANAGE, SCOPES.SCHOOL, householdAdmin()] as const,
+            ]
+          : []),
+        ...(options.sections
+          ? [
+              [CAPABILITIES.SECTIONS_READ, SCOPES.SCHOOL] as const,
+              [CAPABILITIES.SECTIONS_MANAGE, SCOPES.SCHOOL, sectionAdmin()] as const,
             ]
           : []),
         [CAPABILITIES.STUDENTS_CREATE, SCOPES.SCHOOL, recorded('student.create')],
@@ -279,6 +306,7 @@ function tenantRoleTemplates(options: {
         [CAPABILITIES.STUDENTS_UPDATE, SCOPES.SCHOOL, recorded('student.update')],
         [CAPABILITIES.GRADES_READ, SCOPES.SCHOOL],
         [CAPABILITIES.CLASSES_READ, SCOPES.SCHOOL],
+        ...(options.sections ? [[CAPABILITIES.SECTIONS_READ, SCOPES.SCHOOL] as const] : []),
         [CAPABILITIES.TEACHERS_READ, SCOPES.SCHOOL],
       ]),
     },
@@ -292,6 +320,7 @@ function tenantRoleTemplates(options: {
         [CAPABILITIES.GRADES_READ, SCOPES.CLASS],
         [CAPABILITIES.GRADES_UPDATE, SCOPES.CLASS, recorded('grade.update')],
         [CAPABILITIES.CLASSES_READ, SCOPES.CLASS],
+        ...(options.sections ? [[CAPABILITIES.SECTIONS_READ, SCOPES.CLASS] as const] : []),
         [CAPABILITIES.TEACHERS_READ, SCOPES.SCHOOL],
         [CAPABILITIES.REPORTS_CLASS_READ, SCOPES.CLASS],
         [CAPABILITIES.REPORTS_STUDENT_READ, SCOPES.CLASS],
@@ -305,6 +334,7 @@ function tenantRoleTemplates(options: {
         [CAPABILITIES.STUDENTS_READ, SCOPES.LINKED_STUDENT],
         [CAPABILITIES.GRADES_READ, SCOPES.LINKED_STUDENT],
         [CAPABILITIES.CLASSES_READ, SCOPES.LINKED_STUDENT],
+        ...(options.sections ? [[CAPABILITIES.SECTIONS_READ, SCOPES.LINKED_STUDENT] as const] : []),
         [CAPABILITIES.TEACHERS_READ, SCOPES.SCHOOL],
         [CAPABILITIES.REPORTS_STUDENT_READ, SCOPES.LINKED_STUDENT],
       ]),
@@ -317,6 +347,7 @@ function tenantRoleTemplates(options: {
         [CAPABILITIES.STUDENTS_READ, SCOPES.SELF],
         [CAPABILITIES.GRADES_READ, SCOPES.SELF],
         [CAPABILITIES.CLASSES_READ, SCOPES.SELF],
+        ...(options.sections ? [[CAPABILITIES.SECTIONS_READ, SCOPES.SELF] as const] : []),
         [CAPABILITIES.TEACHERS_READ, SCOPES.SCHOOL],
       ]),
     },
@@ -412,6 +443,7 @@ const legacyParityBundle = createPolicyBundle({
     enrollmentLifecycle: false,
     guardianContacts: false,
     households: false,
+    sections: false,
   }),
 })
 
@@ -424,6 +456,7 @@ const academicStructureBundle = createPolicyBundle({
       enrollmentLifecycle: false,
       guardianContacts: false,
       households: false,
+      sections: false,
     }),
     ...platformRoleTemplates(),
   ],
@@ -438,6 +471,7 @@ const enrollmentLifecycleBundle = createPolicyBundle({
       enrollmentLifecycle: true,
       guardianContacts: false,
       households: false,
+      sections: false,
     }),
     ...platformRoleTemplates(),
   ],
@@ -452,6 +486,22 @@ const guardianContactsBundle = createPolicyBundle({
       enrollmentLifecycle: true,
       guardianContacts: true,
       households: false,
+      sections: false,
+    }),
+    ...platformRoleTemplates(),
+  ],
+})
+
+const householdsBundle = createPolicyBundle({
+  version: POLICY_VERSION_HOUSEHOLDS,
+  roleTemplates: [
+    ...tenantRoleTemplates({
+      supportAccess: true,
+      academicStructure: true,
+      enrollmentLifecycle: true,
+      guardianContacts: true,
+      households: true,
+      sections: false,
     }),
     ...platformRoleTemplates(),
   ],
@@ -466,6 +516,7 @@ const currentBundle = createPolicyBundle({
       enrollmentLifecycle: true,
       guardianContacts: true,
       households: true,
+      sections: true,
     }),
     ...platformRoleTemplates(),
   ],
@@ -476,6 +527,7 @@ export const POLICY_BUNDLES: Readonly<Record<string, PolicyBundle>> = Object.fre
   [academicStructureBundle.version]: academicStructureBundle,
   [enrollmentLifecycleBundle.version]: enrollmentLifecycleBundle,
   [guardianContactsBundle.version]: guardianContactsBundle,
+  [householdsBundle.version]: householdsBundle,
   [currentBundle.version]: currentBundle,
 })
 

@@ -19,6 +19,7 @@ export type ResourceKind =
   | 'student_enrollment'
   | 'guardian_contact'
   | 'household'
+  | 'section'
   | 'class'
   | 'student'
   | 'grade'
