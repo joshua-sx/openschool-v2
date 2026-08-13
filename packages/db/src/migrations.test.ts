@@ -775,6 +775,11 @@ describe('database migration baseline', () => {
       'SET search_path = pg_catalog, extensions, public',
       'OWNER TO "openschool_person_merge_manager"',
       'GRANT EXECUTE ON FUNCTION',
+      'openschool_private"."approve_person_merge_preview',
+      'PERSON_MERGE_DISTINCT_APPROVER_REQUIRED',
+      'PERSON_MERGE_DEPENDENCY_SET_CHANGED',
+      'PERSON_MERGE_TARGET_CONFLICT_CHANGED',
+      "'approval_granted', 'approved'",
     ]) {
       assert.equal(workflow.includes(expected), true, `preview workflow must include ${expected}`)
     }
@@ -784,9 +789,9 @@ describe('database migration baseline', () => {
       'preview workflow must not expose merge execution'
     )
     assert.equal(
-      workflow.includes('approved_by_account_id'),
-      false,
-      'preview workflow must not self-approve'
+      workflow.includes('v_operation.initiated_by_account_id = v_account_id'),
+      true,
+      'approval must reject the initiating Account'
     )
   })
 })

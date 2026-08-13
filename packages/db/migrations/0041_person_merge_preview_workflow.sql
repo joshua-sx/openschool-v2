@@ -346,3 +346,237 @@ GRANT USAGE ON SCHEMA "openschool_private" TO "openschool_runtime";
 --> statement-breakpoint
 GRANT EXECUTE ON FUNCTION "openschool_private"."create_person_merge_preview"(uuid, integer, uuid, uuid, text)
   TO "openschool_runtime";
+--> statement-breakpoint
+CREATE FUNCTION "openschool_private"."approve_person_merge_preview"(
+  p_operation_id uuid,
+  p_expected_operation_version integer,
+  p_expected_preview_digest text,
+  p_reason text
+)
+RETURNS TABLE (
+  operation_id uuid,
+  status text,
+  version integer,
+  preview_digest text,
+  approved_at timestamptz
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, extensions, public
+SET timezone = 'UTC'
+AS $function$
+DECLARE
+  v_tenant_id uuid := nullif(current_setting('app.tenant_id', true), '')::uuid;
+  v_account_id uuid := nullif(current_setting('app.account_id', true), '')::uuid;
+  v_reauthenticated_at timestamptz :=
+    nullif(current_setting('app.reauthenticated_at', true), '')::timestamptz;
+  v_operation public.person_merge_operations%ROWTYPE;
+  v_case public.person_duplicate_cases%ROWTYPE;
+  v_item record;
+  v_item_current boolean;
+  v_relation_count integer;
+  v_person_count integer;
+  v_current_reference_count integer := 0;
+  v_preview_reference_count integer;
+  v_profile_conflict boolean;
+  v_relationship_conflict boolean;
+  v_next_version integer;
+  v_now timestamptz := clock_timestamp();
+BEGIN
+  IF session_user <> 'openschool_runtime'
+    OR current_user <> 'openschool_person_merge_manager'
+    OR nullif(current_setting('app.policy_capability', true), '')
+      <> 'tenant.people_merges.approve'
+    OR nullif(current_setting('app.assurance_level', true), '') <> 'aal2'
+    OR v_tenant_id IS NULL OR v_account_id IS NULL OR v_reauthenticated_at IS NULL
+    OR v_reauthenticated_at < statement_timestamp() - interval '15 minutes'
+    OR v_reauthenticated_at > statement_timestamp() + interval '1 minute'
+    OR p_operation_id IS NULL OR p_expected_operation_version IS NULL
+    OR p_expected_operation_version < 1
+    OR p_expected_preview_digest IS NULL
+    OR p_expected_preview_digest !~ '^[0-9a-f]{64}$'
+    OR p_reason IS NULL OR char_length(btrim(p_reason)) NOT BETWEEN 3 AND 512
+  THEN
+    RAISE EXCEPTION 'PERSON_MERGE_APPROVAL_CONTEXT_INVALID' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT operation.* INTO v_operation
+  FROM public.person_merge_operations AS operation
+  WHERE operation.tenant_id = v_tenant_id AND operation.id = p_operation_id
+    AND public.openschool_school_scope_allows(
+      operation.tenant_id, operation.review_school_id
+    )
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'PERSON_MERGE_OPERATION_NOT_FOUND' USING ERRCODE = '42501';
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended(
+      v_tenant_id::text || ':' || least(
+        v_operation.source_person_id, v_operation.target_person_id
+      )::text || ':' || greatest(
+        v_operation.source_person_id, v_operation.target_person_id
+      )::text,
+      0
+    )
+  );
+
+  IF v_operation.status <> 'pending_approval'
+    OR v_operation.current_version <> p_expected_operation_version
+    OR v_operation.preview_digest <> p_expected_preview_digest
+    OR v_operation.conflict_count <> 0
+  THEN
+    RAISE EXCEPTION 'PERSON_MERGE_PREVIEW_CHANGED' USING ERRCODE = '40001';
+  END IF;
+  IF v_operation.initiated_by_account_id = v_account_id THEN
+    RAISE EXCEPTION 'PERSON_MERGE_DISTINCT_APPROVER_REQUIRED' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT duplicate_case.* INTO v_case
+  FROM public.person_duplicate_cases AS duplicate_case
+  WHERE duplicate_case.tenant_id = v_tenant_id
+    AND duplicate_case.id = v_operation.duplicate_case_id
+  FOR UPDATE;
+  IF NOT FOUND
+    OR v_case.status <> 'merge_approval_requested'
+    OR v_case.current_version <> v_operation.duplicate_case_version
+    OR v_case.current_evidence_hash <> v_operation.duplicate_evidence_hash
+  THEN
+    RAISE EXCEPTION 'PERSON_MERGE_CASE_CHANGED' USING ERRCODE = '40001';
+  END IF;
+
+  SELECT count(*)::integer INTO v_person_count
+  FROM (
+    SELECT person.id
+    FROM public.people AS person
+    WHERE person.tenant_id = v_tenant_id
+      AND person.id IN (v_operation.source_person_id, v_operation.target_person_id)
+      AND person.status IN ('active', 'suspended')
+    ORDER BY person.id
+    FOR UPDATE
+  ) AS locked_people;
+  IF v_person_count <> 2 THEN
+    RAISE EXCEPTION 'PERSON_MERGE_PERSON_CHANGED' USING ERRCODE = '40001';
+  END IF;
+
+  FOR v_item IN
+    SELECT item.relation_name, item.row_fingerprint, item.metadata->>'column' AS column_name
+    FROM public.person_merge_preview_items AS item
+    WHERE item.tenant_id = v_tenant_id AND item.operation_id = p_operation_id
+      AND item.metadata ? 'column'
+    ORDER BY item.relation_name, item.record_key, item.direction
+  LOOP
+    IF v_item.relation_name !~ '^[a-z][a-z0-9_]{0,62}$'
+      OR v_item.column_name !~ '^[a-z][a-z0-9_]{0,62}$'
+    THEN
+      RAISE EXCEPTION 'PERSON_MERGE_PREVIEW_METADATA_INVALID' USING ERRCODE = '22023';
+    END IF;
+    EXECUTE format(
+      'SELECT EXISTS (SELECT 1 FROM public.%I AS source_row WHERE source_row.tenant_id = $1 AND source_row.%I = $2 AND encode(digest(convert_to(to_jsonb(source_row)::text, ''UTF8''), ''sha256''), ''hex'') = $3)',
+      v_item.relation_name,
+      v_item.column_name
+    ) INTO v_item_current USING v_tenant_id, v_operation.source_person_id,
+      v_item.row_fingerprint;
+    IF NOT v_item_current THEN
+      RAISE EXCEPTION 'PERSON_MERGE_DEPENDENCY_CHANGED' USING ERRCODE = '40001';
+    END IF;
+  END LOOP;
+
+  SELECT count(*)::integer INTO v_preview_reference_count
+  FROM public.person_merge_preview_items AS item
+  WHERE item.tenant_id = v_tenant_id AND item.operation_id = p_operation_id
+    AND item.metadata ? 'column';
+
+  FOR v_item IN
+    SELECT child.relname AS relation_name, source_column.attname AS column_name
+    FROM pg_constraint AS constraint_row
+    INNER JOIN pg_class AS child ON child.oid = constraint_row.conrelid
+    INNER JOIN pg_namespace AS child_namespace ON child_namespace.oid = child.relnamespace
+    INNER JOIN LATERAL unnest(constraint_row.conkey) WITH ORDINALITY
+      AS source_key(attnum, position) ON true
+    INNER JOIN LATERAL unnest(constraint_row.confkey) WITH ORDINALITY
+      AS target_key(attnum, position) ON target_key.position = source_key.position
+    INNER JOIN pg_attribute AS source_column
+      ON source_column.attrelid = child.oid AND source_column.attnum = source_key.attnum
+    INNER JOIN pg_attribute AS target_column
+      ON target_column.attrelid = constraint_row.confrelid
+      AND target_column.attnum = target_key.attnum
+    WHERE constraint_row.contype = 'f'
+      AND constraint_row.confrelid = 'public.people'::regclass
+      AND child_namespace.nspname = 'public' AND target_column.attname = 'id'
+      AND child.relname NOT IN (
+        'person_merge_operations', 'person_merge_preview_items', 'person_merge_events'
+      )
+    ORDER BY child.relname, source_column.attname
+  LOOP
+    EXECUTE format(
+      'SELECT count(*)::integer FROM public.%I AS source_row WHERE source_row.tenant_id = $1 AND source_row.%I = $2',
+      v_item.relation_name,
+      v_item.column_name
+    ) INTO v_relation_count USING v_tenant_id, v_operation.source_person_id;
+    v_current_reference_count := v_current_reference_count + v_relation_count;
+  END LOOP;
+  IF v_current_reference_count <> v_preview_reference_count THEN
+    RAISE EXCEPTION 'PERSON_MERGE_DEPENDENCY_SET_CHANGED' USING ERRCODE = '40001';
+  END IF;
+
+  SELECT
+    (EXISTS (SELECT 1 FROM public.contact_profiles WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
+      AND EXISTS (SELECT 1 FROM public.contact_profiles WHERE tenant_id = v_tenant_id AND person_id = v_operation.target_person_id))
+    OR (EXISTS (SELECT 1 FROM public.student_profiles WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
+      AND EXISTS (SELECT 1 FROM public.student_profiles WHERE tenant_id = v_tenant_id AND person_id = v_operation.target_person_id))
+    OR (EXISTS (SELECT 1 FROM public.guardian_profiles WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
+      AND EXISTS (SELECT 1 FROM public.guardian_profiles WHERE tenant_id = v_tenant_id AND person_id = v_operation.target_person_id))
+    OR (EXISTS (SELECT 1 FROM public.employee_profiles WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
+      AND EXISTS (SELECT 1 FROM public.employee_profiles WHERE tenant_id = v_tenant_id AND person_id = v_operation.target_person_id))
+    OR (EXISTS (SELECT 1 FROM public.teacher_profiles WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
+      AND EXISTS (SELECT 1 FROM public.teacher_profiles WHERE tenant_id = v_tenant_id AND person_id = v_operation.target_person_id))
+  INTO v_profile_conflict;
+  SELECT EXISTS (
+    SELECT 1 FROM public.person_relationships AS relationship
+    WHERE relationship.tenant_id = v_tenant_id
+      AND relationship.subject_person_id IN (
+        v_operation.source_person_id, v_operation.target_person_id
+      )
+      AND relationship.related_person_id IN (
+        v_operation.source_person_id, v_operation.target_person_id
+      )
+  ) INTO v_relationship_conflict;
+  IF v_profile_conflict OR v_relationship_conflict THEN
+    RAISE EXCEPTION 'PERSON_MERGE_TARGET_CONFLICT_CHANGED' USING ERRCODE = '40001';
+  END IF;
+
+  v_next_version := v_operation.current_version + 1;
+  UPDATE public.person_merge_operations AS operation
+  SET status = 'approved', current_version = v_next_version,
+    approved_by_account_id = v_account_id, approval_reason = btrim(p_reason),
+    approved_at = v_now, updated_at = v_now
+  WHERE operation.tenant_id = v_tenant_id AND operation.id = p_operation_id
+    AND operation.current_version = p_expected_operation_version;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'PERSON_MERGE_PREVIEW_CHANGED' USING ERRCODE = '40001';
+  END IF;
+
+  INSERT INTO public.person_merge_events (
+    tenant_id, review_school_id, operation_id, version, event_type, operation_status,
+    preview_digest, reason, actor_account_id, created_at
+  ) VALUES (
+    v_tenant_id, v_operation.review_school_id, p_operation_id, v_next_version,
+    'approval_granted', 'approved', v_operation.preview_digest, btrim(p_reason),
+    v_account_id, v_now
+  );
+
+  RETURN QUERY SELECT p_operation_id, 'approved'::text, v_next_version,
+    v_operation.preview_digest, v_now;
+END
+$function$;
+--> statement-breakpoint
+ALTER FUNCTION "openschool_private"."approve_person_merge_preview"(uuid, integer, text, text)
+  OWNER TO "openschool_person_merge_manager";
+--> statement-breakpoint
+REVOKE ALL ON FUNCTION "openschool_private"."approve_person_merge_preview"(uuid, integer, text, text)
+  FROM PUBLIC;
+--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION "openschool_private"."approve_person_merge_preview"(uuid, integer, text, text)
+  TO "openschool_runtime";
