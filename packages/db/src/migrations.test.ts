@@ -210,6 +210,8 @@ describe('database migration baseline', () => {
       'OWNER TO "openschool_household_scope_resolver"',
       '"openschool_canonical_student_scope_allows"(uuid, uuid, uuid)',
       '"openschool_guardian_contact_manage_scope_allows"(uuid, uuid)',
+      '"student_profiles", "enrollments", "affiliations"',
+      '"organization_tree_closure", "organization_tree_versions"',
       'OWNER TO "openschool_household_manager"',
       'Execution roles must not assume Household authority roles',
     ]) {

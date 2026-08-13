@@ -394,7 +394,9 @@ CREATE POLICY "household_memberships_scope_resolver_select" ON "household_member
     )
   );--> statement-breakpoint
 GRANT USAGE ON SCHEMA "public" TO "openschool_household_scope_resolver";--> statement-breakpoint
-GRANT SELECT ON "school_enrollments", "person_relationships", "household_memberships"
+GRANT SELECT ON "school_enrollments", "person_relationships", "household_memberships",
+  "student_profiles", "enrollments", "affiliations", "school_governance_assignments",
+  "organization_tree_closure", "organization_tree_versions"
   TO "openschool_household_scope_resolver";--> statement-breakpoint
 GRANT EXECUTE ON FUNCTION "openschool_policy_constraints"(),
   "openschool_school_scope_allows"(uuid, uuid),
