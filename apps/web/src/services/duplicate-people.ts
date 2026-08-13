@@ -145,6 +145,10 @@ export async function getDuplicateReviewQueue(
   const tenantId = assertReadDecision(context, decision, CAPABILITIES.PEOPLE_DUPLICATES_READ)
   const boundedStatuses = [...new Set(statuses)].slice(0, 4)
   if (boundedStatuses.length < 1) return []
+  const statusArray = sql.join(
+    boundedStatuses.map((status) => sql`${status}`),
+    sql`, `
+  )
 
   return withPolicyTenantTransaction(
     databaseContext,
@@ -186,7 +190,7 @@ export async function getDuplicateReviewQueue(
         and second_person.id = duplicate_case.second_person_id
       where duplicate_case.tenant_id = ${tenantId}::uuid
         and duplicate_case.review_school_id = ${schoolId}::uuid
-        and duplicate_case.status = any(${boundedStatuses}::text[])
+        and duplicate_case.status = any(ARRAY[${statusArray}]::text[])
       order by
         case duplicate_case.status when 'merge_approval_requested' then 0 else 1 end,
         duplicate_case.updated_at desc,
@@ -194,6 +198,10 @@ export async function getDuplicateReviewQueue(
       limit ${MAX_QUEUE_ROWS}
     `)
       const caseIds = rows.map(({ caseId }) => caseId)
+      const caseIdArray = sql.join(
+        caseIds.map((caseId) => sql`${caseId}`),
+        sql`, `
+      )
       const events = caseIds.length
         ? await db.execute<DuplicateCaseEventView>(sql`
           select
@@ -213,7 +221,7 @@ export async function getDuplicateReviewQueue(
                 order by duplicate_event.version desc
               ) as history_rank
             from person_duplicate_case_events as duplicate_event
-            where duplicate_event.case_id = any(${caseIds}::uuid[])
+            where duplicate_event.case_id = any(ARRAY[${caseIdArray}]::uuid[])
           ) as bounded_event
           where bounded_event.history_rank <= ${MAX_EVENTS_PER_CASE}
           order by bounded_event.case_id, bounded_event.version
