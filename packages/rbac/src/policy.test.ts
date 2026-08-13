@@ -5,6 +5,7 @@ import {
   POLICY_VERSION_ACADEMIC_STRUCTURE,
   POLICY_VERSION_CURRENT,
   POLICY_VERSION_ENROLLMENT_LIFECYCLE,
+  POLICY_VERSION_GUARDIAN_CONTACTS,
   POLICY_VERSION_LEGACY_PARITY,
   selectPolicyBundle,
 } from './default-policy'
@@ -633,6 +634,58 @@ describe('capability Policy Decisions', () => {
       'SCOPE_NOT_GRANTED'
     )
   })
+
+  it('separates household reads from MFA-protected household management', () => {
+    const resource = { kind: 'household', tenantId: 'tenant-1', schoolId: 'school-1' } as const
+    const read = decision({
+      capability: CAPABILITIES.HOUSEHOLDS_READ,
+      requestedScope: 'school',
+      resource,
+    })
+    assert.equal(read.effect, 'allow')
+    assert.equal(read.queryConstraints[0]?.kind, 'school')
+
+    const manageRequest = {
+      capability: CAPABILITIES.HOUSEHOLDS_MANAGE,
+      requestedScope: 'school',
+      resource,
+      attributes: { now: NOW },
+    } as const
+    assert.equal(decision(manageRequest).reason, 'MFA_REQUIRED')
+    const manage = decision({
+      ...manageRequest,
+      context: context({ assuranceLevel: 'aal2' }),
+    })
+    assert.equal(manage.effect, 'allow')
+    assert.deepEqual(
+      manage.obligations
+        .filter((obligation) => obligation.kind === 'audit')
+        .map(({ event }) => event),
+      [
+        'household.create',
+        'household.member.add',
+        'household.member.revise',
+        'household.member.end',
+        'household.address.add',
+        'household.address.revise',
+      ]
+    )
+    assert.equal(
+      decision({
+        ...manageRequest,
+        context: context({ roleTemplateKeys: ['staff'], assuranceLevel: 'aal2' }),
+      }).reason,
+      'SCOPE_NOT_GRANTED'
+    )
+    assert.equal(
+      decision({
+        ...manageRequest,
+        bundle: selectPolicyBundle(POLICY_VERSION_GUARDIAN_CONTACTS),
+        context: context({ assuranceLevel: 'aal2' }),
+      }).reason,
+      'SCOPE_NOT_GRANTED'
+    )
+  })
 })
 
 describe('versioned Role Template bundles', () => {
@@ -648,6 +701,8 @@ describe('versioned Role Template bundles', () => {
       [CAPABILITIES.STUDENT_ENROLLMENTS_MANAGE, ['org_admin', 'school_admin']],
       [CAPABILITIES.GUARDIAN_CONTACTS_READ, ['org_admin', 'org_viewer', 'school_admin']],
       [CAPABILITIES.GUARDIAN_CONTACTS_MANAGE, ['org_admin', 'school_admin']],
+      [CAPABILITIES.HOUSEHOLDS_READ, ['org_admin', 'org_viewer', 'school_admin']],
+      [CAPABILITIES.HOUSEHOLDS_MANAGE, ['org_admin', 'school_admin']],
       [CAPABILITIES.STUDENTS_CREATE, ['org_admin', 'school_admin', 'staff']],
       [
         CAPABILITIES.STUDENTS_READ,
@@ -711,6 +766,10 @@ describe('versioned Role Template bundles', () => {
   it('selects only accepted versions for deployment rollback', () => {
     assert.equal(selectPolicyBundle()?.version, POLICY_VERSION_CURRENT)
     assert.equal(selectPolicyBundle(POLICY_VERSION_CURRENT)?.version, POLICY_VERSION_CURRENT)
+    assert.equal(
+      selectPolicyBundle(POLICY_VERSION_GUARDIAN_CONTACTS)?.version,
+      POLICY_VERSION_GUARDIAN_CONTACTS
+    )
     assert.equal(
       selectPolicyBundle(POLICY_VERSION_ENROLLMENT_LIFECYCLE)?.version,
       POLICY_VERSION_ENROLLMENT_LIFECYCLE
