@@ -702,6 +702,8 @@ GRANT SELECT ON
   TO "openschool_guardian_contact_manager";--> statement-breakpoint
 GRANT INSERT ON "people", "person_relationships", "contact_profiles"
   TO "openschool_guardian_contact_manager";--> statement-breakpoint
+GRANT UPDATE ("phone", "normalized_phone", "preferred_contact_method", "updated_at")
+  ON "contact_profiles" TO "openschool_guardian_contact_manager";--> statement-breakpoint
 GRANT UPDATE (
   "legal_authority", "decision_authority", "emergency_priority", "pickup_authority",
   "portal_eligible", "status", "valid_until", "revoked_at", "revoked_by_account_id",
