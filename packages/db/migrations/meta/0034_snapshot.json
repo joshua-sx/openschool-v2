@@ -4822,7 +4822,7 @@
           "as": "PERMISSIVE",
           "for": "SELECT",
           "to": ["openschool_runtime"],
-          "using": "\n        \"school_enrollments\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') IN (\n          \n  'tenant.students.read', 'tenant.students.update',\n  'tenant.students.delete', 'support.students.read',\n  'tenant.student_enrollments.read', 'tenant.student_enrollments.manage'\n,\n          'tenant.guardian_contacts.read', 'tenant.guardian_contacts.manage',\n          'identity.context.resolve'\n        )\n        AND public.openschool_canonical_student_scope_allows(\n          \"school_enrollments\".\"tenant_id\", \"school_enrollments\".\"school_id\", \"school_enrollments\".\"person_id\"\n        )\n      "
+          "using": "\n        \"school_enrollments\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid\n        AND nullif(current_setting('app.policy_capability', true), '') IN (\n          \n  'tenant.students.read', 'tenant.students.update',\n  'tenant.students.delete', 'support.students.read',\n  'tenant.student_enrollments.read', 'tenant.student_enrollments.manage'\n,\n          'tenant.guardian_contacts.read', 'tenant.guardian_contacts.manage',\n          'tenant.households.read', 'tenant.households.manage',\n          'identity.context.resolve'\n        )\n        AND public.openschool_canonical_student_scope_allows(\n          \"school_enrollments\".\"tenant_id\", \"school_enrollments\".\"school_id\", \"school_enrollments\".\"person_id\"\n        )\n      "
         },
         "school_enrollments_runtime_insert_deny": {
           "name": "school_enrollments_runtime_insert_deny",

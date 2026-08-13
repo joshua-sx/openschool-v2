@@ -199,6 +199,7 @@ describe('database migration baseline', () => {
       'household_memberships_primary_mailing_no_overlap',
       'household_addresses_primary_type_no_overlap',
       'ALTER TABLE "households" FORCE ROW LEVEL SECURITY',
+      "'tenant.households.read', 'tenant.households.manage'",
       'openschool_household_person_manage_scope_allows',
       'openschool_private"."create_household',
       'openschool_private"."add_household_member',

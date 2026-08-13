@@ -322,6 +322,25 @@ GRANT EXECUTE ON FUNCTION "openschool_household_read_scope_allows"(uuid, uuid),
   "openschool_household_member_manage_scope_allows"(uuid, uuid, uuid)
   TO "openschool_runtime", "openschool_household_manager";--> statement-breakpoint
 
+DROP POLICY "school_enrollments_runtime_select" ON "school_enrollments";--> statement-breakpoint
+CREATE POLICY "school_enrollments_runtime_select" ON "school_enrollments"
+  AS PERMISSIVE FOR SELECT TO "openschool_runtime" USING (
+    "school_enrollments"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid
+    AND nullif(current_setting('app.policy_capability', true), '') IN (
+      'tenant.students.read', 'tenant.students.update',
+      'tenant.students.delete', 'support.students.read',
+      'tenant.student_enrollments.read', 'tenant.student_enrollments.manage',
+      'tenant.guardian_contacts.read', 'tenant.guardian_contacts.manage',
+      'tenant.households.read', 'tenant.households.manage',
+      'identity.context.resolve'
+    )
+    AND public.openschool_canonical_student_scope_allows(
+      "school_enrollments"."tenant_id",
+      "school_enrollments"."school_id",
+      "school_enrollments"."person_id"
+    )
+  );--> statement-breakpoint
+
 CREATE POLICY "school_enrollments_household_scope_resolver_select" ON "school_enrollments"
   AS PERMISSIVE FOR SELECT TO "openschool_household_scope_resolver" USING (
     session_user = 'openschool_runtime'
