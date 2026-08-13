@@ -277,6 +277,22 @@ async function runProof(): Promise<void> {
     )
     assert.equal(approval.status, 'merge_approval_requested')
     assert.equal(approval.version, 6)
+    assert.equal(
+      await failureFingerprint(
+        reviewDuplicateCase(
+          databaseContext('terminal-transition-denial'),
+          context,
+          reviewDecision,
+          {
+            caseId: duplicateCase.caseId,
+            expectedVersion: 6,
+            action: 'mark_distinct',
+            reason: 'Terminal approval requests cannot be changed in this workflow',
+          }
+        )
+      ),
+      'BAD_REQUEST:Review decision is invalid'
+    )
 
     const siblingFailure = await failureFingerprint(
       getDuplicateReviewQueue(
@@ -343,22 +359,34 @@ async function runProof(): Promise<void> {
       ]
     )
     const decisionAudits = await admin
-      .select({ id: auditEvents.id, eventType: auditEvents.eventType })
+      .select({
+        id: auditEvents.id,
+        eventType: auditEvents.eventType,
+        outcome: auditEvents.outcome,
+      })
       .from(auditEvents)
       .where(
         and(eq(auditEvents.tenantId, TENANT_A), eq(auditEvents.targetId, duplicateCase.caseId))
       )
-    assert.deepEqual(decisionAudits.map(({ eventType }) => eventType).sort(), [
+    const succeededDecisionAudits = decisionAudits.filter(({ outcome }) => outcome === 'succeeded')
+    assert.deepEqual(succeededDecisionAudits.map(({ eventType }) => eventType).sort(), [
       'person_duplicate.distinct',
       'person_duplicate.merge_approval_request',
     ])
+    assert.equal(
+      decisionAudits.filter(
+        ({ eventType, outcome }) =>
+          eventType === 'person_duplicate.distinct' && outcome === 'failed'
+      ).length,
+      1
+    )
     const decisionOutbox = await admin
       .select({ eventId: auditOutbox.auditEventId })
       .from(auditOutbox)
       .where(
         inArray(
           auditOutbox.auditEventId,
-          decisionAudits.map(({ id }) => id)
+          succeededDecisionAudits.map(({ id }) => id)
         )
       )
     assert.equal(decisionOutbox.length, 2)

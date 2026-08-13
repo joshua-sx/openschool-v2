@@ -675,6 +675,7 @@ describe('database migration baseline', () => {
     for (const expected of [
       'FORCE ROW LEVEL SECURITY',
       'person_duplicate_case_events_append_only',
+      'person_duplicate_case_events_validate_school',
       'openschool_private"."refresh_person_duplicate_candidates',
       'openschool_private"."review_person_duplicate_case',
       "p_action NOT IN ('mark_distinct', 'request_merge_approval')",
@@ -684,13 +685,20 @@ describe('database migration baseline', () => {
       "'tenant.people_duplicates.read', 'tenant.people_duplicates.review'",
       "SET status = 'superseded'",
       "'evidence_no_longer_matches'",
-      'public.digest',
+      'SET search_path = pg_catalog, extensions, public',
+      'jsonb_array_length(scored.signals) >= 2',
+      'cardinality(v_seen_case_ids) < 20',
+      "v_case.status <> 'open'",
       'LEAST(100',
       'Execution roles must not assume the duplicate review manager',
     ]) {
       assert.equal(workflow.includes(expected), true, `workflow must include ${expected}`)
     }
-    assert.equal(workflow.includes("p_action = 'merge'"), false)
+    assert.equal(
+      /'merge'(?!_approval)/.test(workflow),
+      false,
+      'workflow must not accept a merge action'
+    )
     for (const expected of [
       'openschool_duplicate_review_manager',
       'person_duplicate_cases, person_duplicate_case_events',

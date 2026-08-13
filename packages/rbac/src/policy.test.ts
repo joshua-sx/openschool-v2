@@ -668,6 +668,17 @@ describe('capability Policy Decisions', () => {
       attributes: { now: NOW },
     } as const
 
+    const read = decision({
+      capability: CAPABILITIES.PEOPLE_DUPLICATES_READ,
+      requestedScope: 'school',
+      resource,
+      attributes: { now: NOW },
+    })
+    assert.equal(read.effect, 'allow')
+    assert.equal(
+      read.obligations.some((obligation) => obligation.kind === 'mfa'),
+      false
+    )
     assert.equal(decision(reviewRequest).reason, 'MFA_REQUIRED')
     const reviewed = decision({
       ...reviewRequest,

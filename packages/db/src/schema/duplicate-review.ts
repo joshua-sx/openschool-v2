@@ -20,7 +20,6 @@ export type PersonDuplicateSignal =
   | 'same_normalized_email'
   | 'same_normalized_name'
   | 'same_date_of_birth'
-  | 'same_normalized_phone'
 
 const managerSchoolAccess = (tenantId: SQLWrapper, schoolId: SQLWrapper) => sql`
   session_user = 'openschool_runtime'

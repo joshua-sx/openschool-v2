@@ -10,7 +10,6 @@ const SIGNAL_LABELS = {
   same_normalized_email: 'Same normalized email',
   same_normalized_name: 'Same normalized name',
   same_date_of_birth: 'Same date of birth',
-  same_normalized_phone: 'Same normalized phone',
 } as const
 
 const INPUT_CLASS =
@@ -18,7 +17,11 @@ const INPUT_CLASS =
 
 function formatDate(value: string | Date | null) {
   if (!value) return 'Not recorded'
-  return new Date(value).toLocaleDateString()
+  const date =
+    typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? new Date(`${value}T00:00:00`)
+      : new Date(value)
+  return date.toLocaleDateString()
 }
 
 function statusLabel(status: string) {
@@ -140,6 +143,14 @@ export function DuplicatePeopleReviewPanel() {
           <Loader2 aria-hidden="true" className="mr-2 h-5 w-5 animate-spin" />
           Loading review queue…
         </div>
+      ) : schools.data?.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
+          <SearchX aria-hidden="true" className="mx-auto h-8 w-8 text-gray-400" />
+          <h2 className="mt-3 text-base font-semibold text-gray-900">No accessible School</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Select a Tenant context with an authorized School to review possible duplicates.
+          </p>
+        </div>
       ) : queue.data?.length ? (
         <div className="space-y-4">
           {queue.data.map((duplicateCase) => {
@@ -236,7 +247,7 @@ export function DuplicatePeopleReviewPanel() {
                   </ol>
                 </details>
 
-                {duplicateCase.status !== 'distinct' && duplicateCase.status !== 'superseded' && (
+                {duplicateCase.status === 'open' && (
                   <div className="border-t border-gray-200 p-5">
                     {!activeDecision ? (
                       <div className="flex flex-wrap gap-3">
@@ -254,22 +265,20 @@ export function DuplicatePeopleReviewPanel() {
                           <CheckCircle2 aria-hidden="true" className="mr-2 h-4 w-4" />
                           Confirm they are distinct
                         </button>
-                        {duplicateCase.status !== 'merge_approval_requested' && (
-                          <button
-                            type="button"
-                            className="inline-flex min-h-10 items-center rounded-lg bg-gray-950 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 focus-visible:outline-2 focus-visible:outline-offset-2"
-                            onClick={() =>
-                              setDecision({
-                                caseId: duplicateCase.caseId,
-                                action: 'request_merge_approval',
-                                reason: '',
-                              })
-                            }
-                          >
-                            <GitPullRequestArrow aria-hidden="true" className="mr-2 h-4 w-4" />
-                            Request merge approval
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          className="inline-flex min-h-10 items-center rounded-lg bg-gray-950 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 focus-visible:outline-2 focus-visible:outline-offset-2"
+                          onClick={() =>
+                            setDecision({
+                              caseId: duplicateCase.caseId,
+                              action: 'request_merge_approval',
+                              reason: '',
+                            })
+                          }
+                        >
+                          <GitPullRequestArrow aria-hidden="true" className="mr-2 h-4 w-4" />
+                          Request merge approval
+                        </button>
                       </div>
                     ) : (
                       <form

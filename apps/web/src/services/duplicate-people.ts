@@ -62,7 +62,7 @@ export interface ReviewDuplicateCaseInput {
   reason: string
 }
 
-function assertReadDecision(
+function assertDuplicateReviewScope(
   context: PolicyContext,
   decision: AllowedPolicyDecision,
   capability:
@@ -142,7 +142,11 @@ export async function getDuplicateReviewQueue(
   statuses: readonly DuplicateQueueRow['status'][] = ['open', 'merge_approval_requested']
 ): Promise<readonly DuplicateCaseView[]> {
   assertDatabasePolicyContext(databaseContext, context)
-  const tenantId = assertReadDecision(context, decision, CAPABILITIES.PEOPLE_DUPLICATES_READ)
+  const tenantId = assertDuplicateReviewScope(
+    context,
+    decision,
+    CAPABILITIES.PEOPLE_DUPLICATES_READ
+  )
   const boundedStatuses = [...new Set(statuses)].slice(0, 4)
   if (boundedStatuses.length < 1) return []
   const statusArray = sql.join(
@@ -247,7 +251,7 @@ export async function reviewDuplicateCase(
   input: ReviewDuplicateCaseInput
 ): Promise<{ caseId: string; status: string; version: number }> {
   assertDatabasePolicyContext(databaseContext, context)
-  assertReadDecision(context, decision, CAPABILITIES.PEOPLE_DUPLICATES_REVIEW)
+  assertDuplicateReviewScope(context, decision, CAPABILITIES.PEOPLE_DUPLICATES_REVIEW)
   const reason = input.reason.normalize('NFKC').trim().replace(/\s+/g, ' ')
   if (reason.length < 3 || reason.length > 512) {
     throw new TRPCError({ code: 'BAD_REQUEST', message: 'Reason must be 3–512 characters' })

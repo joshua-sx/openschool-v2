@@ -55,7 +55,7 @@ This document provides a comprehensive gap analysis between what's currently imp
 | System Status States | ❌ Missing | No system-wide status enum (active/archived/read-only) | P0 |
 | tRPC RBAC Middleware | ⚠️ Verify | Verify/integrate RBAC with tRPC routes | P0 |
 
-### ❌ Not Implemented
+### ⚠️ Incomplete / remaining gaps
 
 | Component | Gap | Priority |
 |-----------|-----|----------|

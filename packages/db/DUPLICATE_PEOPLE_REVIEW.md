@@ -11,7 +11,7 @@ creation remain nonblocking, and the application never combines, deletes, or rew
 - The database limits matching to the active Tenant, selected School, and at most 20 candidates.
   Active guardian, parent, and emergency-contact relationships inherit the learner's School scope.
 - Signals are deterministic and explainable: normalized email, normalized display name, and date of
-  birth. Scores are capped at 100 and require at least 50 points.
+  birth. Scores are capped at 100 and require at least 50 points from at least two signals.
 - A case stores only the matched signal names, score, and a SHA-256 evidence fingerprint. It does not
   duplicate the matched personal values into case history.
 - Confirming People as distinct suppresses identical evidence. Material evidence changes reopen the
@@ -37,7 +37,7 @@ shown only when they explain a matched signal.
 `person_duplicate_cases` and `person_duplicate_case_events` use forced RLS. Runtime callers have
 read-only table access; guarded `SECURITY DEFINER` functions own candidate refresh and decisions
 through a non-login manager role. Context checks require the runtime session identity, Tenant,
-Account, capability, School scope, request ID, and AAL2 for review. Sibling-School and cross-Tenant
+Account, capability, School scope, and AAL2 for review. Sibling-School and cross-Tenant
 requests fail through the same policy boundary, direct writes are denied, and events are append-only.
 
 The disposable-database proof at

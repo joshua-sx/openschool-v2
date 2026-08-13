@@ -83,6 +83,11 @@ export interface CreateGuardianContactInput {
   issuanceReason: string
 }
 
+export interface CreateGuardianContactResult {
+  contacts: readonly GuardianContact[]
+  possibleDuplicateCount: number
+}
+
 export interface UpdateGuardianContactInput {
   relationshipId: string
   expectedVersion: number
@@ -443,7 +448,7 @@ export async function createGuardianContact(
   context: PolicyContext,
   decision: AllowedPolicyDecision,
   input: CreateGuardianContactInput
-): Promise<GuardianContact[]> {
+): Promise<CreateGuardianContactResult> {
   assertStudentSliceEnabled()
   assertDatabasePolicyContext(databaseContext, context)
   const tenantId = assertContactDecision(context, decision, CAPABILITIES.GUARDIAN_CONTACTS_MANAGE)
@@ -498,7 +503,7 @@ export async function createGuardianContact(
         `)
         const created = rows[0]
         if (!created) throw new Error('GUARDIAN_CONTACT_CREATE_FAILED')
-        await refreshPersonDuplicateCandidatesInTransaction(
+        const duplicateWarnings = await refreshPersonDuplicateCandidatesInTransaction(
           db,
           created.contactPersonId,
           learner.schoolId,
@@ -527,7 +532,10 @@ export async function createGuardianContact(
             deduplicationKey: `guardian.contact.create:${databaseContext.requestId}:${relationshipId}`,
           },
         })
-        return loadContacts(db, tenantId, learner.personId)
+        return Object.freeze({
+          contacts: await loadContacts(db, tenantId, learner.personId),
+          possibleDuplicateCount: duplicateWarnings.length,
+        })
       }
     )
   } catch (error) {

@@ -228,7 +228,7 @@ export function GuardianContactsPanel({ learnerId }: { learnerId: string }) {
     setStatus('')
     const form = new FormData(event.currentTarget)
     try {
-      await createContact.mutateAsync({
+      const result = await createContact.mutateAsync({
         learnerId,
         contact:
           contactMode === 'existing'
@@ -254,7 +254,9 @@ export function GuardianContactsPanel({ learnerId }: { learnerId: string }) {
       await refresh()
       resetAdd()
       setStatus(
-        'Contact added. Operational permissions and portal eligibility were recorded separately.'
+        result.possibleDuplicateCount > 0
+          ? `Contact added. OpenSchool found ${result.possibleDuplicateCount} possible existing ${result.possibleDuplicateCount === 1 ? 'Person' : 'People'}; no records were merged.`
+          : 'Contact added. Operational permissions and portal eligibility were recorded separately.'
       )
     } catch (cause) {
       setError(errorMessage(cause))

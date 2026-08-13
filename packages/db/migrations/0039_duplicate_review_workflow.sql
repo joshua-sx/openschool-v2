@@ -13,6 +13,30 @@ CREATE TRIGGER "person_duplicate_case_events_append_only"
   FOR EACH ROW EXECUTE FUNCTION "openschool_reject_immutable_row_mutation"();
 --> statement-breakpoint
 
+CREATE FUNCTION "public"."openschool_validate_duplicate_case_event_school"()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = pg_catalog
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.person_duplicate_cases AS duplicate_case
+    WHERE duplicate_case.tenant_id = NEW.tenant_id
+      AND duplicate_case.id = NEW.case_id
+      AND duplicate_case.review_school_id = NEW.review_school_id
+  ) THEN
+    RAISE EXCEPTION 'PERSON_DUPLICATE_EVENT_CASE_SCOPE_MISMATCH' USING ERRCODE = '23514';
+  END IF;
+  RETURN NEW;
+END
+$$;
+CREATE TRIGGER "person_duplicate_case_events_validate_school"
+  BEFORE INSERT ON "person_duplicate_case_events"
+  FOR EACH ROW EXECUTE FUNCTION "public"."openschool_validate_duplicate_case_event_school"();
+REVOKE ALL ON FUNCTION "public"."openschool_validate_duplicate_case_event_school"() FROM PUBLIC;
+--> statement-breakpoint
+
 CREATE POLICY "school_enrollments_duplicate_manager_select" ON "school_enrollments"
   AS PERMISSIVE FOR SELECT TO "openschool_duplicate_review_manager" USING (
     session_user = 'openschool_runtime'
@@ -110,7 +134,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = pg_catalog, extensions
+SET search_path = pg_catalog, extensions, public
 SET timezone = 'UTC'
 AS $$
 DECLARE
@@ -134,6 +158,7 @@ BEGIN
     )
     OR v_tenant_id IS NULL OR v_account_id IS NULL
     OR p_person_id IS NULL OR p_school_id IS NULL
+    OR p_reason IS NULL
     OR char_length(btrim(p_reason)) NOT BETWEEN 3 AND 512
     OR NOT public.openschool_school_scope_allows(v_tenant_id, p_school_id)
   THEN
@@ -282,7 +307,7 @@ BEGIN
       scored.id,
       scored.score,
       scored.signals,
-      encode(public.digest(convert_to(jsonb_build_object(
+      encode(digest(convert_to(jsonb_build_object(
         'schemaVersion', 1,
         'firstPersonId', LEAST(p_person_id::text, scored.id::text),
         'secondPersonId', GREATEST(p_person_id::text, scored.id::text),
@@ -296,6 +321,7 @@ BEGIN
       )::text, 'UTF8'), 'sha256'), 'hex') AS evidence_hash
     FROM scored
     WHERE scored.score >= 50
+      AND jsonb_array_length(scored.signals) >= 2
     ORDER BY scored.score DESC, scored.id
     LIMIT 20
   LOOP
@@ -373,30 +399,32 @@ BEGIN
     v_seen_case_ids := array_append(v_seen_case_ids, v_case.id);
   END LOOP;
 
-  FOR v_case IN
-    SELECT duplicate_case.*
-    FROM public.person_duplicate_cases AS duplicate_case
-    WHERE duplicate_case.tenant_id = v_tenant_id
-      AND duplicate_case.review_school_id = p_school_id
-      AND duplicate_case.status = 'open'
-      AND p_person_id IN (duplicate_case.first_person_id, duplicate_case.second_person_id)
-      AND NOT (duplicate_case.id = ANY(v_seen_case_ids))
-    ORDER BY duplicate_case.id
-    FOR UPDATE
-  LOOP
-    v_next_version := v_case.current_version + 1;
-    UPDATE public.person_duplicate_cases AS duplicate_case
-    SET status = 'superseded', current_version = v_next_version, updated_at = v_now
-    WHERE duplicate_case.tenant_id = v_tenant_id AND duplicate_case.id = v_case.id;
-    INSERT INTO public.person_duplicate_case_events (
-      tenant_id, review_school_id, case_id, version, event_type, score,
-      signals, evidence_hash, reason, actor_account_id, created_at
-    ) VALUES (
-      v_tenant_id, p_school_id, v_case.id, v_next_version,
-      'evidence_no_longer_matches', v_case.current_score, v_case.current_signals,
-      v_case.current_evidence_hash, btrim(p_reason), v_account_id, v_now
-    );
-  END LOOP;
+  IF cardinality(v_seen_case_ids) < 20 THEN
+    FOR v_case IN
+      SELECT duplicate_case.*
+      FROM public.person_duplicate_cases AS duplicate_case
+      WHERE duplicate_case.tenant_id = v_tenant_id
+        AND duplicate_case.review_school_id = p_school_id
+        AND duplicate_case.status = 'open'
+        AND p_person_id IN (duplicate_case.first_person_id, duplicate_case.second_person_id)
+        AND NOT (duplicate_case.id = ANY(v_seen_case_ids))
+      ORDER BY duplicate_case.id
+      FOR UPDATE
+    LOOP
+      v_next_version := v_case.current_version + 1;
+      UPDATE public.person_duplicate_cases AS duplicate_case
+      SET status = 'superseded', current_version = v_next_version, updated_at = v_now
+      WHERE duplicate_case.tenant_id = v_tenant_id AND duplicate_case.id = v_case.id;
+      INSERT INTO public.person_duplicate_case_events (
+        tenant_id, review_school_id, case_id, version, event_type, score,
+        signals, evidence_hash, reason, actor_account_id, created_at
+      ) VALUES (
+        v_tenant_id, p_school_id, v_case.id, v_next_version,
+        'evidence_no_longer_matches', v_case.current_score, v_case.current_signals,
+        v_case.current_evidence_hash, btrim(p_reason), v_account_id, v_now
+      );
+    END LOOP;
+  END IF;
 END
 $$;
 --> statement-breakpoint
@@ -429,6 +457,7 @@ BEGIN
     OR v_tenant_id IS NULL OR v_account_id IS NULL OR p_case_id IS NULL
     OR p_expected_version IS NULL OR p_expected_version < 1
     OR p_action NOT IN ('mark_distinct', 'request_merge_approval')
+    OR p_reason IS NULL
     OR char_length(btrim(p_reason)) NOT BETWEEN 3 AND 512
   THEN
     RAISE EXCEPTION 'PERSON_DUPLICATE_REVIEW_CONTEXT_INVALID' USING ERRCODE = '22023';
@@ -446,6 +475,9 @@ BEGIN
   END IF;
   IF v_case.current_version <> p_expected_version THEN
     RAISE EXCEPTION 'PERSON_DUPLICATE_CASE_CHANGED' USING ERRCODE = '40001';
+  END IF;
+  IF v_case.status <> 'open' THEN
+    RAISE EXCEPTION 'PERSON_DUPLICATE_CASE_NOT_REVIEWABLE' USING ERRCODE = '22023';
   END IF;
 
   v_status := CASE p_action
