@@ -14,7 +14,8 @@ export const POLICY_VERSION_ENROLLMENT_LIFECYCLE = '2026-08-03.v5'
 export const POLICY_VERSION_GUARDIAN_CONTACTS = '2026-08-03.v6'
 export const POLICY_VERSION_HOUSEHOLDS = '2026-08-13.v7'
 export const POLICY_VERSION_SECTIONS = '2026-08-13.v8'
-export const POLICY_VERSION_CURRENT = '2026-08-13.v9'
+export const POLICY_VERSION_DUPLICATE_REVIEW = '2026-08-13.v9'
+export const POLICY_VERSION_CURRENT = '2026-08-13.v10'
 
 const audit = (event: string): PolicyObligation => ({ kind: 'audit', event })
 const mfa: PolicyObligation = { kind: 'mfa', assuranceLevel: 'aal2' }
@@ -43,6 +44,7 @@ function tenantRoleTemplates(options: {
   households: boolean
   sections: boolean
   duplicateReview: boolean
+  personMerge: boolean
 }): RoleTemplateDefinition[] {
   const protectedAdmin = (event: string): readonly PolicyObligation[] => [mfa, audit(event)]
   const academicStructureAdmin = (): readonly PolicyObligation[] => [
@@ -87,6 +89,11 @@ function tenantRoleTemplates(options: {
     mfa,
     audit('person_duplicate.distinct'),
     audit('person_duplicate.merge_approval_request'),
+  ]
+  const personMergeAdmin = (event: string): readonly PolicyObligation[] => [
+    mfa,
+    recentReauthentication,
+    audit(event),
   ]
   const recorded = (event: string): readonly PolicyObligation[] => [audit(event)]
 
@@ -149,6 +156,21 @@ function tenantRoleTemplates(options: {
                 CAPABILITIES.PEOPLE_DUPLICATES_REVIEW,
                 SCOPES.ORGANIZATION_SUBTREE,
                 duplicateReviewAdmin(),
+              ] as const,
+            ]
+          : []),
+        ...(options.personMerge
+          ? [
+              [CAPABILITIES.PEOPLE_MERGES_READ, SCOPES.ORGANIZATION_SUBTREE] as const,
+              [
+                CAPABILITIES.PEOPLE_MERGES_PREVIEW,
+                SCOPES.ORGANIZATION_SUBTREE,
+                personMergeAdmin('person_merge.preview'),
+              ] as const,
+              [
+                CAPABILITIES.PEOPLE_MERGES_APPROVE,
+                SCOPES.ORGANIZATION_SUBTREE,
+                personMergeAdmin('person_merge.approve'),
               ] as const,
             ]
           : []),
@@ -279,6 +301,21 @@ function tenantRoleTemplates(options: {
                 CAPABILITIES.PEOPLE_DUPLICATES_REVIEW,
                 SCOPES.SCHOOL,
                 duplicateReviewAdmin(),
+              ] as const,
+            ]
+          : []),
+        ...(options.personMerge
+          ? [
+              [CAPABILITIES.PEOPLE_MERGES_READ, SCOPES.SCHOOL] as const,
+              [
+                CAPABILITIES.PEOPLE_MERGES_PREVIEW,
+                SCOPES.SCHOOL,
+                personMergeAdmin('person_merge.preview'),
+              ] as const,
+              [
+                CAPABILITIES.PEOPLE_MERGES_APPROVE,
+                SCOPES.SCHOOL,
+                personMergeAdmin('person_merge.approve'),
               ] as const,
             ]
           : []),
@@ -472,6 +509,7 @@ const legacyParityBundle = createPolicyBundle({
     households: false,
     sections: false,
     duplicateReview: false,
+    personMerge: false,
   }),
 })
 
@@ -486,6 +524,7 @@ const academicStructureBundle = createPolicyBundle({
       households: false,
       sections: false,
       duplicateReview: false,
+      personMerge: false,
     }),
     ...platformRoleTemplates(),
   ],
@@ -502,6 +541,7 @@ const enrollmentLifecycleBundle = createPolicyBundle({
       households: false,
       sections: false,
       duplicateReview: false,
+      personMerge: false,
     }),
     ...platformRoleTemplates(),
   ],
@@ -518,6 +558,7 @@ const guardianContactsBundle = createPolicyBundle({
       households: false,
       sections: false,
       duplicateReview: false,
+      personMerge: false,
     }),
     ...platformRoleTemplates(),
   ],
@@ -534,6 +575,7 @@ const householdsBundle = createPolicyBundle({
       households: true,
       sections: false,
       duplicateReview: false,
+      personMerge: false,
     }),
     ...platformRoleTemplates(),
   ],
@@ -550,6 +592,24 @@ const sectionsBundle = createPolicyBundle({
       households: true,
       sections: true,
       duplicateReview: false,
+      personMerge: false,
+    }),
+    ...platformRoleTemplates(),
+  ],
+})
+
+const duplicateReviewBundle = createPolicyBundle({
+  version: POLICY_VERSION_DUPLICATE_REVIEW,
+  roleTemplates: [
+    ...tenantRoleTemplates({
+      supportAccess: true,
+      academicStructure: true,
+      enrollmentLifecycle: true,
+      guardianContacts: true,
+      households: true,
+      sections: true,
+      duplicateReview: true,
+      personMerge: false,
     }),
     ...platformRoleTemplates(),
   ],
@@ -566,6 +626,7 @@ const currentBundle = createPolicyBundle({
       households: true,
       sections: true,
       duplicateReview: true,
+      personMerge: true,
     }),
     ...platformRoleTemplates(),
   ],
@@ -578,6 +639,7 @@ export const POLICY_BUNDLES: Readonly<Record<string, PolicyBundle>> = Object.fre
   [guardianContactsBundle.version]: guardianContactsBundle,
   [householdsBundle.version]: householdsBundle,
   [sectionsBundle.version]: sectionsBundle,
+  [duplicateReviewBundle.version]: duplicateReviewBundle,
   [currentBundle.version]: currentBundle,
 })
 

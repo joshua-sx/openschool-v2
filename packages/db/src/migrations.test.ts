@@ -710,4 +710,99 @@ describe('database migration baseline', () => {
       )
     }
   })
+
+  it('installs an immutable person merge preview and approval foundation', () => {
+    const migration = readFileSync(join(migrationsDirectory, '0040_violet_omega_red.sql'), 'utf8')
+    const roleProvisioning = readFileSync(
+      join(currentDirectory, 'provision-database-roles.ts'),
+      'utf8'
+    )
+
+    for (const expected of [
+      'CREATE TABLE "person_merge_operations"',
+      'CREATE TABLE "person_merge_preview_items"',
+      'CREATE TABLE "person_merge_events"',
+      'person_merge_operations_active_source_unique',
+      'person_merge_preview_items_operation_record_unique',
+      'person_merge_events_operation_version_unique',
+      'ALTER TABLE "person_merge_operations" FORCE ROW LEVEL SECURITY',
+      'ALTER TABLE "person_merge_preview_items" FORCE ROW LEVEL SECURITY',
+      'ALTER TABLE "person_merge_events" FORCE ROW LEVEL SECURITY',
+      'person_merge_preview_items_append_only',
+      'person_merge_events_append_only',
+      'person_merge_operations_anchors_immutable',
+      'openschool_person_merge_manager must remain a constrained NOLOGIN role',
+      'execution roles must not inherit person merge manager',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+    for (const expected of [
+      'openschool_person_merge_manager',
+      'person_merge_operations, person_merge_preview_items, person_merge_events',
+    ]) {
+      assert.equal(
+        roleProvisioning.includes(expected),
+        true,
+        `role provisioning must include ${expected}`
+      )
+    }
+    assert.equal(
+      migration.includes('execute_person_merge'),
+      false,
+      'foundation must not expose a merge execution path'
+    )
+  })
+
+  it('builds locked person merge previews and fails closed on new references', () => {
+    const workflow = readFileSync(
+      join(migrationsDirectory, '0041_person_merge_preview_workflow.sql'),
+      'utf8'
+    )
+    for (const expected of [
+      'openschool_private"."create_person_merge_preview',
+      'people_person_merge_manager_select',
+      'GRANT EXECUTE ON FUNCTION "openschool_policy_constraints"()',
+      '"school_governance_assignments", "organization_tree_closure", "organization_tree_versions"',
+      'school_governance_person_merge_manager_select',
+      'GRANT UPDATE ON TABLE "people", "person_duplicate_cases"',
+      'people_person_merge_manager_lock',
+      'person_duplicate_cases_person_merge_manager_lock',
+      "<> 'tenant.people_merges.preview'",
+      "<> 'aal2'",
+      "interval '15 minutes'",
+      'pg_advisory_xact_lock',
+      'ORDER BY person.id',
+      'FOR UPDATE',
+      "v_case.status <> 'merge_approval_requested'",
+      "constraint_row.confrelid = 'public.people'::regclass",
+      'WHERE inheritance.inhrelid = child.oid',
+      "'kind', 'person_anchor'",
+      "item.metadata->>'kind' = 'person_anchor'",
+      'PERSON_MERGE_PERSON_CHANGED',
+      "THEN 'UNREVIEWED_PERSON_REFERENCE'",
+      "'TARGET_PROFILE_EXISTS'",
+      "'SELF_RELATIONSHIP'",
+      "WHEN v_conflict_count = 0 THEN 'pending_approval' ELSE 'blocked'",
+      'SET search_path = pg_catalog, extensions, public',
+      'OWNER TO "openschool_person_merge_manager"',
+      'GRANT EXECUTE ON FUNCTION',
+      'openschool_private"."approve_person_merge_preview',
+      'PERSON_MERGE_DISTINCT_APPROVER_REQUIRED',
+      'PERSON_MERGE_DEPENDENCY_SET_CHANGED',
+      'PERSON_MERGE_TARGET_CONFLICT_CHANGED',
+      "'approval_granted', 'approved'",
+    ]) {
+      assert.equal(workflow.includes(expected), true, `preview workflow must include ${expected}`)
+    }
+    assert.equal(
+      workflow.includes('execute_person_merge'),
+      false,
+      'preview workflow must not expose merge execution'
+    )
+    assert.equal(
+      workflow.includes('v_operation.initiated_by_account_id = v_account_id'),
+      true,
+      'approval must reject the initiating Account'
+    )
+  })
 })

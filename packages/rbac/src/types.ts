@@ -21,6 +21,7 @@ export type ResourceKind =
   | 'household'
   | 'section'
   | 'person_duplicate_review'
+  | 'person_merge'
   | 'class'
   | 'student'
   | 'grade'

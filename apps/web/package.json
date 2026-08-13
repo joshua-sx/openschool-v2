@@ -19,6 +19,7 @@
     "student:enrollment-lifecycle-poc": "bun run src/server/student-enrollment-lifecycle-poc.ts",
     "guardian:contacts-poc": "bun run src/server/guardian-contacts-poc.ts",
     "duplicate:people-poc": "bun run src/server/duplicate-people-poc.ts",
+    "person:merge-poc": "bun run src/server/person-merge-poc.ts",
     "households:residences-poc": "bun run src/server/households-residences-poc.ts",
     "sections:poc": "bun run src/server/sections-poc.ts",
     "provider:mfa-reconcile": "bun run src/server/provider-mfa-reconciliation-job.ts"

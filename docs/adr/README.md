@@ -12,5 +12,6 @@ ADRs in this directory govern M1 tenant-security implementation. `Accepted` mean
 | [0006](./0006-database-execution-and-rls.md) | Direct Drizzle execution with transaction-scoped RLS | Accepted | Data Platform |
 | [0007](./0007-audit-and-privileged-operations.md) | Atomic audit and privileged operation evidence | Accepted | Security Engineering |
 | [0008](./0008-invitations-mfa-and-support-access.md) | Onboarding, MFA, support, and session lifecycle | Accepted | Identity Engineering |
+| [0009](./0009-controlled-person-merge.md) | Controlled duplicate Person merge | Accepted | Identity Engineering |
 
 Changes that contradict an accepted ADR require a new ADR that explicitly supersedes it. The historical notes in the root `DECISIONS.md` are non-governing where they conflict with these records.

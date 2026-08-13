@@ -4,6 +4,7 @@ import {
   CURRENT_POLICY_BUNDLE,
   POLICY_VERSION_ACADEMIC_STRUCTURE,
   POLICY_VERSION_CURRENT,
+  POLICY_VERSION_DUPLICATE_REVIEW,
   POLICY_VERSION_ENROLLMENT_LIFECYCLE,
   POLICY_VERSION_GUARDIAN_CONTACTS,
   POLICY_VERSION_HOUSEHOLDS,
@@ -710,6 +711,72 @@ describe('capability Policy Decisions', () => {
     )
   })
 
+  it('requires recent AAL2 authentication for person merge preview and approval', () => {
+    const resource = {
+      kind: 'person_merge',
+      tenantId: 'tenant-1',
+      schoolId: 'school-1',
+    } as const
+    const request = {
+      capability: CAPABILITIES.PEOPLE_MERGES_PREVIEW,
+      requestedScope: 'school',
+      resource,
+      attributes: { now: NOW },
+    } as const
+
+    assert.equal(decision(request).reason, 'MFA_REQUIRED')
+    assert.equal(
+      decision({
+        ...request,
+        context: context({ assuranceLevel: 'aal2' }),
+      }).reason,
+      'REAUTHENTICATION_REQUIRED'
+    )
+    const preview = decision({
+      ...request,
+      context: context({ assuranceLevel: 'aal2', authenticatedAt: NOW.toISOString() }),
+    })
+    assert.equal(preview.effect, 'allow')
+    assert.deepEqual(
+      preview.obligations
+        .filter((obligation) => obligation.kind === 'audit')
+        .map(({ event }) => event),
+      ['person_merge.preview']
+    )
+
+    const approval = decision({
+      ...request,
+      capability: CAPABILITIES.PEOPLE_MERGES_APPROVE,
+      context: context({ assuranceLevel: 'aal2', authenticatedAt: NOW.toISOString() }),
+    })
+    assert.equal(approval.effect, 'allow')
+    assert.deepEqual(
+      approval.obligations
+        .filter((obligation) => obligation.kind === 'audit')
+        .map(({ event }) => event),
+      ['person_merge.approve']
+    )
+    assert.equal(
+      decision({
+        ...request,
+        context: context({
+          roleTemplateKeys: ['staff'],
+          assuranceLevel: 'aal2',
+          authenticatedAt: NOW.toISOString(),
+        }),
+      }).reason,
+      'SCOPE_NOT_GRANTED'
+    )
+    assert.equal(
+      decision({
+        ...request,
+        bundle: selectPolicyBundle(POLICY_VERSION_DUPLICATE_REVIEW),
+        context: context({ assuranceLevel: 'aal2', authenticatedAt: NOW.toISOString() }),
+      }).reason,
+      'SCOPE_NOT_GRANTED'
+    )
+  })
+
   it('separates guardian contact reads from MFA-protected contact management', () => {
     const resource = {
       kind: 'guardian_contact',
@@ -834,6 +901,9 @@ describe('versioned Role Template bundles', () => {
       [CAPABILITIES.SECTIONS_MANAGE, ['org_admin', 'school_admin']],
       [CAPABILITIES.PEOPLE_DUPLICATES_READ, ['org_admin', 'school_admin']],
       [CAPABILITIES.PEOPLE_DUPLICATES_REVIEW, ['org_admin', 'school_admin']],
+      [CAPABILITIES.PEOPLE_MERGES_READ, ['org_admin', 'school_admin']],
+      [CAPABILITIES.PEOPLE_MERGES_PREVIEW, ['org_admin', 'school_admin']],
+      [CAPABILITIES.PEOPLE_MERGES_APPROVE, ['org_admin', 'school_admin']],
       [CAPABILITIES.STUDENTS_CREATE, ['org_admin', 'school_admin', 'staff']],
       [
         CAPABILITIES.STUDENTS_READ,
@@ -897,6 +967,10 @@ describe('versioned Role Template bundles', () => {
   it('selects only accepted versions for deployment rollback', () => {
     assert.equal(selectPolicyBundle()?.version, POLICY_VERSION_CURRENT)
     assert.equal(selectPolicyBundle(POLICY_VERSION_CURRENT)?.version, POLICY_VERSION_CURRENT)
+    assert.equal(
+      selectPolicyBundle(POLICY_VERSION_DUPLICATE_REVIEW)?.version,
+      POLICY_VERSION_DUPLICATE_REVIEW
+    )
     assert.equal(selectPolicyBundle(POLICY_VERSION_SECTIONS)?.version, POLICY_VERSION_SECTIONS)
     assert.equal(selectPolicyBundle(POLICY_VERSION_HOUSEHOLDS)?.version, POLICY_VERSION_HOUSEHOLDS)
     assert.equal(
