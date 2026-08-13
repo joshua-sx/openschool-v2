@@ -524,22 +524,24 @@ async function runProof(): Promise<void> {
       ),
       '42501'
     )
-    const directUpdate = await withPolicyTenantTransaction(
-      databaseContext('direct-update'),
-      toDatabasePolicyContext(orgManage),
-      (transaction) =>
-        transaction
-          .update(contactProfiles)
-          .set({ preferredContactMethod: 'none' })
-          .where(
-            and(
-              eq(contactProfiles.tenantId, TENANT_A),
-              eq(contactProfiles.personId, emergency.contactPersonId)
+    await expectSqlState(
+      withPolicyTenantTransaction(
+        databaseContext('direct-update'),
+        toDatabasePolicyContext(orgManage),
+        (transaction) =>
+          transaction
+            .update(contactProfiles)
+            .set({ preferredContactMethod: 'none' })
+            .where(
+              and(
+                eq(contactProfiles.tenantId, TENANT_A),
+                eq(contactProfiles.personId, emergency.contactPersonId)
+              )
             )
-          )
-          .returning({ preferredContactMethod: contactProfiles.preferredContactMethod })
+            .returning({ preferredContactMethod: contactProfiles.preferredContactMethod })
+      ),
+      '42501'
     )
-    assert.deepEqual(directUpdate, [])
 
     const readContacts = await getGuardianContacts(
       databaseContext('read-history'),
