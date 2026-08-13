@@ -89,7 +89,7 @@ async function run(): Promise<void> {
       readFileSync(new URL('../migrations/meta/_journal.json', import.meta.url), 'utf8')
     ) as { entries?: Array<{ tag?: string }> }
     const migration = journal.entries?.at(-1)?.tag
-    assert.equal(migration, '0037_unusual_robin_chapel')
+    assert.equal(migration, '0039_duplicate_review_workflow')
 
     const roles = await admin.execute<RoleDefinition>(sql`
       select

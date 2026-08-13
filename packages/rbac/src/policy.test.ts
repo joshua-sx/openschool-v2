@@ -8,6 +8,7 @@ import {
   POLICY_VERSION_GUARDIAN_CONTACTS,
   POLICY_VERSION_HOUSEHOLDS,
   POLICY_VERSION_LEGACY_PARITY,
+  POLICY_VERSION_SECTIONS,
   selectPolicyBundle,
 } from './default-policy'
 import { evaluatePolicy } from './policy'
@@ -654,6 +655,61 @@ describe('capability Policy Decisions', () => {
     )
   })
 
+  it('limits duplicate review to MFA-protected School and Organization administrators', () => {
+    const resource = {
+      kind: 'person_duplicate_review',
+      tenantId: 'tenant-1',
+      schoolId: 'school-1',
+    } as const
+    const reviewRequest = {
+      capability: CAPABILITIES.PEOPLE_DUPLICATES_REVIEW,
+      requestedScope: 'school',
+      resource,
+      attributes: { now: NOW },
+    } as const
+
+    const read = decision({
+      capability: CAPABILITIES.PEOPLE_DUPLICATES_READ,
+      requestedScope: 'school',
+      resource,
+      attributes: { now: NOW },
+    })
+    assert.equal(read.effect, 'allow')
+    assert.equal(
+      read.obligations.some((obligation) => obligation.kind === 'mfa'),
+      false
+    )
+    assert.equal(decision(reviewRequest).reason, 'MFA_REQUIRED')
+    const reviewed = decision({
+      ...reviewRequest,
+      context: context({ assuranceLevel: 'aal2' }),
+    })
+    assert.equal(reviewed.effect, 'allow')
+    assert.deepEqual(
+      reviewed.obligations
+        .filter((obligation) => obligation.kind === 'audit')
+        .map(({ event }) => event),
+      ['person_duplicate.distinct', 'person_duplicate.merge_approval_request']
+    )
+    assert.equal(
+      decision({
+        capability: CAPABILITIES.PEOPLE_DUPLICATES_READ,
+        requestedScope: 'school',
+        resource,
+        context: context({ roleTemplateKeys: ['staff'], assuranceLevel: 'aal2' }),
+      }).reason,
+      'SCOPE_NOT_GRANTED'
+    )
+    assert.equal(
+      decision({
+        ...reviewRequest,
+        bundle: selectPolicyBundle(POLICY_VERSION_SECTIONS),
+        context: context({ assuranceLevel: 'aal2' }),
+      }).reason,
+      'SCOPE_NOT_GRANTED'
+    )
+  })
+
   it('separates guardian contact reads from MFA-protected contact management', () => {
     const resource = {
       kind: 'guardian_contact',
@@ -776,6 +832,8 @@ describe('versioned Role Template bundles', () => {
         ['org_admin', 'org_viewer', 'school_admin', 'staff', 'teacher', 'parent', 'student'],
       ],
       [CAPABILITIES.SECTIONS_MANAGE, ['org_admin', 'school_admin']],
+      [CAPABILITIES.PEOPLE_DUPLICATES_READ, ['org_admin', 'school_admin']],
+      [CAPABILITIES.PEOPLE_DUPLICATES_REVIEW, ['org_admin', 'school_admin']],
       [CAPABILITIES.STUDENTS_CREATE, ['org_admin', 'school_admin', 'staff']],
       [
         CAPABILITIES.STUDENTS_READ,
@@ -839,6 +897,7 @@ describe('versioned Role Template bundles', () => {
   it('selects only accepted versions for deployment rollback', () => {
     assert.equal(selectPolicyBundle()?.version, POLICY_VERSION_CURRENT)
     assert.equal(selectPolicyBundle(POLICY_VERSION_CURRENT)?.version, POLICY_VERSION_CURRENT)
+    assert.equal(selectPolicyBundle(POLICY_VERSION_SECTIONS)?.version, POLICY_VERSION_SECTIONS)
     assert.equal(selectPolicyBundle(POLICY_VERSION_HOUSEHOLDS)?.version, POLICY_VERSION_HOUSEHOLDS)
     assert.equal(
       selectPolicyBundle(POLICY_VERSION_GUARDIAN_CONTACTS)?.version,

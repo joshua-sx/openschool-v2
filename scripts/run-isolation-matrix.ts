@@ -33,6 +33,7 @@ const PROOF_GROUPS: readonly ProofGroup[] = [
   { evidence: 'academic_structure', commands: ['academic:structure-poc'] },
   { evidence: 'student_enrollment_lifecycle', commands: ['student:enrollment-lifecycle-poc'] },
   { evidence: 'guardian_contacts', commands: ['guardian:contacts-poc'] },
+  { evidence: 'duplicate_people_review', commands: ['duplicate:people-poc'] },
   { evidence: 'household_residences', commands: ['households:residences-poc'] },
   { evidence: 'sections', commands: ['sections:poc'] },
   { evidence: 'student_rls', commands: ['db:student-rls-poc'] },
@@ -69,7 +70,7 @@ function fallbackMetadata(): IsolationReleaseMetadata {
   return {
     commit: process.env.GITHUB_SHA ?? 'local-uncommitted',
     ciRun: process.env.GITHUB_RUN_ID ?? 'local',
-    migration: '0037_unusual_robin_chapel',
+    migration: '0039_duplicate_review_workflow',
     postgresVersion: 'not-recorded',
     roleEvidenceDigest: '0'.repeat(64),
     policyEvidenceDigest: '0'.repeat(64),

@@ -43,6 +43,7 @@ const ORGANIZATION_ROOT = '00000000-0000-4000-8000-000000000001'
 const SCHOOL_PRIMARY = '00000000-0000-4000-8000-000000000101'
 const LEARNER_PRIMARY = '00000000-0000-4000-8000-000000000911'
 const LEARNER_HIGH = '00000000-0000-4000-8000-000000000912'
+const SIBLING_SCHOOL_CONTACT = '00000000-0000-4000-8000-000000000906'
 const CROSS_TENANT_PERSON = '00000000-0000-4000-8000-000000000913'
 const ORG_ADMIN_ACCOUNT = '00000000-0000-4000-8000-000000000201'
 const ORG_ADMIN_PERSON = '00000000-0000-4000-8000-000000000901'
@@ -234,7 +235,7 @@ async function runProof(): Promise<void> {
       },
     ])
 
-    let primaryContacts = await createGuardianContact(
+    const primaryResult = await createGuardianContact(
       databaseContext('create-primary'),
       orgContext,
       orgManage,
@@ -257,6 +258,7 @@ async function runProof(): Promise<void> {
         issuanceReason: 'Guardian contact isolation proof',
       }
     )
+    let primaryContacts = primaryResult.contacts
     const primary = primaryContacts.find(({ email }) => email === CONTACT_EMAIL)
     assert.ok(primary)
     assert.equal(primary.accountLinked, false)
@@ -332,16 +334,16 @@ async function runProof(): Promise<void> {
     )
     assert.ok(candidates.some(({ id }) => id === primary.contactPersonId))
 
-    const duplicateContacts = await createGuardianContact(
+    const duplicateResult = await createGuardianContact(
       databaseContext('create-duplicate'),
       orgContext,
       orgManage,
       {
-        learnerId: LEARNER_HIGH,
+        learnerId: LEARNER_PRIMARY,
         contact: {
           kind: 'new',
           firstName: 'Morgan',
-          lastName: `Duplicate ${RUN_ID.slice(0, 8)}`,
+          lastName: `Guardian ${RUN_ID.slice(0, 8)}`,
           email: CONTACT_EMAIL,
           preferredContactMethod: 'email',
         },
@@ -354,7 +356,8 @@ async function runProof(): Promise<void> {
         issuanceReason: 'Explicit duplicate Person proof',
       }
     )
-    const duplicate = duplicateContacts.find(
+    assert.equal(duplicateResult.possibleDuplicateCount, 1)
+    const duplicate = duplicateResult.contacts.find(
       ({ email, contactPersonId }) =>
         email === CONTACT_EMAIL && contactPersonId !== primary.contactPersonId
     )
@@ -396,7 +399,7 @@ async function runProof(): Promise<void> {
     assert.equal(rejectedReuse.length, 1)
     assert.ok(rejectedReuse[0]?.reason instanceof TRPCError)
     assert.equal(rejectedReuse[0]?.reason.code, 'CONFLICT')
-    const reusedContacts = successfulReuse[0]?.value ?? []
+    const reusedContacts = successfulReuse[0]?.value.contacts ?? []
     assert.ok(
       reusedContacts.some(({ contactPersonId }) => contactPersonId === primary.contactPersonId)
     )
@@ -406,10 +409,10 @@ async function runProof(): Promise<void> {
       schoolContext,
       schoolManage,
       LEARNER_PRIMARY,
-      `Duplicate ${RUN_ID.slice(0, 8)}`
+      'Riley Brown'
     )
     assert.equal(
-      schoolCandidates.some(({ id }) => id === duplicate.contactPersonId),
+      schoolCandidates.some(({ id }) => id === SIBLING_SCHOOL_CONTACT),
       false
     )
 
@@ -420,7 +423,7 @@ async function runProof(): Promise<void> {
         schoolManage,
         {
           learnerId: LEARNER_PRIMARY,
-          contact: { kind: 'existing', personId: duplicate.contactPersonId },
+          contact: { kind: 'existing', personId: SIBLING_SCHOOL_CONTACT },
           relationshipType: 'parent_of',
           legalAuthority: false,
           decisionAuthority: 'none',
@@ -450,11 +453,8 @@ async function runProof(): Promise<void> {
     assert.equal(siblingFailure, crossTenantFailure)
     assert.equal(siblingFailure, 'NOT_FOUND:Contact not found')
 
-    primaryContacts = await createGuardianContact(
-      databaseContext('create-emergency'),
-      orgContext,
-      orgManage,
-      {
+    primaryContacts = (
+      await createGuardianContact(databaseContext('create-emergency'), orgContext, orgManage, {
         learnerId: LEARNER_PRIMARY,
         contact: {
           kind: 'new',
@@ -470,8 +470,8 @@ async function runProof(): Promise<void> {
         pickupAuthority: true,
         portalEligible: false,
         issuanceReason: 'Independent emergency contact facts proof',
-      }
-    )
+      })
+    ).contacts
     const emergency = primaryContacts.find(
       ({ relationshipType }) => relationshipType === 'emergency_contact_of'
     )
@@ -628,7 +628,7 @@ async function runProof(): Promise<void> {
 
     const relationshipIds = [
       ...new Set(
-        [...primaryContacts, ...duplicateContacts, ...reusedContacts].map(
+        [...primaryContacts, ...duplicateResult.contacts, ...reusedContacts].map(
           ({ relationshipId }) => relationshipId
         )
       ),

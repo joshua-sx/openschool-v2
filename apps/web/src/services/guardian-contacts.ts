@@ -23,6 +23,7 @@ import {
   assertStudentSliceEnabled,
   toDatabasePolicyContext,
 } from './database-context'
+import { refreshPersonDuplicateCandidatesInTransaction } from './duplicate-people'
 
 const MAX_CONTACTS = 100
 const MAX_CANDIDATES = 10
@@ -80,6 +81,11 @@ export interface CreateGuardianContactInput {
   pickupAuthority: boolean
   portalEligible: boolean
   issuanceReason: string
+}
+
+export interface CreateGuardianContactResult {
+  contacts: readonly GuardianContact[]
+  possibleDuplicateCount: number
 }
 
 export interface UpdateGuardianContactInput {
@@ -442,7 +448,7 @@ export async function createGuardianContact(
   context: PolicyContext,
   decision: AllowedPolicyDecision,
   input: CreateGuardianContactInput
-): Promise<GuardianContact[]> {
+): Promise<CreateGuardianContactResult> {
   assertStudentSliceEnabled()
   assertDatabasePolicyContext(databaseContext, context)
   const tenantId = assertContactDecision(context, decision, CAPABILITIES.GUARDIAN_CONTACTS_MANAGE)
@@ -495,7 +501,14 @@ export async function createGuardianContact(
             ${input.issuanceReason.trim()}
           )
         `)
-        if (!rows[0]) throw new Error('GUARDIAN_CONTACT_CREATE_FAILED')
+        const created = rows[0]
+        if (!created) throw new Error('GUARDIAN_CONTACT_CREATE_FAILED')
+        const duplicateWarnings = await refreshPersonDuplicateCandidatesInTransaction(
+          db,
+          created.contactPersonId,
+          learner.schoolId,
+          'Candidate refresh after guardian contact creation'
+        )
         await appendAuditEventInTransaction(db, databaseContext, context, decision, {
           eventType: 'guardian.contact.create',
           outcome: 'succeeded',
@@ -519,7 +532,10 @@ export async function createGuardianContact(
             deduplicationKey: `guardian.contact.create:${databaseContext.requestId}:${relationshipId}`,
           },
         })
-        return loadContacts(db, tenantId, learner.personId)
+        return Object.freeze({
+          contacts: await loadContacts(db, tenantId, learner.personId),
+          possibleDuplicateCount: duplicateWarnings.length,
+        })
       }
     )
   } catch (error) {

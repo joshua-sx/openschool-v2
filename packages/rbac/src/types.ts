@@ -20,6 +20,7 @@ export type ResourceKind =
   | 'guardian_contact'
   | 'household'
   | 'section'
+  | 'person_duplicate_review'
   | 'class'
   | 'student'
   | 'grade'

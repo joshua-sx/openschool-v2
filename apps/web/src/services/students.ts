@@ -28,6 +28,7 @@ import {
   assertStudentSliceEnabled,
   toDatabasePolicyContext,
 } from './database-context'
+import { refreshPersonDuplicateCandidatesInTransaction } from './duplicate-people'
 import { getSchoolByIdInTransaction } from './schools'
 
 const MAX_STUDENT_ROWS = 500
@@ -56,6 +57,7 @@ export interface CanonicalStudent {
   enrolledAt: Date
   createdAt: Date
   updatedAt: Date
+  possibleDuplicateCount?: number
 }
 
 export interface CreateStudentInput {
@@ -544,11 +546,21 @@ export async function createStudent(
           },
           occurredAt
         )
+        const duplicateWarnings = await refreshPersonDuplicateCandidatesInTransaction(
+          db,
+          created.personId,
+          created.schoolId,
+          'Candidate refresh after learner admission'
+        )
+        const result = Object.freeze({
+          ...created,
+          possibleDuplicateCount: duplicateWarnings.length,
+        })
         await appendAuditEventInTransaction(db, databaseContext, context, decision, {
           eventType: 'student.create',
           outcome: 'succeeded',
           targetType: 'person',
-          targetId: created.personId,
+          targetId: result.personId,
           dataClasses: ['student_personal'],
           change: {
             changedFields: [
@@ -558,14 +570,14 @@ export async function createStudent(
               'studentAffiliation',
               'legacyCompatibility',
             ],
-            after: studentAuditSnapshot(created),
+            after: studentAuditSnapshot(result),
           },
           outbox: {
             topic: 'audit.event.committed',
-            deduplicationKey: `student.create:${databaseContext.requestId}:${created.personId}`,
+            deduplicationKey: `student.create:${databaseContext.requestId}:${result.personId}`,
           },
         })
-        return created
+        return result
       }
     )
   } catch (error) {
@@ -643,6 +655,16 @@ export async function updateStudent(
           parityStatus: 'matched',
           updatedAt,
         })
+        const duplicateWarnings = await refreshPersonDuplicateCandidatesInTransaction(
+          db,
+          updated.personId,
+          updated.schoolId,
+          'Candidate refresh after learner update'
+        )
+        const result = Object.freeze({
+          ...updated,
+          possibleDuplicateCount: duplicateWarnings.length,
+        })
         await appendAuditEventInTransaction(db, databaseContext, context, decision, {
           eventType: 'student.update',
           outcome: 'succeeded',
@@ -652,14 +674,14 @@ export async function updateStudent(
           change: {
             changedFields: Object.keys(data).sort(),
             before: studentAuditSnapshot(existing),
-            after: studentAuditSnapshot(updated),
+            after: studentAuditSnapshot(result),
           },
           outbox: {
             topic: 'audit.event.committed',
             deduplicationKey: `student.update:${databaseContext.requestId}:${existing.personId}`,
           },
         })
-        return updated
+        return result
       }
     )
   } catch (error) {

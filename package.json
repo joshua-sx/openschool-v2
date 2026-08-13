@@ -37,6 +37,7 @@
     "academic:structure-poc": "turbo run academic:structure-poc --filter=web",
     "student:enrollment-lifecycle-poc": "turbo run student:enrollment-lifecycle-poc --filter=web",
     "guardian:contacts-poc": "turbo run guardian:contacts-poc --filter=web",
+    "duplicate:people-poc": "turbo run duplicate:people-poc --filter=web",
     "households:residences-poc": "turbo run households:residences-poc --filter=web",
     "sections:poc": "turbo run sections:poc --filter=web",
     "provider:mfa-reconcile": "turbo run provider:mfa-reconcile --filter=web",

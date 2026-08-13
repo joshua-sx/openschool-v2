@@ -25,6 +25,7 @@ import {
   X,
 } from 'lucide-react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { use, useRef, useState } from 'react'
 
 interface StudentDetailPageProps {
@@ -63,21 +64,26 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 
 export default function StudentDetailPage({ params }: StudentDetailPageProps) {
   const { id } = use(params)
+  const searchParams = useSearchParams()
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState<StudentFormData | null>(null)
   const [fieldErrors, setFieldErrors] = useState<StudentFormErrors>({})
   const [serverError, setServerError] = useState<string | null>(null)
+  const [possibleDuplicateCount, setPossibleDuplicateCount] = useState(() =>
+    Number(searchParams.get('possibleDuplicates') || 0)
+  )
   const fields = useRef<Partial<Record<StudentFormField, HTMLInputElement>>>({})
   const utils = trpc.useUtils()
   const { data: student, isLoading, error } = trpc.students.getById.useQuery({ studentId: id })
 
   const updateMutation = trpc.students.update.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (updated) => {
       await utils.students.getById.invalidate({ studentId: id })
       setFormData(null)
       setIsEditing(false)
       setFieldErrors({})
       setServerError(null)
+      setPossibleDuplicateCount(updated.possibleDuplicateCount ?? 0)
     },
     onError: (mutationError) => setServerError(mutationError.message),
   })
@@ -208,6 +214,24 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
           <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
           <p className="text-sm text-red-800">The record could not be saved. {serverError}</p>
         </div>
+      )}
+
+      {possibleDuplicateCount > 0 && (
+        <output className="mb-6 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+          <p className="text-sm text-amber-950">
+            OpenSchool found {possibleDuplicateCount} possible existing{' '}
+            {possibleDuplicateCount === 1 ? 'Person' : 'People'}. The learner was saved normally; no
+            records were merged.{' '}
+            <Link
+              href="/settings/duplicate-people"
+              className="font-semibold underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              Review the suggestions
+            </Link>
+            .
+          </p>
+        </output>
       )}
 
       <form noValidate onSubmit={handleSave} aria-busy={updateMutation.isPending}>
