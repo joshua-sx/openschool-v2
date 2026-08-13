@@ -41,5 +41,6 @@ deleting canonical history or audit evidence.
 `sections:poc` runs through the real non-owner runtime on disposable loopback PostgreSQL. It creates
 a high-School Course Section, assigns a teacher, rosters an enrolled learner, proves that future
 teacher scope stays inactive until its effective date, sibling-School and cross-Tenant denial,
-direct-write denial, closure history, and cleanup. The same schema supports primary homerooms; the
-M2 integration story remains responsible for joined portal and legacy-retirement proof.
+direct-write denial, closure history, and cleanup. Unit policy evidence separately proves an
+effective assignment produces class scope. The same schema supports primary homerooms; the M2
+integration story remains responsible for joined portal and legacy-retirement proof.

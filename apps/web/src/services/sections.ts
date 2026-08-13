@@ -300,8 +300,13 @@ async function loadWorkspace(
   capability: Capability,
   schoolId: string
 ): Promise<SectionWorkspaceView> {
-  await ensureSchool(db, context, decision, capability, schoolId)
   const tenantId = assertDecision(context, decision, capability)
+  const broadSchoolScope = decision.queryConstraints.some((constraint) =>
+    ['tenant', 'organization_exact', 'organization_subtree', 'school'].includes(constraint.kind)
+  )
+  if (broadSchoolScope) {
+    await ensureSchool(db, context, decision, capability, schoolId)
+  }
   const [courseRows, sectionRows, yearRows, compatibilityRows] = await Promise.all([
     db
       .select()
