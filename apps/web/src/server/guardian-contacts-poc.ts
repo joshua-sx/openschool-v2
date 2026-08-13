@@ -338,7 +338,7 @@ async function runProof(): Promise<void> {
       orgContext,
       orgManage,
       {
-        learnerId: LEARNER_HIGH,
+        learnerId: LEARNER_PRIMARY,
         contact: {
           kind: 'new',
           firstName: 'Morgan',
