@@ -710,4 +710,46 @@ describe('database migration baseline', () => {
       )
     }
   })
+
+  it('installs an immutable person merge preview and approval foundation', () => {
+    const migration = readFileSync(join(migrationsDirectory, '0040_violet_omega_red.sql'), 'utf8')
+    const roleProvisioning = readFileSync(
+      join(currentDirectory, 'provision-database-roles.ts'),
+      'utf8'
+    )
+
+    for (const expected of [
+      'CREATE TABLE "person_merge_operations"',
+      'CREATE TABLE "person_merge_preview_items"',
+      'CREATE TABLE "person_merge_events"',
+      'person_merge_operations_active_source_unique',
+      'person_merge_preview_items_operation_record_unique',
+      'person_merge_events_operation_version_unique',
+      'ALTER TABLE "person_merge_operations" FORCE ROW LEVEL SECURITY',
+      'ALTER TABLE "person_merge_preview_items" FORCE ROW LEVEL SECURITY',
+      'ALTER TABLE "person_merge_events" FORCE ROW LEVEL SECURITY',
+      'person_merge_preview_items_append_only',
+      'person_merge_events_append_only',
+      'person_merge_operations_anchors_immutable',
+      'openschool_person_merge_manager must remain a constrained NOLOGIN role',
+      'execution roles must not inherit person merge manager',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+    for (const expected of [
+      'openschool_person_merge_manager',
+      'person_merge_operations, person_merge_preview_items, person_merge_events',
+    ]) {
+      assert.equal(
+        roleProvisioning.includes(expected),
+        true,
+        `role provisioning must include ${expected}`
+      )
+    }
+    assert.equal(
+      migration.includes('execute_person_merge'),
+      false,
+      'foundation must not expose a merge execution path'
+    )
+  })
 })

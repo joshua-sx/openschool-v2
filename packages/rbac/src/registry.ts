@@ -22,6 +22,7 @@ export const RESOURCE_KINDS = Object.freeze({
   HOUSEHOLD: 'household',
   SECTION: 'section',
   PERSON_DUPLICATE_REVIEW: 'person_duplicate_review',
+  PERSON_MERGE: 'person_merge',
   CLASS: 'class',
   STUDENT: 'student',
   GRADE: 'grade',
@@ -54,6 +55,9 @@ export const CAPABILITIES = Object.freeze({
   SECTIONS_MANAGE: 'tenant.sections.manage',
   PEOPLE_DUPLICATES_READ: 'tenant.people_duplicates.read',
   PEOPLE_DUPLICATES_REVIEW: 'tenant.people_duplicates.review',
+  PEOPLE_MERGES_READ: 'tenant.people_merges.read',
+  PEOPLE_MERGES_PREVIEW: 'tenant.people_merges.preview',
+  PEOPLE_MERGES_APPROVE: 'tenant.people_merges.approve',
   STUDENTS_CREATE: 'tenant.students.create',
   STUDENTS_READ: 'tenant.students.read',
   STUDENTS_UPDATE: 'tenant.students.update',
@@ -173,6 +177,18 @@ export const CAPABILITY_REGISTRY = Object.freeze({
   },
   [CAPABILITIES.PEOPLE_DUPLICATES_REVIEW]: {
     resourceKinds: [RESOURCE_KINDS.PERSON_DUPLICATE_REVIEW],
+    scopes: tenantBroadScopes,
+  },
+  [CAPABILITIES.PEOPLE_MERGES_READ]: {
+    resourceKinds: [RESOURCE_KINDS.PERSON_MERGE],
+    scopes: tenantBroadScopes,
+  },
+  [CAPABILITIES.PEOPLE_MERGES_PREVIEW]: {
+    resourceKinds: [RESOURCE_KINDS.PERSON_MERGE],
+    scopes: tenantBroadScopes,
+  },
+  [CAPABILITIES.PEOPLE_MERGES_APPROVE]: {
+    resourceKinds: [RESOURCE_KINDS.PERSON_MERGE],
     scopes: tenantBroadScopes,
   },
   [CAPABILITIES.STUDENTS_CREATE]: {
