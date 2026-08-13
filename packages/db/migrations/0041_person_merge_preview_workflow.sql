@@ -93,6 +93,10 @@ BEGIN
     WHERE constraint_row.contype = 'f'
       AND constraint_row.confrelid = 'public.people'::regclass
       AND child_namespace.nspname = 'public'
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_inherits AS inheritance
+        WHERE inheritance.inhrelid = child.oid
+      )
       AND child.relname NOT IN (
         'person_merge_operations', 'person_merge_preview_items', 'person_merge_events'
       )
@@ -247,6 +251,10 @@ BEGIN
     WHERE constraint_row.contype = 'f'
       AND constraint_row.confrelid = 'public.people'::regclass
       AND child_namespace.nspname = 'public'
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_inherits AS inheritance
+        WHERE inheritance.inhrelid = child.oid
+      )
       AND target_column.attname = 'id'
       AND child.relname NOT IN (
         'person_merge_operations', 'person_merge_preview_items', 'person_merge_events'
@@ -580,7 +588,12 @@ BEGIN
       AND target_column.attnum = target_key.attnum
     WHERE constraint_row.contype = 'f'
       AND constraint_row.confrelid = 'public.people'::regclass
-      AND child_namespace.nspname = 'public' AND target_column.attname = 'id'
+      AND child_namespace.nspname = 'public'
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_inherits AS inheritance
+        WHERE inheritance.inhrelid = child.oid
+      )
+      AND target_column.attname = 'id'
       AND child.relname NOT IN (
         'person_merge_operations', 'person_merge_preview_items', 'person_merge_events'
       )
