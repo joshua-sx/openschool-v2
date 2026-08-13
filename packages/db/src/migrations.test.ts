@@ -589,6 +589,10 @@ describe('database migration baseline', () => {
   it('installs canonical Sections behind scoped reads and guarded manager functions', () => {
     const foundation = readFileSync(join(migrationsDirectory, '0035_curvy_snowbird.sql'), 'utf8')
     const manager = readFileSync(join(migrationsDirectory, '0037_unusual_robin_chapel.sql'), 'utf8')
+    const roleProvisioning = readFileSync(
+      join(currentDirectory, 'provision-database-roles.ts'),
+      'utf8'
+    )
     for (const expected of [
       'CREATE TABLE "courses"',
       'CREATE TABLE "sections"',
@@ -627,5 +631,18 @@ describe('database migration baseline', () => {
       false
     )
     assert.equal(manager.includes('GRANT DELETE ON TABLE "section_roster_memberships"'), false)
+    for (const table of [
+      'courses',
+      'sections',
+      'section_staff_assignments',
+      'section_roster_memberships',
+      'section_compatibility_evidence',
+    ]) {
+      assert.equal(
+        roleProvisioning.includes(table),
+        true,
+        `runtime role provisioning must include ${table}`
+      )
+    }
   })
 })

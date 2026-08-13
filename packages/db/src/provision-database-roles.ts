@@ -210,6 +210,8 @@ async function run(): Promise<void> {
         school_enrollment_transition_events,
         academic_years, academic_terms, learner_levels, academic_compatibility_evidence,
         households, household_addresses, household_memberships,
+        courses, sections, section_staff_assignments, section_roster_memberships,
+        section_compatibility_evidence,
         support_access_notifications
       to ${runtimeRole}
     `)
