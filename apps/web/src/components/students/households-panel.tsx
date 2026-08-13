@@ -62,6 +62,7 @@ function errorMessage(error: unknown): string {
 
 function AddressFields({
   defaults,
+  showPrimary = true,
 }: {
   defaults?: Partial<{
     addressType: AddressType
@@ -75,6 +76,7 @@ function AddressFields({
     deliveryInstructions: string | null
     isPrimary: boolean
   }>
+  showPrimary?: boolean
 }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -175,10 +177,12 @@ function AddressFields({
           className={INPUT_CLASS}
         />
       </label>
-      <label className="flex min-h-11 items-center gap-3 text-sm text-gray-800 sm:col-span-2">
-        <input name="isPrimary" type="checkbox" defaultChecked={defaults?.isPrimary ?? true} />
-        Primary address for this household
-      </label>
+      {showPrimary && (
+        <label className="flex min-h-11 items-center gap-3 text-sm text-gray-800 sm:col-span-2">
+          <input name="isPrimary" type="checkbox" defaultChecked={defaults?.isPrimary ?? true} />
+          Primary address for this household
+        </label>
+      )}
     </div>
   )
 }
@@ -454,7 +458,11 @@ export function HouseholdsPanel({ learnerId }: { learnerId: string }) {
           <fieldset className="mt-5 border-t border-gray-200 pt-5">
             <legend className="text-sm font-semibold text-gray-950">First address</legend>
             <div className="mt-3">
-              <AddressFields />
+              <AddressFields showPrimary={false} />
+              <p className="mt-2 text-xs text-gray-500">
+                The first address is the household’s primary address. Additional addresses can be
+                added after creation.
+              </p>
             </div>
           </fieldset>
           <fieldset className="mt-5 border-t border-gray-200 pt-5">
