@@ -234,6 +234,25 @@ BEGIN
     btrim(p_reason), v_now, v_now
   );
 
+  INSERT INTO public.person_merge_preview_items (
+    tenant_id, review_school_id, operation_id, category, relation_name, record_key,
+    direction, disposition, row_fingerprint, metadata, created_at
+  )
+  SELECT v_tenant_id, v_case.review_school_id, v_operation_id,
+    'compatibility_evidence', 'people',
+    encode(digest(convert_to(person.id::text, 'UTF8'), 'sha256'), 'hex'),
+    CASE WHEN person.id = p_source_person_id THEN 'source' ELSE 'related' END,
+    'preserve_history',
+    encode(digest(convert_to(to_jsonb(person)::text, 'UTF8'), 'sha256'), 'hex'),
+    jsonb_build_object(
+      'kind', 'person_anchor',
+      'personRole', CASE WHEN person.id = p_source_person_id THEN 'source' ELSE 'target' END
+    ),
+    v_now
+  FROM public.people AS person
+  WHERE person.tenant_id = v_tenant_id
+    AND person.id IN (p_source_person_id, p_target_person_id);
+
   FOR v_relation IN
     SELECT child.relname AS relation_name, source_column.attname AS column_name
     FROM pg_constraint AS constraint_row
@@ -543,6 +562,31 @@ BEGIN
   IF v_person_count <> 2 THEN
     RAISE EXCEPTION 'PERSON_MERGE_PERSON_CHANGED' USING ERRCODE = '40001';
   END IF;
+
+  FOR v_item IN
+    SELECT item.row_fingerprint, item.metadata->>'personRole' AS person_role
+    FROM public.person_merge_preview_items AS item
+    WHERE item.tenant_id = v_tenant_id AND item.operation_id = p_operation_id
+      AND item.metadata->>'kind' = 'person_anchor'
+    ORDER BY item.metadata->>'personRole'
+  LOOP
+    SELECT EXISTS (
+      SELECT 1
+      FROM public.people AS person
+      WHERE person.tenant_id = v_tenant_id
+        AND person.id = CASE
+          WHEN v_item.person_role = 'source' THEN v_operation.source_person_id
+          WHEN v_item.person_role = 'target' THEN v_operation.target_person_id
+          ELSE NULL
+        END
+        AND encode(
+          digest(convert_to(to_jsonb(person)::text, 'UTF8'), 'sha256'), 'hex'
+        ) = v_item.row_fingerprint
+    ) INTO v_item_current;
+    IF NOT v_item_current THEN
+      RAISE EXCEPTION 'PERSON_MERGE_PERSON_CHANGED' USING ERRCODE = '40001';
+    END IF;
+  END LOOP;
 
   FOR v_item IN
     SELECT item.relation_name, item.row_fingerprint, item.metadata->>'column' AS column_name

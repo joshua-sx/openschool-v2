@@ -11,6 +11,7 @@ import {
   personMergeEvents,
   personMergeOperations,
   personMergePreviewItems,
+  withPolicyTenantTransaction,
 } from '@openschool/db'
 import {
   type AllowedPolicyDecision,
@@ -21,6 +22,7 @@ import {
 } from '@openschool/rbac'
 import { TRPCError } from '@trpc/server'
 import { asc, eq, inArray } from 'drizzle-orm'
+import { toDatabasePolicyContext } from '../services/database-context'
 import { approvePersonMergePreview, createPersonMergePreview } from '../services/person-merges'
 
 const TENANT_ID = '00000000-0000-4000-8000-000000000001'
@@ -128,6 +130,19 @@ function hash(value: string): string {
   return createHash('sha256').update(value).digest('hex')
 }
 
+function sqlState(error: unknown): string | undefined {
+  let current = error
+  for (let depth = 0; depth < 8; depth += 1) {
+    if (!current || typeof current !== 'object') return undefined
+    const candidate = current as { cause?: unknown; code?: unknown }
+    if (typeof candidate.code === 'string' && /^[0-9A-Z]{5}$/.test(candidate.code)) {
+      return candidate.code
+    }
+    current = candidate.cause
+  }
+  return undefined
+}
+
 async function runProof(): Promise<void> {
   assertDisposable()
   const admin = createMigrationClient()
@@ -205,7 +220,7 @@ async function runProof(): Promise<void> {
     )
     assert.equal(preview.status, 'pending_approval')
     assert.equal(preview.conflictCount, 0)
-    assert.ok(preview.dependencyCount >= 2)
+    assert.ok(preview.dependencyCount >= 4)
 
     assert.equal(
       await failureFingerprint(
@@ -223,6 +238,31 @@ async function runProof(): Promise<void> {
       ),
       'NOT_FOUND:Merge case not found'
     )
+
+    await admin
+      .update(people)
+      .set({ displayName: `Changed Merge Source ${RUN_ID}` })
+      .where(eq(people.id, sourcePersonId))
+    assert.equal(
+      await failureFingerprint(
+        approvePersonMergePreview(
+          databaseContext('org', 'stale-person-denial'),
+          orgContext,
+          orgApprovalDecision,
+          {
+            operationId: preview.operationId,
+            expectedOperationVersion: 1,
+            expectedPreviewDigest: preview.previewDigest,
+            reason: 'A changed Person must invalidate the reviewed preview',
+          }
+        )
+      ),
+      'CONFLICT:MERGE_CASE_CHANGED'
+    )
+    await admin
+      .update(people)
+      .set({ displayName: `Merge Source ${RUN_ID}` })
+      .where(eq(people.id, sourcePersonId))
 
     const approval = await approvePersonMergePreview(
       databaseContext('org', 'distinct-approval'),
@@ -244,6 +284,18 @@ async function runProof(): Promise<void> {
       .where(eq(personMergeOperations.id, preview.operationId))
     assert.equal(operation?.approvedByAccountId, ORG_ADMIN_ACCOUNT)
     assert.equal(operation?.executedAt, null)
+    await assert.rejects(
+      withPolicyTenantTransaction(
+        databaseContext('org', 'direct-write-denial'),
+        toDatabasePolicyContext(orgApprovalDecision),
+        (db) =>
+          db
+            .update(personMergeOperations)
+            .set({ status: 'executed' })
+            .where(eq(personMergeOperations.id, preview.operationId))
+      ),
+      (error: unknown) => sqlState(error) === '42501'
+    )
     const events = await admin
       .select({ eventType: personMergeEvents.eventType })
       .from(personMergeEvents)
@@ -259,7 +311,7 @@ async function runProof(): Promise<void> {
           .select({ id: personMergePreviewItems.id })
           .from(personMergePreviewItems)
           .where(eq(personMergePreviewItems.operationId, preview.operationId))
-      ).length >= 2
+      ).length >= 4
     )
     const survivingPeople = await admin
       .select({ id: people.id })
@@ -268,7 +320,7 @@ async function runProof(): Promise<void> {
     assert.equal(survivingPeople.length, 2)
 
     console.info(
-      'Person merge proof passed: locked preview, distinct approval, same-actor denial, append-only evidence, and no Person mutation.'
+      'Person merge proof passed: locked preview, Person-change invalidation, distinct approval, same-actor denial, direct-write denial, append-only evidence, and no Person mutation.'
     )
   } finally {
     await closeDatabaseExecutionPoolsForProof()
