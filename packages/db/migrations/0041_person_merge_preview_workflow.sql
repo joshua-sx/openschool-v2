@@ -4,6 +4,19 @@
 GRANT USAGE ON SCHEMA "public", "openschool_private"
   TO "openschool_person_merge_manager";
 --> statement-breakpoint
+GRANT SELECT ON TABLE "people", "person_duplicate_cases"
+  TO "openschool_person_merge_manager";
+--> statement-breakpoint
+CREATE POLICY "people_person_merge_manager_select" ON "people"
+  AS PERMISSIVE FOR SELECT TO "openschool_person_merge_manager" USING (
+    session_user = 'openschool_runtime'
+    AND current_user = 'openschool_person_merge_manager'
+    AND tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid
+    AND nullif(current_setting('app.policy_capability', true), '') IN (
+      'tenant.people_merges.preview', 'tenant.people_merges.approve'
+    )
+  );
+--> statement-breakpoint
 DO $policies$
 DECLARE
   v_relation record;

@@ -760,6 +760,8 @@ describe('database migration baseline', () => {
     )
     for (const expected of [
       'openschool_private"."create_person_merge_preview',
+      'people_person_merge_manager_select',
+      'GRANT SELECT ON TABLE "people", "person_duplicate_cases"',
       "<> 'tenant.people_merges.preview'",
       "<> 'aal2'",
       "interval '15 minutes'",
