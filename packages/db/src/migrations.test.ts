@@ -648,4 +648,52 @@ describe('database migration baseline', () => {
       )
     }
   })
+
+  it('installs versioned duplicate review without an automatic merge path', () => {
+    const foundation = readFileSync(
+      join(migrationsDirectory, '0038_duplicate_review_foundation.sql'),
+      'utf8'
+    )
+    const workflow = readFileSync(
+      join(migrationsDirectory, '0039_duplicate_review_workflow.sql'),
+      'utf8'
+    )
+    const roleProvisioning = readFileSync(
+      join(currentDirectory, 'provision-database-roles.ts'),
+      'utf8'
+    )
+    for (const expected of [
+      'CREATE TABLE "person_duplicate_cases"',
+      'CREATE TABLE "person_duplicate_case_events"',
+      'person_duplicate_cases_school_pair_unique',
+      'person_duplicate_cases_pair_order_check',
+      'person_duplicate_case_events_case_version_unique',
+      'person_duplicate_case_events_manager_insert',
+    ]) {
+      assert.equal(foundation.includes(expected), true, `foundation must include ${expected}`)
+    }
+    for (const expected of [
+      'FORCE ROW LEVEL SECURITY',
+      'person_duplicate_case_events_append_only',
+      'openschool_private"."refresh_person_duplicate_candidates',
+      'openschool_private"."review_person_duplicate_case',
+      "p_action NOT IN ('mark_distinct', 'request_merge_approval')",
+      "v_case.status = 'merge_approval_requested'",
+      'v_case.current_evidence_hash IS DISTINCT FROM v_candidate.evidence_hash',
+      'Execution roles must not assume the duplicate review manager',
+    ]) {
+      assert.equal(workflow.includes(expected), true, `workflow must include ${expected}`)
+    }
+    assert.equal(workflow.includes("p_action = 'merge'"), false)
+    for (const expected of [
+      'openschool_duplicate_review_manager',
+      'person_duplicate_cases, person_duplicate_case_events',
+    ]) {
+      assert.equal(
+        roleProvisioning.includes(expected),
+        true,
+        `role provisioning must include ${expected}`
+      )
+    }
+  })
 })

@@ -29,6 +29,7 @@ const RESERVED_EXECUTION_ROLES = new Set([
   'openschool_household_manager',
   'openschool_section_scope_resolver',
   'openschool_section_manager',
+  'openschool_duplicate_review_manager',
 ])
 const PROVISIONING_PHASES = new Set(['all', 'identities', 'grants'])
 
@@ -168,9 +169,10 @@ async function run(): Promise<void> {
     await ensureNoLoginRole(admin, 'openschool_household_manager')
     await ensureNoLoginRole(admin, 'openschool_section_scope_resolver')
     await ensureNoLoginRole(admin, 'openschool_section_manager')
+    await ensureNoLoginRole(admin, 'openschool_duplicate_review_manager')
     if (migrationRole !== 'postgres') {
       await admin.unsafe(
-        `grant openschool_identity_revoker, openschool_invitation_acceptor, openschool_tenant_admission_resolver, openschool_platform_access_resolver, openschool_tenant_lifecycle_manager, openschool_provider_security_resolver, openschool_support_grant_manager, openschool_support_access_resolver, openschool_audit_partition_manager, openschool_student_admitter, openschool_academic_configurator, openschool_guardian_contact_manager, openschool_household_scope_resolver, openschool_household_manager, openschool_section_scope_resolver, openschool_section_manager to ${migrationRole}`
+        `grant openschool_identity_revoker, openschool_invitation_acceptor, openschool_tenant_admission_resolver, openschool_platform_access_resolver, openschool_tenant_lifecycle_manager, openschool_provider_security_resolver, openschool_support_grant_manager, openschool_support_access_resolver, openschool_audit_partition_manager, openschool_student_admitter, openschool_academic_configurator, openschool_guardian_contact_manager, openschool_household_scope_resolver, openschool_household_manager, openschool_section_scope_resolver, openschool_section_manager, openschool_duplicate_review_manager to ${migrationRole}`
       )
     }
 
@@ -212,6 +214,7 @@ async function run(): Promise<void> {
         households, household_addresses, household_memberships,
         courses, sections, section_staff_assignments, section_roster_memberships,
         section_compatibility_evidence,
+        person_duplicate_cases, person_duplicate_case_events,
         support_access_notifications
       to ${runtimeRole}
     `)
@@ -235,7 +238,7 @@ async function run(): Promise<void> {
 
     for (const executionRole of [runtimeRole, workerRole, controlPlaneRole]) {
       await admin.unsafe(
-        `revoke openschool_backup, openschool_emergency, openschool_identity_revoker, openschool_invitation_acceptor, openschool_tenant_admission_resolver, openschool_platform_access_resolver, openschool_tenant_lifecycle_manager, openschool_provider_security_resolver, openschool_support_grant_manager, openschool_support_access_resolver, openschool_audit_partition_manager, openschool_student_admitter, openschool_academic_configurator, openschool_guardian_contact_manager, openschool_household_scope_resolver, openschool_household_manager, openschool_section_scope_resolver, openschool_section_manager from ${executionRole}`
+        `revoke openschool_backup, openschool_emergency, openschool_identity_revoker, openschool_invitation_acceptor, openschool_tenant_admission_resolver, openschool_platform_access_resolver, openschool_tenant_lifecycle_manager, openschool_provider_security_resolver, openschool_support_grant_manager, openschool_support_access_resolver, openschool_audit_partition_manager, openschool_student_admitter, openschool_academic_configurator, openschool_guardian_contact_manager, openschool_household_scope_resolver, openschool_household_manager, openschool_section_scope_resolver, openschool_section_manager, openschool_duplicate_review_manager from ${executionRole}`
       )
       if (migrationRole !== 'postgres') {
         await admin.unsafe(`revoke ${migrationRole} from ${executionRole}`)
