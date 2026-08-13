@@ -614,6 +614,7 @@ describe('database migration baseline', () => {
       "current_setting('app.assurance_level', true), '') <> 'aal2'",
       'OWNER TO "openschool_section_manager"',
       'GRANT EXECUTE ON FUNCTION public.openschool_school_scope_allows(uuid, uuid)',
+      '"school_governance_assignments", "organization_tree_closure", "organization_tree_versions"',
       'Execution roles must not assume the Section manager',
       'REVOKE INSERT, UPDATE, DELETE ON TABLE "courses"',
     ]) {

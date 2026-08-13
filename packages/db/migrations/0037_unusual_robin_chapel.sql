@@ -10,7 +10,8 @@ GRANT EXECUTE ON FUNCTION public.openschool_school_scope_allows(uuid, uuid)
 --> statement-breakpoint
 GRANT SELECT ON TABLE "academic_years", "academic_terms", "learner_levels",
   "courses", "sections", "section_staff_assignments", "section_roster_memberships",
-  "school_enrollments", "people", "affiliations", "teacher_profiles"
+  "school_enrollments", "people", "affiliations", "teacher_profiles",
+  "school_governance_assignments", "organization_tree_closure", "organization_tree_versions"
   TO "openschool_section_manager";
 --> statement-breakpoint
 GRANT INSERT ON TABLE "courses", "sections", "section_staff_assignments",
