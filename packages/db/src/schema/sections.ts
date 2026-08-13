@@ -109,6 +109,7 @@ export const courses = pgTable(
       'courses_type_check',
       sql`${table.courseType} IN ('general', 'subject', 'elective', 'support')`
     ),
+    check('courses_status_check', sql`${table.status} IN ('active', 'archived')`),
     check(
       'courses_credit_check',
       sql`${table.creditValue} IS NULL OR (${table.creditValue} >= 0 AND ${table.creditValue} <= 100)`
@@ -251,6 +252,7 @@ export const sections = pgTable(
       sql`${table.sectionType} <> 'course' OR ${table.courseId} IS NOT NULL`
     ),
     check('sections_dates_check', sql`${table.endDate} >= ${table.startDate}`),
+    check('sections_status_check', sql`${table.status} IN ('draft', 'active', 'closed')`),
     check('sections_capacity_check', sql`${table.capacity} IS NULL OR ${table.capacity} > 0`),
     check('sections_version_positive', sql`${table.version} > 0`),
     check(
@@ -357,6 +359,7 @@ export const sectionStaffAssignments = pgTable(
       'section_staff_role_check',
       sql`${table.role} IN ('lead_teacher', 'teacher', 'assistant', 'counselor')`
     ),
+    check('section_staff_status_check', sql`${table.status} IN ('active', 'ended')`),
     check(
       'section_staff_period_check',
       sql`${table.validUntil} IS NULL OR ${table.validUntil} > ${table.validFrom}`
@@ -464,6 +467,7 @@ export const sectionRosterMemberships = pgTable(
       'section_rosters_period_check',
       sql`${table.validUntil} IS NULL OR ${table.validUntil} > ${table.validFrom}`
     ),
+    check('section_rosters_status_check', sql`${table.status} IN ('active', 'ended')`),
     check(
       'section_rosters_end_evidence_check',
       sql`${table.status} <> 'ended' OR (${table.validUntil} IS NOT NULL AND ${table.endedByAccountId} IS NOT NULL AND char_length(btrim(${table.endReason})) BETWEEN 3 AND 512)`

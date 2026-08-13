@@ -6,6 +6,7 @@ import {
   POLICY_VERSION_CURRENT,
   POLICY_VERSION_ENROLLMENT_LIFECYCLE,
   POLICY_VERSION_GUARDIAN_CONTACTS,
+  POLICY_VERSION_HOUSEHOLDS,
   POLICY_VERSION_LEGACY_PARITY,
   selectPolicyBundle,
 } from './default-policy'
@@ -586,6 +587,73 @@ describe('capability Policy Decisions', () => {
     )
   })
 
+  it('derives Section access from administration or an assigned class scope', () => {
+    const resource = {
+      kind: 'section',
+      tenantId: 'tenant-1',
+      schoolId: 'school-1',
+      classId: 'section-1',
+    } as const
+    const manageRequest = {
+      capability: CAPABILITIES.SECTIONS_MANAGE,
+      requestedScope: 'school',
+      resource,
+      attributes: { now: NOW },
+    } as const
+
+    assert.equal(decision(manageRequest).reason, 'MFA_REQUIRED')
+    const managed = decision({
+      ...manageRequest,
+      context: context({ assuranceLevel: 'aal2' }),
+    })
+    assert.equal(managed.effect, 'allow')
+    assert.deepEqual(
+      managed.obligations
+        .filter((obligation) => obligation.kind === 'audit')
+        .map(({ event }) => event),
+      [
+        'course.create',
+        'section.create',
+        'section.close',
+        'section.staff.assign',
+        'section.staff.end',
+        'section.roster.add',
+        'section.roster.end',
+      ]
+    )
+
+    const teacherRead = decision({
+      capability: CAPABILITIES.SECTIONS_READ,
+      requestedScope: 'class',
+      resource,
+      context: context({
+        roleTemplateKeys: ['teacher'],
+      }),
+      attributes: { relationship: { classAssigned: true } },
+    })
+    assert.equal(teacherRead.effect, 'allow')
+    assert.equal(teacherRead.queryConstraints[0]?.kind, 'class')
+
+    assert.equal(
+      decision({
+        capability: CAPABILITIES.SECTIONS_READ,
+        requestedScope: 'class',
+        resource,
+        context: context({ roleTemplateKeys: ['teacher'] }),
+        attributes: { relationship: { classAssigned: false } },
+      }).reason,
+      'RESOURCE_SCOPE_MISMATCH'
+    )
+    assert.equal(
+      decision({
+        ...manageRequest,
+        bundle: selectPolicyBundle(POLICY_VERSION_HOUSEHOLDS),
+        context: context({ assuranceLevel: 'aal2' }),
+      }).reason,
+      'SCOPE_NOT_GRANTED'
+    )
+  })
+
   it('separates guardian contact reads from MFA-protected contact management', () => {
     const resource = {
       kind: 'guardian_contact',
@@ -703,6 +771,11 @@ describe('versioned Role Template bundles', () => {
       [CAPABILITIES.GUARDIAN_CONTACTS_MANAGE, ['org_admin', 'school_admin']],
       [CAPABILITIES.HOUSEHOLDS_READ, ['org_admin', 'org_viewer', 'school_admin']],
       [CAPABILITIES.HOUSEHOLDS_MANAGE, ['org_admin', 'school_admin']],
+      [
+        CAPABILITIES.SECTIONS_READ,
+        ['org_admin', 'org_viewer', 'school_admin', 'staff', 'teacher', 'parent', 'student'],
+      ],
+      [CAPABILITIES.SECTIONS_MANAGE, ['org_admin', 'school_admin']],
       [CAPABILITIES.STUDENTS_CREATE, ['org_admin', 'school_admin', 'staff']],
       [
         CAPABILITIES.STUDENTS_READ,
@@ -766,6 +839,7 @@ describe('versioned Role Template bundles', () => {
   it('selects only accepted versions for deployment rollback', () => {
     assert.equal(selectPolicyBundle()?.version, POLICY_VERSION_CURRENT)
     assert.equal(selectPolicyBundle(POLICY_VERSION_CURRENT)?.version, POLICY_VERSION_CURRENT)
+    assert.equal(selectPolicyBundle(POLICY_VERSION_HOUSEHOLDS)?.version, POLICY_VERSION_HOUSEHOLDS)
     assert.equal(
       selectPolicyBundle(POLICY_VERSION_GUARDIAN_CONTACTS)?.version,
       POLICY_VERSION_GUARDIAN_CONTACTS

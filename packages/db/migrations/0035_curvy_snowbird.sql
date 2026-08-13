@@ -190,6 +190,33 @@ CREATE INDEX "section_rosters_tenant_section_effective_idx" ON "section_roster_m
 CREATE INDEX "section_rosters_tenant_person_effective_idx" ON "section_roster_memberships" USING btree ("tenant_id","person_id","status","valid_from","valid_until","section_id");--> statement-breakpoint
 CREATE INDEX "section_staff_tenant_section_effective_idx" ON "section_staff_assignments" USING btree ("tenant_id","section_id","status","valid_from","valid_until","person_id");--> statement-breakpoint
 CREATE INDEX "sections_tenant_school_year_status_idx" ON "sections" USING btree ("tenant_id","school_id","academic_year_id","status","start_date","id");--> statement-breakpoint
+
+-- Legacy Class labels do not establish authoritative date boundaries. Preserve
+-- a complete parity/rollback record and keep those Classes on the legacy read
+-- path until an administrator explicitly places them in a canonical year.
+INSERT INTO "section_compatibility_evidence" (
+  "tenant_id", "school_id", "legacy_class_id", "mapping_status",
+  "legacy_roster_count", "canonical_roster_count", "legacy_roster_hash",
+  "canonical_roster_hash", "reason"
+)
+SELECT
+  legacy_class.tenant_id,
+  legacy_class.school_id,
+  legacy_class.id,
+  'unmapped',
+  count(legacy_enrollment.id)::integer,
+  0,
+  md5(COALESCE(string_agg(legacy_enrollment.id::text, ',' ORDER BY legacy_enrollment.id), '')),
+  md5(''),
+  'Legacy Class Academic Year is a label without authoritative dates; retained on the legacy read path pending explicit placement.'
+FROM public.classes AS legacy_class
+LEFT JOIN public.enrollments AS legacy_enrollment
+  ON legacy_enrollment.tenant_id = legacy_class.tenant_id
+  AND legacy_enrollment.class_id = legacy_class.id
+  AND legacy_enrollment.status = 'active'
+GROUP BY legacy_class.tenant_id, legacy_class.school_id, legacy_class.id
+ON CONFLICT (tenant_id, legacy_class_id) DO NOTHING;--> statement-breakpoint
+
 ALTER TABLE "courses" FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE "sections" FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE "section_staff_assignments" FORCE ROW LEVEL SECURITY;--> statement-breakpoint

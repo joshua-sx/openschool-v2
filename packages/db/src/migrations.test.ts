@@ -585,4 +585,44 @@ describe('database migration baseline', () => {
     assert.equal(migration.includes('SELECT account, account_session, platform_grant'), false)
     assert.equal(migration.includes('SELECT account, account_session, support_grant'), false)
   })
+
+  it('installs canonical Sections behind scoped reads and guarded manager functions', () => {
+    const foundation = readFileSync(join(migrationsDirectory, '0035_curvy_snowbird.sql'), 'utf8')
+    const manager = readFileSync(join(migrationsDirectory, '0037_unusual_robin_chapel.sql'), 'utf8')
+    for (const expected of [
+      'CREATE TABLE "courses"',
+      'CREATE TABLE "sections"',
+      'CREATE TABLE "section_staff_assignments"',
+      'CREATE TABLE "section_roster_memberships"',
+      'CREATE TABLE "section_compatibility_evidence"',
+      'section_staff_no_effective_overlap',
+      'section_rosters_no_effective_overlap',
+      'openschool_section_roster_scope_allows',
+      'Legacy Class Academic Year is a label without authoritative dates',
+      'FORCE ROW LEVEL SECURITY',
+    ]) {
+      assert.equal(foundation.includes(expected), true, `foundation must include ${expected}`)
+    }
+    for (const expected of [
+      'openschool_private"."create_course',
+      'openschool_private"."create_section',
+      'openschool_private"."assign_section_staff',
+      'openschool_private"."add_section_roster_member',
+      'openschool_private"."end_section_staff_assignment',
+      'openschool_private"."end_section_roster_membership',
+      'openschool_private"."close_section',
+      "current_setting('app.assurance_level', true), '') <> 'aal2'",
+      'OWNER TO "openschool_section_manager"',
+      'Execution roles must not assume the Section manager',
+      'REVOKE INSERT, UPDATE, DELETE ON TABLE "courses"',
+    ]) {
+      assert.equal(manager.includes(expected), true, `manager migration must include ${expected}`)
+    }
+    assert.equal(manager.includes('GRANT INSERT ON TABLE "courses" TO "openschool_runtime"'), false)
+    assert.equal(
+      manager.includes('GRANT UPDATE ON TABLE "sections" TO "openschool_runtime"'),
+      false
+    )
+    assert.equal(manager.includes('GRANT DELETE ON TABLE "section_roster_memberships"'), false)
+  })
 })

@@ -175,11 +175,23 @@ export const schoolEnrollments = pgTable(
           ${STUDENT_READ_CAPABILITIES},
           'tenant.guardian_contacts.read', 'tenant.guardian_contacts.manage',
           'tenant.households.read', 'tenant.households.manage',
+          'tenant.sections.read', 'tenant.sections.manage',
           'identity.context.resolve'
         )
         AND public.openschool_canonical_student_scope_allows(
           ${table.tenantId}, ${table.schoolId}, ${table.personId}
         )
+      `,
+    }),
+    pgPolicy('school_enrollments_section_manager_select', {
+      for: 'select',
+      to: 'openschool_section_manager',
+      using: sql`
+        session_user = 'openschool_runtime'
+        AND current_user = 'openschool_section_manager'
+        AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND nullif(current_setting('app.policy_capability', true), '') = 'tenant.sections.manage'
+        AND public.openschool_school_scope_allows(${table.tenantId}, ${table.schoolId})
       `,
     }),
     pgPolicy('school_enrollments_runtime_insert_deny', {
