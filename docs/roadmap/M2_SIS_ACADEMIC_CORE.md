@@ -63,7 +63,7 @@ flowchart TD
 | 2 | [#113](https://github.com/joshua-sx/openschool-v2/issues/113) | configure one academic year, term, and learner-level set | no academic authority to versioned School configuration |
 | 3 | [#114](https://github.com/joshua-sx/openschool-v2/issues/114) | enroll, withdraw, transfer within a Tenant, graduate, and re-enroll | **Implemented:** mutable Student status to append-only School history |
 | 4 | [#115](https://github.com/joshua-sx/openschool-v2/issues/115) | link guardians and emergency contacts with explicit powers | **Implemented:** informal contact fields to effective relationships and explicit portal eligibility |
-| 5 | [#116](https://github.com/joshua-sx/openschool-v2/issues/116) | represent multiple households and residences | one-household assumptions to effective residence history |
+| 5 | [#116](https://github.com/joshua-sx/openschool-v2/issues/116) | represent multiple households and residences | **Implemented:** one-household assumptions to versioned residence, mailing, and sibling-membership history |
 | 6 | [#117](https://github.com/joshua-sx/openschool-v2/issues/117) | create courses/sections and roster enrolled learners | class schema placeholders to authoritative rosters |
 | 7 | [#118](https://github.com/joshua-sx/openschool-v2/issues/118) | review explainable possible duplicates without mutation | hidden duplicate risk to conservative queue |
 | 8 | [#119](https://github.com/joshua-sx/openschool-v2/issues/119) | approve and execute a controlled same-Tenant Person merge | manual repair to audited compensating workflow |
