@@ -375,6 +375,20 @@ BEGIN
     OR v_tenant_id IS NULL OR v_account_id IS NULL OR p_section_id IS NULL
     OR char_length(btrim(p_reason)) NOT BETWEEN 3 AND 512
   THEN RAISE EXCEPTION 'SECTION_CLOSE_CONTEXT_INVALID' USING ERRCODE = '22023'; END IF;
+  UPDATE public.section_staff_assignments AS assignment
+  SET status = 'ended',
+    valid_until = greatest(v_occurred_at, assignment.valid_from + interval '1 microsecond'),
+    ended_by_account_id = v_account_id, end_reason = btrim(p_reason),
+    updated_at = v_occurred_at
+  WHERE assignment.tenant_id = v_tenant_id AND assignment.section_id = p_section_id
+    AND assignment.status = 'active';
+  UPDATE public.section_roster_memberships AS membership
+  SET status = 'ended',
+    valid_until = greatest(v_occurred_at, membership.valid_from + interval '1 microsecond'),
+    ended_by_account_id = v_account_id, end_reason = btrim(p_reason),
+    updated_at = v_occurred_at
+  WHERE membership.tenant_id = v_tenant_id AND membership.section_id = p_section_id
+    AND membership.status = 'active';
   UPDATE public.sections AS section
   SET status = 'closed', version = section.version + 1, closed_at = v_occurred_at,
     closed_by_account_id = v_account_id, closure_reason = btrim(p_reason), updated_at = v_occurred_at

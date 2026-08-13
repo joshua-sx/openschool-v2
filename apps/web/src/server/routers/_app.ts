@@ -7,6 +7,7 @@ import { householdsRouter } from './households'
 import { invitationsRouter } from './invitations'
 import { platformRouter } from './platform'
 import { schoolsRouter } from './schools'
+import { sectionsRouter } from './sections'
 import { studentEnrollmentsRouter } from './student-enrollments'
 import { studentsRouter } from './students'
 import { supportAccessRouter } from './support-access'
@@ -20,6 +21,7 @@ export const appRouter = router({
   students: studentsRouter,
   studentEnrollments: studentEnrollmentsRouter,
   schools: schoolsRouter,
+  sections: sectionsRouter,
   invitations: invitationsRouter,
   platform: platformRouter,
   supportAccess: supportAccessRouter,
