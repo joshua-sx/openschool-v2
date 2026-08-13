@@ -142,7 +142,7 @@ async function runProof(): Promise<void> {
   const schoolManage = allow(schoolContext, CAPABILITIES.HOUSEHOLDS_MANAGE, 'school')
   const schoolRead = allow(schoolContext, CAPABILITIES.HOUSEHOLDS_READ, 'school')
   const startedAt = new Date()
-  const effective = new Date(startedAt.getTime() + 5_000)
+  const effective = new Date(startedAt.getTime() - 24 * 60 * 60_000)
   let failure: unknown
   let householdId: string | undefined
 
