@@ -4,6 +4,7 @@ import {
   type TenantDatabaseContext,
   accountSessions,
   auditEvents,
+  auditOutbox,
   closeDatabaseExecutionPoolsForProof,
   createMigrationClient,
   people,
@@ -19,7 +20,7 @@ import {
   evaluatePolicy,
 } from '@openschool/rbac'
 import { TRPCError } from '@trpc/server'
-import { and, asc, eq, inArray, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray } from 'drizzle-orm'
 import { toDatabasePolicyContext } from '../services/database-context'
 import { getDuplicateReviewQueue, reviewDuplicateCase } from '../services/duplicate-people'
 import { createStudent, updateStudent } from '../services/students'
@@ -351,12 +352,16 @@ async function runProof(): Promise<void> {
       'person_duplicate.distinct',
       'person_duplicate.merge_approval_request',
     ])
-    const [outboxCount] = await admin.execute<{ count: number }>(sql`
-      select count(*)::int as count
-      from audit_outbox
-      where audit_event_id = any(${decisionAudits.map(({ id }) => id)}::uuid[])
-    `)
-    assert.equal(outboxCount?.count, 2)
+    const decisionOutbox = await admin
+      .select({ eventId: auditOutbox.auditEventId })
+      .from(auditOutbox)
+      .where(
+        inArray(
+          auditOutbox.auditEventId,
+          decisionAudits.map(({ id }) => id)
+        )
+      )
+    assert.equal(decisionOutbox.length, 2)
 
     console.info(
       'Duplicate People proof passed: nonblocking admission warning, deterministic evidence, same-evidence suppression, material-evidence reopening, approval-only workflow, bounded history, audited decisions, school/tenant denials, direct-write rejection, immutable events, and no automatic merge.'
