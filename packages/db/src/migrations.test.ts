@@ -613,6 +613,7 @@ describe('database migration baseline', () => {
       'openschool_private"."close_section',
       "current_setting('app.assurance_level', true), '') <> 'aal2'",
       'OWNER TO "openschool_section_manager"',
+      'GRANT EXECUTE ON FUNCTION public.openschool_school_scope_allows(uuid, uuid)',
       'Execution roles must not assume the Section manager',
       'REVOKE INSERT, UPDATE, DELETE ON TABLE "courses"',
     ]) {
