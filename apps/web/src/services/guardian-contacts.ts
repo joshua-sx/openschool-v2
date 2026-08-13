@@ -235,7 +235,10 @@ async function resolveLearnerAnchor(
     filters.push(
       eq(schoolEnrollments.status, 'enrolled'),
       lte(schoolEnrollments.validFrom, at),
-      or(isNull(schoolEnrollments.validUntil), sql`${schoolEnrollments.validUntil} > ${at}`)
+      or(
+        isNull(schoolEnrollments.validUntil),
+        sql`${schoolEnrollments.validUntil} > ${atIso}::timestamptz`
+      )
     )
   }
   const [enrollment] = await db
@@ -265,6 +268,7 @@ async function loadContacts(
   learnerPersonId: string
 ): Promise<GuardianContact[]> {
   const at = new Date()
+  const atIso = at.toISOString()
   const rows = await db
     .select({
       relationshipId: personRelationships.id,
@@ -288,16 +292,16 @@ async function loadContacts(
         WHERE link.tenant_id = ${tenantId}::uuid
           AND link.person_id = ${personRelationships.subjectPersonId}
           AND link.status = 'active'
-          AND link.valid_from <= ${at}
-          AND (link.valid_until IS NULL OR link.valid_until > ${at})
+          AND link.valid_from <= ${atIso}::timestamptz
+          AND (link.valid_until IS NULL OR link.valid_until > ${atIso}::timestamptz)
       )`,
       status: personRelationships.status,
       isCurrent: sql<boolean>`
         ${personRelationships.status} = 'active'
-        AND ${personRelationships.validFrom} <= ${at}
+        AND ${personRelationships.validFrom} <= ${atIso}::timestamptz
         AND (
           ${personRelationships.validUntil} IS NULL
-          OR ${personRelationships.validUntil} > ${at}
+          OR ${personRelationships.validUntil} > ${atIso}::timestamptz
         )
       `,
       validFrom: personRelationships.validFrom,
