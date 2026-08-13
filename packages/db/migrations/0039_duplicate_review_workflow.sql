@@ -282,7 +282,7 @@ BEGIN
       scored.id,
       scored.score,
       scored.signals,
-      encode(digest(convert_to(jsonb_build_object(
+      encode(public.digest(convert_to(jsonb_build_object(
         'schemaVersion', 1,
         'firstPersonId', LEAST(p_person_id::text, scored.id::text),
         'secondPersonId', GREATEST(p_person_id::text, scored.id::text),

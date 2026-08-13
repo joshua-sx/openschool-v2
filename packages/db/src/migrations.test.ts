@@ -684,6 +684,7 @@ describe('database migration baseline', () => {
       "'tenant.people_duplicates.read', 'tenant.people_duplicates.review'",
       "SET status = 'superseded'",
       "'evidence_no_longer_matches'",
+      'public.digest',
       'Execution roles must not assume the duplicate review manager',
     ]) {
       assert.equal(workflow.includes(expected), true, `workflow must include ${expected}`)
