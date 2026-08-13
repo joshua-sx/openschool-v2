@@ -214,14 +214,14 @@ BEGIN
     scored AS (
       SELECT
         person.id,
-        (
+        LEAST(100, (
           CASE WHEN v_target.normalized_email IS NOT NULL
             AND person.normalized_email = v_target.normalized_email THEN 60 ELSE 0 END
           + CASE WHEN person.normalized_display_name = v_target.normalized_display_name
             THEN 25 ELSE 0 END
           + CASE WHEN v_target.date_of_birth IS NOT NULL
             AND person.date_of_birth = v_target.date_of_birth THEN 25 ELSE 0 END
-        )::integer AS score,
+        ))::integer AS score,
         to_jsonb(array_remove(ARRAY[
           CASE WHEN v_target.normalized_email IS NOT NULL
             AND person.normalized_email = v_target.normalized_email
