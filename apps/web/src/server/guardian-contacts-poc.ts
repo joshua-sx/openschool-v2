@@ -43,6 +43,7 @@ const ORGANIZATION_ROOT = '00000000-0000-4000-8000-000000000001'
 const SCHOOL_PRIMARY = '00000000-0000-4000-8000-000000000101'
 const LEARNER_PRIMARY = '00000000-0000-4000-8000-000000000911'
 const LEARNER_HIGH = '00000000-0000-4000-8000-000000000912'
+const SIBLING_SCHOOL_CONTACT = '00000000-0000-4000-8000-000000000906'
 const CROSS_TENANT_PERSON = '00000000-0000-4000-8000-000000000913'
 const ORG_ADMIN_ACCOUNT = '00000000-0000-4000-8000-000000000201'
 const ORG_ADMIN_PERSON = '00000000-0000-4000-8000-000000000901'
@@ -408,10 +409,10 @@ async function runProof(): Promise<void> {
       schoolContext,
       schoolManage,
       LEARNER_PRIMARY,
-      `Duplicate ${RUN_ID.slice(0, 8)}`
+      'Riley Brown'
     )
     assert.equal(
-      schoolCandidates.some(({ id }) => id === duplicate.contactPersonId),
+      schoolCandidates.some(({ id }) => id === SIBLING_SCHOOL_CONTACT),
       false
     )
 
@@ -422,7 +423,7 @@ async function runProof(): Promise<void> {
         schoolManage,
         {
           learnerId: LEARNER_PRIMARY,
-          contact: { kind: 'existing', personId: duplicate.contactPersonId },
+          contact: { kind: 'existing', personId: SIBLING_SCHOOL_CONTACT },
           relationshipType: 'parent_of',
           legalAuthority: false,
           decisionAuthority: 'none',
