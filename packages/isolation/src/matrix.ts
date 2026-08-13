@@ -9,6 +9,7 @@ export const ISOLATION_EVIDENCE_IDS = [
   'canonical_student_admission',
   'academic_structure',
   'student_enrollment_lifecycle',
+  'guardian_contacts',
   'student_rls',
   'audit_ledger',
   'invitation_onboarding',
@@ -101,6 +102,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'canonical_student_admission',
       'academic_structure',
       'student_enrollment_lifecycle',
+      'guardian_contacts',
     ],
     negativeEvidence: [
       'policy_query',
@@ -108,6 +110,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'canonical_student_admission',
       'academic_structure',
       'student_enrollment_lifecycle',
+      'guardian_contacts',
     ],
   }),
   row({
@@ -119,6 +122,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'canonical_student_admission',
       'academic_structure',
       'student_enrollment_lifecycle',
+      'guardian_contacts',
       'release_metadata',
     ],
     negativeEvidence: [
@@ -126,6 +130,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'canonical_student_admission',
       'academic_structure',
       'student_enrollment_lifecycle',
+      'guardian_contacts',
       'database_execution',
     ],
   }),
@@ -146,6 +151,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'canonical_student_admission',
       'academic_structure',
       'student_enrollment_lifecycle',
+      'guardian_contacts',
     ],
     negativeEvidence: [
       'policy_query',
@@ -153,14 +159,15 @@ export const ISOLATION_MATRIX = Object.freeze([
       'canonical_student_admission',
       'academic_structure',
       'student_enrollment_lifecycle',
+      'guardian_contacts',
     ],
   }),
   row({
     id: 'guardian_student',
     implementation: 'implemented',
     engineeringBlocking: true,
-    positiveEvidence: ['policy_query'],
-    negativeEvidence: ['policy_query'],
+    positiveEvidence: ['policy_query', 'guardian_contacts'],
+    negativeEvidence: ['policy_query', 'guardian_contacts'],
   }),
   row({
     id: 'platform_control_plane',
@@ -252,6 +259,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'canonical_student_admission',
       'academic_structure',
       'student_enrollment_lifecycle',
+      'guardian_contacts',
       'audit_partition_lifecycle',
     ],
     negativeEvidence: [
@@ -259,6 +267,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'canonical_student_admission',
       'academic_structure',
       'student_enrollment_lifecycle',
+      'guardian_contacts',
       'audit_partition_lifecycle',
     ],
   }),

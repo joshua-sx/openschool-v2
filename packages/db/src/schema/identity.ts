@@ -1,16 +1,20 @@
 import { sql } from 'drizzle-orm'
 import {
   bigint,
+  boolean,
   check,
   date,
   foreignKey,
   index,
+  integer,
   jsonb,
+  pgPolicy,
   pgTable,
   primaryKey,
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
 import { classes } from './classes'
@@ -431,11 +435,26 @@ export const personRelationships = pgTable(
       onUpdate: 'restrict',
     }),
     revocationReason: text('revocation_reason'),
+    legalAuthority: boolean('legal_authority').default(false).notNull(),
+    decisionAuthority: text('decision_authority', {
+      enum: ['none', 'shared', 'sole', 'limited'],
+    })
+      .default('none')
+      .notNull(),
+    emergencyPriority: integer('emergency_priority'),
+    pickupAuthority: boolean('pickup_authority').default(false).notNull(),
+    portalEligible: boolean('portal_eligible').default(false).notNull(),
+    version: bigint('version', { mode: 'number' }).default(1).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     unique('person_relationships_tenant_id_id_unique').on(table.tenantId, table.id),
+    uniqueIndex('person_relationships_one_active_contact_per_learner_idx')
+      .on(table.tenantId, table.subjectPersonId, table.relatedPersonId)
+      .where(
+        sql`${table.status} = 'active' AND ${table.type} IN ('parent_of', 'guardian_of', 'emergency_contact_of')`
+      ),
     foreignKey({
       name: 'person_relationships_tenant_subject_fk',
       columns: [table.tenantId, table.subjectPersonId],
@@ -484,8 +503,266 @@ export const personRelationships = pgTable(
       'person_relationships_revocation_evidence_check',
       sql`${table.status} <> 'revoked' OR (${table.revokedAt} IS NOT NULL AND ${table.revocationReason} IS NOT NULL AND ${table.validUntil} IS NOT NULL)`
     ),
+    check(
+      'person_relationships_decision_authority_check',
+      sql`${table.decisionAuthority} IN ('none', 'shared', 'sole', 'limited')`
+    ),
+    check(
+      'person_relationships_emergency_priority_check',
+      sql`${table.emergencyPriority} IS NULL OR ${table.emergencyPriority} BETWEEN 1 AND 99`
+    ),
+    check(
+      'person_relationships_portal_eligibility_check',
+      sql`NOT ${table.portalEligible} OR ${table.type} IN ('guardian_of', 'parent_of')`
+    ),
+    check('person_relationships_version_positive', sql`${table.version} > 0`),
+    pgPolicy('person_relationships_runtime_select', {
+      for: 'select',
+      to: 'openschool_runtime',
+      using: sql`
+        ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND (
+          (
+            nullif(current_setting('app.policy_capability', true), '')
+              = 'tenant.guardian_contacts.read'
+            AND public.openschool_guardian_contact_read_scope_allows(
+              ${table.tenantId}, ${table.relatedPersonId}
+            )
+          )
+          OR (
+            nullif(current_setting('app.policy_capability', true), '')
+              = 'tenant.guardian_contacts.manage'
+            AND public.openschool_guardian_contact_manage_scope_allows(
+              ${table.tenantId}, ${table.relatedPersonId}
+            )
+          )
+          OR (
+            nullif(current_setting('app.policy_capability', true), '')
+              IN ('identity.context.resolve', 'tenant.students.read')
+            AND ${table.subjectPersonId}::text
+              = nullif(current_setting('app.person_id', true), '')
+            AND ${table.type} IN ('guardian_of', 'parent_of')
+            AND ${table.portalEligible}
+            AND ${table.status} = 'active'
+            AND ${table.validFrom} <= now()
+            AND (${table.validUntil} IS NULL OR ${table.validUntil} > now())
+            AND EXISTS (
+              SELECT 1
+              FROM jsonb_array_elements(public.openschool_policy_constraints()) AS constraint_row
+              WHERE constraint_row ->> 'kind' = 'linked_student'
+                AND constraint_row ->> 'tenantId' = ${table.tenantId}::text
+                AND constraint_row ->> 'guardianPersonId' = ${table.subjectPersonId}::text
+                AND (
+                  constraint_row ->> 'studentId' IS NULL
+                  OR constraint_row ->> 'studentId' = ${table.relatedPersonId}::text
+                )
+            )
+          )
+        )
+      `,
+    }),
+    pgPolicy('person_relationships_runtime_insert_deny', {
+      for: 'insert',
+      to: 'openschool_runtime',
+      withCheck: sql`false`,
+    }),
+    pgPolicy('person_relationships_runtime_update_deny', {
+      for: 'update',
+      to: 'openschool_runtime',
+      using: sql`false`,
+      withCheck: sql`false`,
+    }),
+    pgPolicy('person_relationships_runtime_delete_deny', {
+      for: 'delete',
+      to: 'openschool_runtime',
+      using: sql`false`,
+    }),
+    pgPolicy('person_relationships_contact_manager_select', {
+      for: 'select',
+      to: 'openschool_guardian_contact_manager',
+      using: sql`
+        session_user = 'openschool_runtime'
+        AND current_user = 'openschool_guardian_contact_manager'
+        AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND nullif(current_setting('app.policy_capability', true), '')
+          = 'tenant.guardian_contacts.manage'
+        AND public.openschool_guardian_contact_manage_scope_allows(
+          ${table.tenantId}, ${table.relatedPersonId}
+        )
+      `,
+    }),
+    pgPolicy('person_relationships_contact_manager_insert', {
+      for: 'insert',
+      to: 'openschool_guardian_contact_manager',
+      withCheck: sql`
+        session_user = 'openschool_runtime'
+        AND current_user = 'openschool_guardian_contact_manager'
+        AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND nullif(current_setting('app.policy_capability', true), '')
+          = 'tenant.guardian_contacts.manage'
+        AND public.openschool_guardian_contact_manage_scope_allows(
+          ${table.tenantId}, ${table.relatedPersonId}
+        )
+      `,
+    }),
+    pgPolicy('person_relationships_contact_manager_update', {
+      for: 'update',
+      to: 'openschool_guardian_contact_manager',
+      using: sql`
+        session_user = 'openschool_runtime'
+        AND current_user = 'openschool_guardian_contact_manager'
+        AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND nullif(current_setting('app.policy_capability', true), '')
+          = 'tenant.guardian_contacts.manage'
+        AND public.openschool_guardian_contact_manage_scope_allows(
+          ${table.tenantId}, ${table.relatedPersonId}
+        )
+      `,
+      withCheck: sql`
+        session_user = 'openschool_runtime'
+        AND current_user = 'openschool_guardian_contact_manager'
+        AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND nullif(current_setting('app.policy_capability', true), '')
+          = 'tenant.guardian_contacts.manage'
+        AND public.openschool_guardian_contact_manage_scope_allows(
+          ${table.tenantId}, ${table.relatedPersonId}
+        )
+      `,
+    }),
+    pgPolicy('person_relationships_contact_manager_delete_deny', {
+      for: 'delete',
+      to: 'openschool_guardian_contact_manager',
+      using: sql`false`,
+    }),
   ]
-)
+).enableRLS()
+
+export const contactProfiles = pgTable(
+  'contact_profiles',
+  {
+    tenantId: uuid('tenant_id')
+      .references(() => tenants.id, { onDelete: 'restrict', onUpdate: 'restrict' })
+      .notNull(),
+    personId: uuid('person_id').notNull(),
+    phone: text('phone'),
+    normalizedPhone: text('normalized_phone'),
+    preferredContactMethod: text('preferred_contact_method', {
+      enum: ['email', 'phone', 'sms', 'none'],
+    })
+      .default('none')
+      .notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ name: 'contact_profiles_pk', columns: [table.tenantId, table.personId] }),
+    foreignKey({
+      name: 'contact_profiles_tenant_person_fk',
+      columns: [table.tenantId, table.personId],
+      foreignColumns: [people.tenantId, people.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('restrict'),
+    index('contact_profiles_tenant_phone_idx').on(table.tenantId, table.normalizedPhone),
+    check(
+      'contact_profiles_phone_check',
+      sql`${table.phone} IS NULL OR char_length(btrim(${table.phone})) BETWEEN 5 AND 32`
+    ),
+    check(
+      'contact_profiles_normalized_phone_check',
+      sql`${table.normalizedPhone} IS NULL OR char_length(${table.normalizedPhone}) BETWEEN 5 AND 20`
+    ),
+    check(
+      'contact_profiles_preferred_method_check',
+      sql`${table.preferredContactMethod} IN ('email', 'phone', 'sms', 'none')`
+    ),
+    pgPolicy('contact_profiles_runtime_select', {
+      for: 'select',
+      to: 'openschool_runtime',
+      using: sql`
+        ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND nullif(current_setting('app.policy_capability', true), '')
+          IN ('tenant.guardian_contacts.read', 'tenant.guardian_contacts.manage')
+        AND public.openschool_contact_person_read_scope_allows(
+          ${table.tenantId}, ${table.personId}
+        )
+      `,
+    }),
+    pgPolicy('contact_profiles_runtime_insert_deny', {
+      for: 'insert',
+      to: 'openschool_runtime',
+      withCheck: sql`false`,
+    }),
+    pgPolicy('contact_profiles_runtime_update_deny', {
+      for: 'update',
+      to: 'openschool_runtime',
+      using: sql`false`,
+      withCheck: sql`false`,
+    }),
+    pgPolicy('contact_profiles_runtime_delete_deny', {
+      for: 'delete',
+      to: 'openschool_runtime',
+      using: sql`false`,
+    }),
+    pgPolicy('contact_profiles_contact_manager_select', {
+      for: 'select',
+      to: 'openschool_guardian_contact_manager',
+      using: sql`
+        session_user = 'openschool_runtime'
+        AND current_user = 'openschool_guardian_contact_manager'
+        AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND nullif(current_setting('app.policy_capability', true), '')
+          = 'tenant.guardian_contacts.manage'
+        AND public.openschool_contact_person_manage_scope_allows(
+          ${table.tenantId}, ${table.personId}
+        )
+      `,
+    }),
+    pgPolicy('contact_profiles_contact_manager_insert', {
+      for: 'insert',
+      to: 'openschool_guardian_contact_manager',
+      withCheck: sql`
+        session_user = 'openschool_runtime'
+        AND current_user = 'openschool_guardian_contact_manager'
+        AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND nullif(current_setting('app.policy_capability', true), '')
+          = 'tenant.guardian_contacts.manage'
+        AND public.openschool_contact_person_manage_scope_allows(
+          ${table.tenantId}, ${table.personId}
+        )
+      `,
+    }),
+    pgPolicy('contact_profiles_contact_manager_update', {
+      for: 'update',
+      to: 'openschool_guardian_contact_manager',
+      using: sql`
+        session_user = 'openschool_runtime'
+        AND current_user = 'openschool_guardian_contact_manager'
+        AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND nullif(current_setting('app.policy_capability', true), '')
+          = 'tenant.guardian_contacts.manage'
+        AND public.openschool_contact_person_manage_scope_allows(
+          ${table.tenantId}, ${table.personId}
+        )
+      `,
+      withCheck: sql`
+        session_user = 'openschool_runtime'
+        AND current_user = 'openschool_guardian_contact_manager'
+        AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND nullif(current_setting('app.policy_capability', true), '')
+          = 'tenant.guardian_contacts.manage'
+        AND public.openschool_contact_person_manage_scope_allows(
+          ${table.tenantId}, ${table.personId}
+        )
+      `,
+    }),
+    pgPolicy('contact_profiles_contact_manager_delete_deny', {
+      for: 'delete',
+      to: 'openschool_guardian_contact_manager',
+      using: sql`false`,
+    }),
+  ]
+).enableRLS()
 
 export const studentProfiles = pgTable(
   'student_profiles',
@@ -752,5 +1029,6 @@ export type Affiliation = typeof affiliations.$inferSelect
 export type NewAffiliation = typeof affiliations.$inferInsert
 export type RoleTemplateAssignment = typeof roleTemplateAssignments.$inferSelect
 export type PersonRelationship = typeof personRelationships.$inferSelect
+export type ContactProfile = typeof contactProfiles.$inferSelect
 export type PersonMergeEvidence = typeof personMergeEvidence.$inferSelect
 export type IdentityMigrationEvent = typeof identityMigrationEvents.$inferSelect

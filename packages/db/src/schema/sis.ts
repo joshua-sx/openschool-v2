@@ -172,7 +172,9 @@ export const schoolEnrollments = pgTable(
       using: sql`
         ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
         AND nullif(current_setting('app.policy_capability', true), '') IN (
-          ${STUDENT_READ_CAPABILITIES}
+          ${STUDENT_READ_CAPABILITIES},
+          'tenant.guardian_contacts.read', 'tenant.guardian_contacts.manage',
+          'identity.context.resolve'
         )
         AND public.openschool_canonical_student_scope_allows(
           ${table.tenantId}, ${table.schoolId}, ${table.personId}
@@ -249,6 +251,20 @@ export const schoolEnrollments = pgTable(
       for: 'delete',
       to: 'openschool_student_admitter',
       using: sql`false`,
+    }),
+    pgPolicy('school_enrollments_contact_manager_select', {
+      for: 'select',
+      to: 'openschool_guardian_contact_manager',
+      using: sql`
+        session_user = 'openschool_runtime'
+        AND current_user = 'openschool_guardian_contact_manager'
+        AND ${table.tenantId} = nullif(current_setting('app.tenant_id', true), '')::uuid
+        AND nullif(current_setting('app.policy_capability', true), '')
+          = 'tenant.guardian_contacts.manage'
+        AND public.openschool_canonical_student_scope_allows(
+          ${table.tenantId}, ${table.schoolId}, ${table.personId}
+        )
+      `,
     }),
   ]
 ).enableRLS()

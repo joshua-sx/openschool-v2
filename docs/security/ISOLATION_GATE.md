@@ -35,12 +35,13 @@ The guarded runner executes:
 6. canonical learner admission, legacy compatibility, and direct-write denial proof;
 7. canonical Academic Year/Term/Learner Level lifecycle, concurrency, and primary/high proof;
 8. learner enrollment schedule/apply/cancel, within-Tenant transfer, history, concurrency, and authorization-version proof;
-9. forced-RLS School/Student aggregate, pagination, and plan proof;
-10. atomic Audit Ledger/outbox;
-11. invitation, revocation/MFA, platform Tenant lifecycle, support, and notification proofs;
-12. backup/restore isolation rehearsal;
-13. release metadata capture; and
-14. Audit Ledger partition lifecycle last, because its default-occupancy alert fixture is immutable.
+9. Account-optional guardian/emergency contacts, explicit powers, portal context, invalidation, and scope-denial proof;
+10. forced-RLS School/Student aggregate, pagination, and plan proof;
+11. atomic Audit Ledger/outbox;
+12. invitation, revocation/MFA, platform Tenant lifecycle, support, and notification proofs;
+13. backup/restore isolation rehearsal;
+14. release metadata capture; and
+15. Audit Ledger partition lifecycle last, because its default-occupancy alert fixture is immutable.
 
 The runner stops at the first failed proof, emits engineering NO-GO with the missing evidence, and
 returns non-zero. Cross-Tenant, privilege, audit, backup, or bulk-output failures cannot be
@@ -59,7 +60,7 @@ destructive to disposable proof data and must never be pointed at a shared or pr
 
 ## Implemented and disabled paths
 
-Identity/session, context selection, tRPC API, policy/query modules, School/Student/academic/enrollment-lifecycle
+Identity/session, context selection, tRPC API, policy/query modules, School/Student/academic/enrollment/contact-lifecycle
 PostgreSQL RLS, Organization Tree, School/class, guardian/student, platform control plane, support/break glass,
 short-lived context cache, current durable jobs, support notifications, Audit Ledger, and pooled
 placement routing are implemented rows. Backup/restore is evidence-only: the drill detects an

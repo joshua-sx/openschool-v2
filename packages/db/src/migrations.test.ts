@@ -162,6 +162,29 @@ describe('database migration baseline', () => {
     }
   })
 
+  it('installs explicit guardian contact facts behind forced RLS and guarded functions', () => {
+    const migration = readFileSync(join(migrationsDirectory, '0033_volatile_wraith.sql'), 'utf8')
+    for (const expected of [
+      'CREATE TABLE "contact_profiles"',
+      'ALTER TABLE "person_relationships" FORCE ROW LEVEL SECURITY',
+      'ALTER TABLE "contact_profiles" FORCE ROW LEVEL SECURITY',
+      'person_relationships_portal_eligibility_check',
+      'person_relationships_one_active_contact_per_learner_idx',
+      "relationship.type IN ('parent_of', 'guardian_of', 'emergency_contact_of')",
+      'openschool_guardian_contact_manage_scope_allows',
+      'openschool_private"."create_guardian_contact',
+      'openschool_private"."update_guardian_contact',
+      'openschool_private"."end_guardian_contact',
+      'OWNER TO "openschool_guardian_contact_manager"',
+      'GRANT SELECT ("id", "membership_version") ON "accounts"',
+      'membership_version = account.membership_version + 1',
+      'GUARDIAN_CONTACT_STALE',
+      'Execution roles must not assume the Guardian contact manager',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+  })
+
   it('installs a partitioned append-only Audit Ledger and guarded outbox', () => {
     const migration = readFileSync(
       join(migrationsDirectory, '0015_atomic_audit_outbox.sql'),

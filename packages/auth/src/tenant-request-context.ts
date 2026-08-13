@@ -14,10 +14,10 @@ import {
   people,
   personRelationships,
   roleTemplateAssignments,
+  schoolEnrollments,
   schoolGovernanceAssignments,
   schools,
   studentProfiles,
-  students,
   tenants,
   usersOnOrg,
   usersOnSchool,
@@ -389,7 +389,7 @@ async function loadGuardianSchoolIds(
     queryConstraints: [{ kind: 'linked_student', tenantId, guardianPersonId }],
   })
   const relationships = await db
-    .selectDistinct({ schoolId: students.schoolId })
+    .selectDistinct({ schoolId: schoolEnrollments.schoolId })
     .from(personRelationships)
     .innerJoin(
       studentProfiles,
@@ -400,11 +400,13 @@ async function loadGuardianSchoolIds(
       )
     )
     .innerJoin(
-      students,
+      schoolEnrollments,
       and(
-        eq(students.tenantId, studentProfiles.tenantId),
-        eq(students.id, studentProfiles.legacyStudentId),
-        eq(students.status, 'active')
+        eq(schoolEnrollments.tenantId, studentProfiles.tenantId),
+        eq(schoolEnrollments.personId, studentProfiles.personId),
+        eq(schoolEnrollments.status, 'enrolled'),
+        lte(schoolEnrollments.validFrom, at),
+        or(isNull(schoolEnrollments.validUntil), gt(schoolEnrollments.validUntil, at))
       )
     )
     .where(
@@ -412,6 +414,7 @@ async function loadGuardianSchoolIds(
         eq(personRelationships.tenantId, tenantId),
         eq(personRelationships.subjectPersonId, guardianPersonId),
         inArray(personRelationships.type, ['guardian_of', 'parent_of']),
+        eq(personRelationships.portalEligible, true),
         eq(personRelationships.status, 'active'),
         lte(personRelationships.validFrom, at),
         or(isNull(personRelationships.validUntil), gt(personRelationships.validUntil, at))

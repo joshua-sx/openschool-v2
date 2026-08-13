@@ -232,6 +232,13 @@
       "when": 1785785625200,
       "tag": "0032_flaky_speedball",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1785786413506,
+      "tag": "0033_volatile_wraith",
+      "breakpoints": true
     }
   ]
 }
