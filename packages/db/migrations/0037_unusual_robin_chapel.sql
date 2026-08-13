@@ -5,7 +5,8 @@ ALTER TABLE "sections" ADD CONSTRAINT "sections_status_check" CHECK ("sections".
 --> statement-breakpoint
 GRANT USAGE ON SCHEMA "public", "openschool_private" TO "openschool_section_manager";
 --> statement-breakpoint
-GRANT EXECUTE ON FUNCTION public.openschool_school_scope_allows(uuid, uuid)
+GRANT EXECUTE ON FUNCTION public.openschool_policy_constraints(),
+  public.openschool_school_scope_allows(uuid, uuid)
   TO "openschool_section_manager";
 --> statement-breakpoint
 GRANT SELECT ON TABLE "academic_years", "academic_terms", "learner_levels",
