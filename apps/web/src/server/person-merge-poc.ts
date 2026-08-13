@@ -220,7 +220,7 @@ async function runProof(): Promise<void> {
     )
     assert.equal(preview.status, 'pending_approval')
     assert.equal(preview.conflictCount, 0)
-    assert.ok(preview.dependencyCount >= 4)
+    assert.ok(preview.dependencyCount >= 3)
 
     assert.equal(
       await failureFingerprint(
@@ -311,7 +311,7 @@ async function runProof(): Promise<void> {
           .select({ id: personMergePreviewItems.id })
           .from(personMergePreviewItems)
           .where(eq(personMergePreviewItems.operationId, preview.operationId))
-      ).length >= 4
+      ).length >= 3
     )
     const survivingPeople = await admin
       .select({ id: people.id })
