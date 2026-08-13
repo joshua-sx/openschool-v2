@@ -7,6 +7,9 @@ GRANT USAGE ON SCHEMA "public", "openschool_private"
 GRANT SELECT ON TABLE "people", "person_duplicate_cases"
   TO "openschool_person_merge_manager";
 --> statement-breakpoint
+GRANT UPDATE ON TABLE "people", "person_duplicate_cases"
+  TO "openschool_person_merge_manager";
+--> statement-breakpoint
 CREATE POLICY "people_person_merge_manager_select" ON "people"
   AS PERMISSIVE FOR SELECT TO "openschool_person_merge_manager" USING (
     session_user = 'openschool_runtime'
@@ -16,6 +19,28 @@ CREATE POLICY "people_person_merge_manager_select" ON "people"
       'tenant.people_merges.preview', 'tenant.people_merges.approve'
     )
   );
+--> statement-breakpoint
+CREATE POLICY "people_person_merge_manager_lock" ON "people"
+  AS PERMISSIVE FOR UPDATE TO "openschool_person_merge_manager" USING (
+    session_user = 'openschool_runtime'
+    AND current_user = 'openschool_person_merge_manager'
+    AND tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid
+    AND nullif(current_setting('app.policy_capability', true), '') IN (
+      'tenant.people_merges.preview', 'tenant.people_merges.approve'
+    )
+  ) WITH CHECK (false);
+--> statement-breakpoint
+CREATE POLICY "person_duplicate_cases_person_merge_manager_lock"
+  ON "person_duplicate_cases"
+  AS PERMISSIVE FOR UPDATE TO "openschool_person_merge_manager" USING (
+    session_user = 'openschool_runtime'
+    AND current_user = 'openschool_person_merge_manager'
+    AND tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid
+    AND nullif(current_setting('app.policy_capability', true), '') IN (
+      'tenant.people_merges.preview', 'tenant.people_merges.approve'
+    )
+    AND public.openschool_school_scope_allows(tenant_id, review_school_id)
+  ) WITH CHECK (false);
 --> statement-breakpoint
 DO $policies$
 DECLARE
