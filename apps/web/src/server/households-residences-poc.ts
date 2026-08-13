@@ -18,7 +18,7 @@ import {
   evaluatePolicy,
 } from '@openschool/rbac'
 import { TRPCError } from '@trpc/server'
-import { eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { toDatabasePolicyContext } from '../services/database-context'
 import {
   addHouseholdAddress,
@@ -394,7 +394,13 @@ async function runProof(): Promise<void> {
         change: auditEvents.changeSummary,
       })
       .from(auditEvents)
-      .where(eq(auditEvents.targetId, currentHouseholdId))
+      .where(
+        and(
+          eq(auditEvents.tenantId, TENANT_A),
+          eq(auditEvents.targetId, currentHouseholdId),
+          eq(auditEvents.outcome, 'succeeded')
+        )
+      )
     assert.ok(audits.some(({ eventType }) => eventType === 'household.create'))
     assert.ok(audits.some(({ eventType }) => eventType === 'household.member.add'))
     assert.ok(audits.some(({ eventType }) => eventType === 'household.address.add'))
