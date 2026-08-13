@@ -752,4 +752,41 @@ describe('database migration baseline', () => {
       'foundation must not expose a merge execution path'
     )
   })
+
+  it('builds locked person merge previews and fails closed on new references', () => {
+    const workflow = readFileSync(
+      join(migrationsDirectory, '0041_person_merge_preview_workflow.sql'),
+      'utf8'
+    )
+    for (const expected of [
+      'openschool_private"."create_person_merge_preview',
+      "<> 'tenant.people_merges.preview'",
+      "<> 'aal2'",
+      "interval '15 minutes'",
+      'pg_advisory_xact_lock',
+      'ORDER BY person.id',
+      'FOR UPDATE',
+      "v_case.status <> 'merge_approval_requested'",
+      "constraint_row.confrelid = 'public.people'::regclass",
+      "THEN 'UNREVIEWED_PERSON_REFERENCE'",
+      "'TARGET_PROFILE_EXISTS'",
+      "'SELF_RELATIONSHIP'",
+      "WHEN v_conflict_count = 0 THEN 'pending_approval' ELSE 'blocked'",
+      'SET search_path = pg_catalog, extensions, public',
+      'OWNER TO "openschool_person_merge_manager"',
+      'GRANT EXECUTE ON FUNCTION',
+    ]) {
+      assert.equal(workflow.includes(expected), true, `preview workflow must include ${expected}`)
+    }
+    assert.equal(
+      workflow.includes('execute_person_merge'),
+      false,
+      'preview workflow must not expose merge execution'
+    )
+    assert.equal(
+      workflow.includes('approved_by_account_id'),
+      false,
+      'preview workflow must not self-approve'
+    )
+  })
 })

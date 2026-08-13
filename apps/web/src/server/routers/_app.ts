@@ -6,6 +6,7 @@ import { exampleRouter } from './example'
 import { guardianContactsRouter } from './guardian-contacts'
 import { householdsRouter } from './households'
 import { invitationsRouter } from './invitations'
+import { personMergesRouter } from './person-merges'
 import { platformRouter } from './platform'
 import { schoolsRouter } from './schools'
 import { sectionsRouter } from './sections'
@@ -26,6 +27,7 @@ export const appRouter = router({
   duplicatePeople: duplicatePeopleRouter,
   invitations: invitationsRouter,
   platform: platformRouter,
+  personMerges: personMergesRouter,
   supportAccess: supportAccessRouter,
 })
 
