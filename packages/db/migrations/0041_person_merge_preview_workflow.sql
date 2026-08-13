@@ -1,7 +1,7 @@
 -- Person merge preview is intentionally separate from execution. It inventories every direct
 -- Person foreign key and blocks references whose disposition has not been reviewed.
 
-GRANT USAGE ON SCHEMA "public", "openschool_private", "extensions"
+GRANT USAGE ON SCHEMA "public", "openschool_private"
   TO "openschool_person_merge_manager";
 --> statement-breakpoint
 DO $policies$
