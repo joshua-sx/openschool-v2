@@ -117,6 +117,20 @@ async function failureFingerprint(operation: Promise<unknown>): Promise<string> 
   assert.fail('Expected operation to fail')
 }
 
+function currentProofCases<T extends { firstPersonId: string; secondPersonId: string }>(
+  cases: readonly T[],
+  firstPersonId: string,
+  secondPersonId: string
+): T[] {
+  return cases.filter(
+    (duplicateCase) =>
+      (duplicateCase.firstPersonId === firstPersonId &&
+        duplicateCase.secondPersonId === secondPersonId) ||
+      (duplicateCase.firstPersonId === secondPersonId &&
+        duplicateCase.secondPersonId === firstPersonId)
+  )
+}
+
 async function runProof(): Promise<void> {
   assertDisposable()
   const admin = createMigrationClient()
@@ -155,11 +169,15 @@ async function runProof(): Promise<void> {
     })
     assert.equal(second.possibleDuplicateCount, 1)
 
-    let queue = await getDuplicateReviewQueue(
-      databaseContext('queue-open'),
-      context,
-      readDecision,
-      SCHOOL_PRIMARY
+    let queue = currentProofCases(
+      await getDuplicateReviewQueue(
+        databaseContext('queue-open'),
+        context,
+        readDecision,
+        SCHOOL_PRIMARY
+      ),
+      first.personId,
+      second.personId
     )
     assert.equal(queue.length, 1)
     const duplicateCase = queue[0]
@@ -196,12 +214,16 @@ async function runProof(): Promise<void> {
       { email: sharedEmail }
     )
     assert.equal(unchanged.possibleDuplicateCount, 0)
-    queue = await getDuplicateReviewQueue(
-      databaseContext('queue-distinct'),
-      context,
-      readDecision,
-      SCHOOL_PRIMARY,
-      ['distinct']
+    queue = currentProofCases(
+      await getDuplicateReviewQueue(
+        databaseContext('queue-distinct'),
+        context,
+        readDecision,
+        SCHOOL_PRIMARY,
+        ['distinct']
+      ),
+      first.personId,
+      second.personId
     )
     assert.equal(queue[0]?.version, 2)
 
@@ -213,11 +235,15 @@ async function runProof(): Promise<void> {
       { email: `changed-${RUN_ID}@proof.test` }
     )
     assert.equal(refreshed.possibleDuplicateCount, 1)
-    queue = await getDuplicateReviewQueue(
-      databaseContext('queue-reopened'),
-      context,
-      readDecision,
-      SCHOOL_PRIMARY
+    queue = currentProofCases(
+      await getDuplicateReviewQueue(
+        databaseContext('queue-reopened'),
+        context,
+        readDecision,
+        SCHOOL_PRIMARY
+      ),
+      first.personId,
+      second.personId
     )
     assert.equal(queue[0]?.status, 'open')
     assert.equal(queue[0]?.version, 3)
@@ -234,12 +260,16 @@ async function runProof(): Promise<void> {
       { firstName: 'Jordan', lastName: `Distinct ${RUN_ID}`, dateOfBirth: null }
     )
     assert.equal(noLongerMatching.possibleDuplicateCount, 0)
-    queue = await getDuplicateReviewQueue(
-      databaseContext('queue-superseded'),
-      context,
-      readDecision,
-      SCHOOL_PRIMARY,
-      ['superseded']
+    queue = currentProofCases(
+      await getDuplicateReviewQueue(
+        databaseContext('queue-superseded'),
+        context,
+        readDecision,
+        SCHOOL_PRIMARY,
+        ['superseded']
+      ),
+      first.personId,
+      second.personId
     )
     assert.equal(queue[0]?.version, 4)
 
@@ -255,11 +285,15 @@ async function runProof(): Promise<void> {
       }
     )
     assert.equal(matchingAgain.possibleDuplicateCount, 1)
-    queue = await getDuplicateReviewQueue(
-      databaseContext('queue-reopened-again'),
-      context,
-      readDecision,
-      SCHOOL_PRIMARY
+    queue = currentProofCases(
+      await getDuplicateReviewQueue(
+        databaseContext('queue-reopened-again'),
+        context,
+        readDecision,
+        SCHOOL_PRIMARY
+      ),
+      first.personId,
+      second.personId
     )
     assert.equal(queue[0]?.status, 'open')
     assert.equal(queue[0]?.version, 5)
