@@ -185,6 +185,35 @@ describe('database migration baseline', () => {
     }
   })
 
+  it('installs effective households, residences, and narrow authority roles', () => {
+    const migration = readFileSync(
+      join(migrationsDirectory, '0034_futuristic_rafael_vega.sql'),
+      'utf8'
+    )
+    for (const expected of [
+      'CREATE TABLE "households"',
+      'CREATE TABLE "household_addresses"',
+      'CREATE TABLE "household_memberships"',
+      'household_memberships_no_effective_overlap',
+      'household_memberships_primary_residence_no_overlap',
+      'household_memberships_primary_mailing_no_overlap',
+      'household_addresses_primary_type_no_overlap',
+      'ALTER TABLE "households" FORCE ROW LEVEL SECURITY',
+      'openschool_household_person_manage_scope_allows',
+      'openschool_private"."create_household',
+      'openschool_private"."add_household_member',
+      'openschool_private"."revise_household_member',
+      'openschool_private"."end_household_member',
+      'openschool_private"."add_household_address',
+      'openschool_private"."revise_household_address',
+      'OWNER TO "openschool_household_scope_resolver"',
+      'OWNER TO "openschool_household_manager"',
+      'Execution roles must not assume Household authority roles',
+    ]) {
+      assert.equal(migration.includes(expected), true, `migration must include ${expected}`)
+    }
+  })
+
   it('installs a partitioned append-only Audit Ledger and guarded outbox', () => {
     const migration = readFileSync(
       join(migrationsDirectory, '0015_atomic_audit_outbox.sql'),
