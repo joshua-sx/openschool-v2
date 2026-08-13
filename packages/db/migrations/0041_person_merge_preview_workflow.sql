@@ -8,8 +8,42 @@ GRANT EXECUTE ON FUNCTION "openschool_policy_constraints"(),
   "openschool_school_scope_allows"(uuid, uuid)
   TO "openschool_person_merge_manager";
 --> statement-breakpoint
-GRANT SELECT ON TABLE "people", "person_duplicate_cases"
+GRANT SELECT ON TABLE "people", "person_duplicate_cases",
+  "school_governance_assignments", "organization_tree_closure", "organization_tree_versions"
   TO "openschool_person_merge_manager";
+--> statement-breakpoint
+CREATE POLICY "school_governance_person_merge_manager_select"
+  ON "school_governance_assignments"
+  AS PERMISSIVE FOR SELECT TO "openschool_person_merge_manager" USING (
+    session_user = 'openschool_runtime'
+    AND current_user = 'openschool_person_merge_manager'
+    AND tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid
+    AND nullif(current_setting('app.policy_capability', true), '') IN (
+      'tenant.people_merges.preview', 'tenant.people_merges.approve'
+    )
+  );
+--> statement-breakpoint
+CREATE POLICY "organization_tree_closure_person_merge_manager_select"
+  ON "organization_tree_closure"
+  AS PERMISSIVE FOR SELECT TO "openschool_person_merge_manager" USING (
+    session_user = 'openschool_runtime'
+    AND current_user = 'openschool_person_merge_manager'
+    AND tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid
+    AND nullif(current_setting('app.policy_capability', true), '') IN (
+      'tenant.people_merges.preview', 'tenant.people_merges.approve'
+    )
+  );
+--> statement-breakpoint
+CREATE POLICY "organization_tree_versions_person_merge_manager_select"
+  ON "organization_tree_versions"
+  AS PERMISSIVE FOR SELECT TO "openschool_person_merge_manager" USING (
+    session_user = 'openschool_runtime'
+    AND current_user = 'openschool_person_merge_manager'
+    AND tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid
+    AND nullif(current_setting('app.policy_capability', true), '') IN (
+      'tenant.people_merges.preview', 'tenant.people_merges.approve'
+    )
+  );
 --> statement-breakpoint
 GRANT UPDATE ON TABLE "people", "person_duplicate_cases"
   TO "openschool_person_merge_manager";
