@@ -17,6 +17,7 @@
     "canonical:student-admission-poc": "bun run src/server/canonical-student-admission-poc.ts",
     "academic:structure-poc": "bun run src/server/academic-structure-poc.ts",
     "student:enrollment-lifecycle-poc": "bun run src/server/student-enrollment-lifecycle-poc.ts",
+    "guardian:contacts-poc": "bun run src/server/guardian-contacts-poc.ts",
     "provider:mfa-reconcile": "bun run src/server/provider-mfa-reconciliation-job.ts"
   },
   "dependencies": {

@@ -32,6 +32,7 @@ const PROOF_GROUPS: readonly ProofGroup[] = [
   },
   { evidence: 'academic_structure', commands: ['academic:structure-poc'] },
   { evidence: 'student_enrollment_lifecycle', commands: ['student:enrollment-lifecycle-poc'] },
+  { evidence: 'guardian_contacts', commands: ['guardian:contacts-poc'] },
   { evidence: 'student_rls', commands: ['db:student-rls-poc'] },
   { evidence: 'audit_ledger', commands: ['audit:poc'] },
   { evidence: 'invitation_onboarding', commands: ['invitation:onboarding-poc'] },
@@ -66,7 +67,7 @@ function fallbackMetadata(): IsolationReleaseMetadata {
   return {
     commit: process.env.GITHUB_SHA ?? 'local-uncommitted',
     ciRun: process.env.GITHUB_RUN_ID ?? 'local',
-    migration: '0032_flaky_speedball',
+    migration: '0033_volatile_wraith',
     postgresVersion: 'not-recorded',
     roleEvidenceDigest: '0'.repeat(64),
     policyEvidenceDigest: '0'.repeat(64),

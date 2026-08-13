@@ -1,5 +1,6 @@
 'use client'
 
+import { GuardianContactsPanel } from '@/components/students/guardian-contacts-panel'
 import { StudentEnrollmentLifecycle } from '@/components/students/student-enrollment-lifecycle'
 import {
   type StudentFormData,
@@ -422,6 +423,8 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
           )}
         </div>
       </form>
+
+      <GuardianContactsPanel learnerId={id} />
 
       <StudentEnrollmentLifecycle personId={student.personId} studentLookupId={id} />
 

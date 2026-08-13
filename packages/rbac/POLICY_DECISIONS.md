@@ -29,7 +29,8 @@ Platform and support Role Templates require separately verified `platformAccess`
 
 The accepted deployment versions are:
 
-- `2026-08-03.v5` — current Tenant, platform, support, canonical learner, academic-structure, and MFA-protected enrollment-lifecycle templates;
+- `2026-08-03.v6` — current Tenant, platform, support, canonical learner, academic/enrollment, and MFA-protected guardian-contact templates;
+- `2026-08-03.v5` — accepted rollback before guardian-contact capabilities were enabled;
 - `2026-08-03.v4` — accepted rollback before enrollment-lifecycle capabilities were enabled;
 - `2026-08-02.legacy-parity` — rollback Tenant grant surface using the same MFA and audit safeguards.
 
@@ -47,6 +48,6 @@ The accepted deployment versions are:
 
 ## Evidence and remaining blockers
 
-The focused policy suite proves default-deny inputs, order-independent multi-role union, guardian, student, teacher/class, School, Academic Year, School Enrollment, Organization subtree, support, and platform cases; MFA plus exact lifecycle audit obligations for academic and enrollment management; immutable custom composition; and accepted-version selection. `policy:query-poc`, academic structure, and enrollment lifecycle proofs run against disposable seeded PostgreSQL and prove Organization subtree, selected School, assigned class, linked student, self, sibling-School, historical, and cross-Tenant data constraints.
+The focused policy suite proves default-deny inputs, order-independent multi-role union, guardian, student, teacher/class, School, Academic Year, School Enrollment, guardian contact, Organization subtree, support, and platform cases; MFA plus exact lifecycle audit obligations for academic, enrollment, and contact management; immutable custom composition; and accepted-version selection. `policy:query-poc`, academic structure, enrollment lifecycle, and guardian-contact proofs run against disposable seeded PostgreSQL and prove Organization subtree, selected School, assigned class, current portal-eligible linked student, self, sibling-School, historical, and cross-Tenant data constraints.
 
 This is not a complete production boundary by itself. The repository now composes Policy Decisions with named non-owner transaction-scoped roles, first-slice forced RLS, atomic audit obligations, platform/support/MFA lifecycle evidence, and the automated Isolation Matrix. Every future module must define reviewed capabilities and query constraints and pass that complete chain before enablement.
