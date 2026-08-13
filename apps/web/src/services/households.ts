@@ -16,7 +16,7 @@ import {
   type PolicyContext,
 } from '@openschool/rbac'
 import { TRPCError } from '@trpc/server'
-import { and, asc, desc, eq, ilike, isNull, lte, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm'
 import {
   assertDatabasePolicyContext,
   assertStudentSliceEnabled,
@@ -281,10 +281,12 @@ async function loadHouseholds(
     )
     .limit(100)
 
-  const result: HouseholdSummary[] = []
-  for (const membership of memberships) {
-    const addresses = await db
+  if (memberships.length === 0) return []
+  const householdIds = [...new Set(memberships.map(({ householdId }) => householdId))]
+  const [addresses, currentMembers] = await Promise.all([
+    db
       .select({
+        householdId: householdAddresses.householdId,
         id: householdAddresses.id,
         addressKey: householdAddresses.addressKey,
         version: householdAddresses.version,
@@ -306,7 +308,7 @@ async function loadHouseholds(
       .where(
         and(
           eq(householdAddresses.tenantId, tenantId),
-          eq(householdAddresses.householdId, membership.householdId)
+          inArray(householdAddresses.householdId, householdIds)
         )
       )
       .orderBy(
@@ -314,9 +316,10 @@ async function loadHouseholds(
         desc(householdAddresses.validFrom),
         asc(householdAddresses.id)
       )
-      .limit(100)
-    const currentMembers = await db
+      .limit(1_000),
+    db
       .select({
+        householdId: householdMemberships.householdId,
         membershipId: householdMemberships.id,
         personId: householdMemberships.personId,
         displayName: people.displayName,
@@ -334,7 +337,7 @@ async function loadHouseholds(
       .where(
         and(
           eq(householdMemberships.tenantId, tenantId),
-          eq(householdMemberships.householdId, membership.householdId),
+          inArray(householdMemberships.householdId, householdIds),
           eq(householdMemberships.status, 'active'),
           lte(householdMemberships.validFrom, new Date()),
           or(
@@ -344,29 +347,35 @@ async function loadHouseholds(
         )
       )
       .orderBy(asc(people.displayName), asc(householdMemberships.id))
-      .limit(100)
-    result.push({
-      householdId: membership.householdId,
-      displayName: membership.displayName,
-      status: membership.householdStatus,
-      membership: {
-        id: membership.membershipId,
-        kind: membership.kind,
-        isPrimaryResidence: membership.isPrimaryResidence,
-        isPrimaryMailing: membership.isPrimaryMailing,
-        status: membership.membershipStatus,
-        validFrom: membership.validFrom,
-        validUntil: membership.validUntil,
-        version: membership.version,
-      },
-      addresses,
-      currentMembers: currentMembers.map((member) => ({
+      .limit(1_000),
+  ])
+  const addressesByHousehold = Map.groupBy(addresses, ({ householdId }) => householdId)
+  const membersByHousehold = Map.groupBy(currentMembers, ({ householdId }) => householdId)
+
+  return memberships.map((membership) => ({
+    householdId: membership.householdId,
+    displayName: membership.displayName,
+    status: membership.householdStatus,
+    membership: {
+      id: membership.membershipId,
+      kind: membership.kind,
+      isPrimaryResidence: membership.isPrimaryResidence,
+      isPrimaryMailing: membership.isPrimaryMailing,
+      status: membership.membershipStatus,
+      validFrom: membership.validFrom,
+      validUntil: membership.validUntil,
+      version: membership.version,
+    },
+    addresses: (addressesByHousehold.get(membership.householdId) ?? []).map(
+      ({ householdId: _householdId, ...address }) => address
+    ),
+    currentMembers: (membersByHousehold.get(membership.householdId) ?? []).map(
+      ({ householdId: _householdId, ...member }) => ({
         ...member,
         isLearner: member.personId === personId,
-      })),
-    })
-  }
-  return result
+      })
+    ),
+  }))
 }
 
 export async function getLearnerHouseholds(
