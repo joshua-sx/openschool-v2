@@ -202,7 +202,7 @@ async function runProof(): Promise<void> {
       }
     )
     sectionId = section.id
-    await assignSectionStaff(
+    const staffAssignment = await assignSectionStaff(
       databaseContext('org', `sections-staff-${RUN_ID}`),
       orgContext,
       orgManage,
@@ -220,7 +220,7 @@ async function runProof(): Promise<void> {
       databaseContext('org', `sections-staff-end-${RUN_ID}`),
       orgContext,
       orgManage,
-      sectionId,
+      staffAssignment.id,
       '2026-08-18T00:00:00.000Z',
       'Make relationship denial proof independent of wall-clock time'
     )
