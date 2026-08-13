@@ -217,7 +217,13 @@ BEGIN
       AND affiliation.kind IN ('teacher', 'employee', 'administrator')
       AND affiliation.scope_type = 'school' AND affiliation.school_id = v_section.school_id
       AND affiliation.status = 'active' AND affiliation.valid_from <= p_valid_from
-      AND (affiliation.valid_until IS NULL OR affiliation.valid_until >= COALESCE(p_valid_until, p_valid_from))
+      AND (
+        affiliation.valid_until IS NULL
+        OR affiliation.valid_until >= COALESCE(
+          p_valid_until,
+          (v_section.end_date + 1)::timestamp
+        )
+      )
   ) THEN
     RAISE EXCEPTION 'SECTION_STAFF_NOT_ELIGIBLE' USING ERRCODE = '23503';
   END IF;
@@ -288,7 +294,10 @@ BEGIN
     OR p_valid_from::date < v_section.start_date
     OR (p_valid_until IS NOT NULL AND p_valid_until::date > v_section.end_date + 1)
     OR p_valid_from < v_enrollment.valid_from
-    OR (v_enrollment.valid_until IS NOT NULL AND COALESCE(p_valid_until, p_valid_from) > v_enrollment.valid_until)
+    OR (
+      v_enrollment.valid_until IS NOT NULL
+      AND COALESCE(p_valid_until, (v_section.end_date + 1)::timestamp) > v_enrollment.valid_until
+    )
   THEN
     RAISE EXCEPTION 'SECTION_ROSTER_PERIOD_INVALID' USING ERRCODE = '23514';
   END IF;
@@ -333,6 +342,12 @@ BEGIN
     end_reason = btrim(p_reason), updated_at = v_occurred_at
   WHERE assignment.tenant_id = v_tenant_id AND assignment.id = p_assignment_id
     AND assignment.status = 'active' AND p_valid_until > assignment.valid_from
+    AND (assignment.valid_until IS NULL OR p_valid_until <= assignment.valid_until)
+    AND EXISTS (
+      SELECT 1 FROM public.sections AS section
+      WHERE section.tenant_id = assignment.tenant_id AND section.id = assignment.section_id
+        AND p_valid_until::date <= section.end_date + 1
+    )
     AND public.openschool_school_scope_allows(v_tenant_id, assignment.school_id);
   IF NOT FOUND THEN RAISE EXCEPTION 'SECTION_STAFF_END_STATE_INVALID' USING ERRCODE = '55000'; END IF;
   RETURN QUERY SELECT p_assignment_id, 'ended'::text, v_occurred_at;
@@ -360,6 +375,12 @@ BEGIN
     end_reason = btrim(p_reason), updated_at = v_occurred_at
   WHERE membership.tenant_id = v_tenant_id AND membership.id = p_membership_id
     AND membership.status = 'active' AND p_valid_until > membership.valid_from
+    AND (membership.valid_until IS NULL OR p_valid_until <= membership.valid_until)
+    AND EXISTS (
+      SELECT 1 FROM public.sections AS section
+      WHERE section.tenant_id = membership.tenant_id AND section.id = membership.section_id
+        AND p_valid_until::date <= section.end_date + 1
+    )
     AND public.openschool_school_scope_allows(v_tenant_id, membership.school_id);
   IF NOT FOUND THEN RAISE EXCEPTION 'SECTION_ROSTER_END_STATE_INVALID' USING ERRCODE = '55000'; END IF;
   RETURN QUERY SELECT p_membership_id, 'ended'::text, v_occurred_at;
@@ -373,6 +394,7 @@ DECLARE
   v_tenant_id uuid := nullif(current_setting('app.tenant_id', true), '')::uuid;
   v_account_id uuid := nullif(current_setting('app.account_id', true), '')::uuid;
   v_occurred_at timestamptz := clock_timestamp();
+  v_section public.sections%ROWTYPE;
 BEGIN
   IF session_user <> 'openschool_runtime' OR current_user <> 'openschool_section_manager'
     OR nullif(current_setting('app.policy_capability', true), '') <> 'tenant.sections.manage'
@@ -380,16 +402,37 @@ BEGIN
     OR v_tenant_id IS NULL OR v_account_id IS NULL OR p_section_id IS NULL
     OR char_length(btrim(p_reason)) NOT BETWEEN 3 AND 512
   THEN RAISE EXCEPTION 'SECTION_CLOSE_CONTEXT_INVALID' USING ERRCODE = '22023'; END IF;
+  SELECT target.* INTO v_section FROM public.sections AS target
+  WHERE target.tenant_id = v_tenant_id AND target.id = p_section_id
+    AND target.status = 'active'
+    AND public.openschool_school_scope_allows(v_tenant_id, target.school_id)
+  FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'SECTION_CLOSE_STATE_INVALID' USING ERRCODE = '55000'; END IF;
+
   UPDATE public.section_staff_assignments AS assignment
   SET status = 'ended',
-    valid_until = greatest(v_occurred_at, assignment.valid_from + interval '1 microsecond'),
+    valid_until = greatest(
+      least(
+        v_occurred_at,
+        (v_section.end_date + 1)::timestamp,
+        COALESCE(assignment.valid_until, (v_section.end_date + 1)::timestamp)
+      ),
+      assignment.valid_from + interval '1 microsecond'
+    ),
     ended_by_account_id = v_account_id, end_reason = btrim(p_reason),
     updated_at = v_occurred_at
   WHERE assignment.tenant_id = v_tenant_id AND assignment.section_id = p_section_id
     AND assignment.status = 'active';
   UPDATE public.section_roster_memberships AS membership
   SET status = 'ended',
-    valid_until = greatest(v_occurred_at, membership.valid_from + interval '1 microsecond'),
+    valid_until = greatest(
+      least(
+        v_occurred_at,
+        (v_section.end_date + 1)::timestamp,
+        COALESCE(membership.valid_until, (v_section.end_date + 1)::timestamp)
+      ),
+      membership.valid_from + interval '1 microsecond'
+    ),
     ended_by_account_id = v_account_id, end_reason = btrim(p_reason),
     updated_at = v_occurred_at
   WHERE membership.tenant_id = v_tenant_id AND membership.section_id = p_section_id
@@ -398,8 +441,7 @@ BEGIN
   SET status = 'closed', version = section.version + 1, closed_at = v_occurred_at,
     closed_by_account_id = v_account_id, closure_reason = btrim(p_reason), updated_at = v_occurred_at
   WHERE section.tenant_id = v_tenant_id AND section.id = p_section_id
-    AND section.status = 'active'
-    AND public.openschool_school_scope_allows(v_tenant_id, section.school_id);
+    AND section.status = 'active';
   IF NOT FOUND THEN RAISE EXCEPTION 'SECTION_CLOSE_STATE_INVALID' USING ERRCODE = '55000'; END IF;
   RETURN QUERY SELECT p_section_id, 'closed'::text, v_occurred_at;
 END $$;

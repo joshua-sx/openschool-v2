@@ -26,6 +26,7 @@ import {
   closeSection,
   createCourse,
   createSection,
+  endSectionStaffAssignment,
   getSectionWorkspace,
 } from '../services/sections'
 
@@ -214,6 +215,14 @@ async function runProof(): Promise<void> {
         validUntil: '2026-12-19T00:00:00.000Z',
         reason: 'Disposable Section proof',
       }
+    )
+    await endSectionStaffAssignment(
+      databaseContext('org', `sections-staff-end-${RUN_ID}`),
+      orgContext,
+      orgManage,
+      sectionId,
+      '2026-08-18T00:00:00.000Z',
+      'Make relationship denial proof independent of wall-clock time'
     )
     const roster = await addSectionRosterMember(
       databaseContext('org', `sections-roster-${RUN_ID}`),

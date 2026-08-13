@@ -620,6 +620,9 @@ describe('database migration baseline', () => {
       'GRANT EXECUTE ON FUNCTION public.openschool_policy_constraints()',
       'public.openschool_school_scope_allows(uuid, uuid)',
       '"school_governance_assignments", "organization_tree_closure", "organization_tree_versions"',
+      'COALESCE(p_valid_until, (v_section.end_date + 1)::timestamp)',
+      'assignment.valid_until IS NULL OR p_valid_until <= assignment.valid_until',
+      'membership.valid_until IS NULL OR p_valid_until <= membership.valid_until',
       'Execution roles must not assume the Section manager',
       'REVOKE INSERT, UPDATE, DELETE ON TABLE "courses"',
     ]) {
