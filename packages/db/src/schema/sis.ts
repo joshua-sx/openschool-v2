@@ -174,6 +174,7 @@ export const schoolEnrollments = pgTable(
         AND nullif(current_setting('app.policy_capability', true), '') IN (
           ${STUDENT_READ_CAPABILITIES},
           'tenant.guardian_contacts.read', 'tenant.guardian_contacts.manage',
+          'tenant.households.read', 'tenant.households.manage',
           'identity.context.resolve'
         )
         AND public.openschool_canonical_student_scope_allows(

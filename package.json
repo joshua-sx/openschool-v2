@@ -37,6 +37,7 @@
     "academic:structure-poc": "turbo run academic:structure-poc --filter=web",
     "student:enrollment-lifecycle-poc": "turbo run student:enrollment-lifecycle-poc --filter=web",
     "guardian:contacts-poc": "turbo run guardian:contacts-poc --filter=web",
+    "households:residences-poc": "turbo run households:residences-poc --filter=web",
     "provider:mfa-reconcile": "turbo run provider:mfa-reconcile --filter=web",
     "platform:tenant-lifecycle-poc": "turbo run db:platform-tenant-lifecycle-poc --filter=@openschool/db",
     "support:access-poc": "turbo run db:support-access-poc --filter=@openschool/db",

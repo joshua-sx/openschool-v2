@@ -18,6 +18,7 @@ export type ResourceKind =
   | 'academic_structure'
   | 'student_enrollment'
   | 'guardian_contact'
+  | 'household'
   | 'class'
   | 'student'
   | 'grade'

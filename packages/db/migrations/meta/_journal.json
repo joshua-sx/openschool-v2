@@ -239,6 +239,13 @@
       "when": 1785786413506,
       "tag": "0033_volatile_wraith",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1786595357998,
+      "tag": "0034_futuristic_rafael_vega",
+      "breakpoints": true
     }
   ]
 }

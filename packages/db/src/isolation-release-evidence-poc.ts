@@ -89,7 +89,7 @@ async function run(): Promise<void> {
       readFileSync(new URL('../migrations/meta/_journal.json', import.meta.url), 'utf8')
     ) as { entries?: Array<{ tag?: string }> }
     const migration = journal.entries?.at(-1)?.tag
-    assert.equal(migration, '0033_volatile_wraith')
+    assert.equal(migration, '0034_futuristic_rafael_vega')
 
     const roles = await admin.execute<RoleDefinition>(sql`
       select
@@ -111,6 +111,8 @@ async function run(): Promise<void> {
       'openschool_audit_partition_manager',
       'openschool_student_admitter',
       'openschool_guardian_contact_manager',
+      'openschool_household_scope_resolver',
+      'openschool_household_manager',
     ]) {
       assert.equal(
         roles.some(({ name }) => name === requiredRole),
