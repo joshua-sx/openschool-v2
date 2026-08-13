@@ -3,6 +3,7 @@ import { academicStructureRouter } from './academic-structure'
 import { accountSecurityRouter } from './account-security'
 import { exampleRouter } from './example'
 import { guardianContactsRouter } from './guardian-contacts'
+import { householdsRouter } from './households'
 import { invitationsRouter } from './invitations'
 import { platformRouter } from './platform'
 import { schoolsRouter } from './schools'
@@ -13,6 +14,7 @@ import { supportAccessRouter } from './support-access'
 export const appRouter = router({
   example: exampleRouter,
   guardianContacts: guardianContactsRouter,
+  households: householdsRouter,
   accountSecurity: accountSecurityRouter,
   academicStructure: academicStructureRouter,
   students: studentsRouter,
