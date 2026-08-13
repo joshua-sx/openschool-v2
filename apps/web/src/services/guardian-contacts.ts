@@ -416,6 +416,7 @@ export async function findGuardianContactCandidates(
               WHERE existing.tenant_id = ${tenantId}::uuid
                 AND existing.subject_person_id = ${personRelationships.subjectPersonId}
                 AND existing.related_person_id = ${learner.personId}::uuid
+                AND existing.type IN ('parent_of', 'guardian_of', 'emergency_contact_of')
                 AND existing.status = 'active'
                 AND existing.valid_from <= now()
                 AND (existing.valid_until IS NULL OR existing.valid_until > now())
