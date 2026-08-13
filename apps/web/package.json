@@ -18,6 +18,7 @@
     "academic:structure-poc": "bun run src/server/academic-structure-poc.ts",
     "student:enrollment-lifecycle-poc": "bun run src/server/student-enrollment-lifecycle-poc.ts",
     "guardian:contacts-poc": "bun run src/server/guardian-contacts-poc.ts",
+    "households:residences-poc": "bun run src/server/households-residences-poc.ts",
     "provider:mfa-reconcile": "bun run src/server/provider-mfa-reconciliation-job.ts"
   },
   "dependencies": {

@@ -33,6 +33,7 @@ const PROOF_GROUPS: readonly ProofGroup[] = [
   { evidence: 'academic_structure', commands: ['academic:structure-poc'] },
   { evidence: 'student_enrollment_lifecycle', commands: ['student:enrollment-lifecycle-poc'] },
   { evidence: 'guardian_contacts', commands: ['guardian:contacts-poc'] },
+  { evidence: 'household_residences', commands: ['households:residences-poc'] },
   { evidence: 'student_rls', commands: ['db:student-rls-poc'] },
   { evidence: 'audit_ledger', commands: ['audit:poc'] },
   { evidence: 'invitation_onboarding', commands: ['invitation:onboarding-poc'] },

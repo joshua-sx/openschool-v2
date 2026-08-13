@@ -10,6 +10,7 @@ export const ISOLATION_EVIDENCE_IDS = [
   'academic_structure',
   'student_enrollment_lifecycle',
   'guardian_contacts',
+  'household_residences',
   'student_rls',
   'audit_ledger',
   'invitation_onboarding',
@@ -103,6 +104,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'academic_structure',
       'student_enrollment_lifecycle',
       'guardian_contacts',
+      'household_residences',
     ],
     negativeEvidence: [
       'policy_query',
@@ -111,6 +113,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'academic_structure',
       'student_enrollment_lifecycle',
       'guardian_contacts',
+      'household_residences',
     ],
   }),
   row({
@@ -123,6 +126,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'academic_structure',
       'student_enrollment_lifecycle',
       'guardian_contacts',
+      'household_residences',
       'release_metadata',
     ],
     negativeEvidence: [
@@ -131,6 +135,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'academic_structure',
       'student_enrollment_lifecycle',
       'guardian_contacts',
+      'household_residences',
       'database_execution',
     ],
   }),
@@ -152,6 +157,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'academic_structure',
       'student_enrollment_lifecycle',
       'guardian_contacts',
+      'household_residences',
     ],
     negativeEvidence: [
       'policy_query',
@@ -160,6 +166,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'academic_structure',
       'student_enrollment_lifecycle',
       'guardian_contacts',
+      'household_residences',
     ],
   }),
   row({
@@ -260,6 +267,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'academic_structure',
       'student_enrollment_lifecycle',
       'guardian_contacts',
+      'household_residences',
       'audit_partition_lifecycle',
     ],
     negativeEvidence: [
@@ -268,6 +276,7 @@ export const ISOLATION_MATRIX = Object.freeze([
       'academic_structure',
       'student_enrollment_lifecycle',
       'guardian_contacts',
+      'household_residences',
       'audit_partition_lifecycle',
     ],
   }),
