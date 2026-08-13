@@ -56,7 +56,7 @@ ALTER POLICY "schools_runtime_select" ON "schools" TO openschool_runtime USING (
 ALTER POLICY "school_enrollments_runtime_select" ON "school_enrollments" TO openschool_runtime USING (
         "school_enrollments"."tenant_id" = nullif(current_setting('app.tenant_id', true), '')::uuid
         AND nullif(current_setting('app.policy_capability', true), '') IN (
-          
+
   'tenant.students.read', 'tenant.students.update',
   'tenant.students.delete', 'support.students.read',
   'tenant.student_enrollments.read', 'tenant.student_enrollments.manage'
