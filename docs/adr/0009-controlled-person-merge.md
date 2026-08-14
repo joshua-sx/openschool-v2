@@ -37,7 +37,14 @@ The control plane uses three forced-RLS tables: operations, append-only preview 
 append-only events. A dedicated `NOLOGIN`, `NOBYPASSRLS` manager role owns future guarded
 functions, while runtime retains read-only table grants and cannot inherit that role. Product
 authorization is versioned independently from duplicate review through the
-`tenant.people_merges.read`, `.preview`, and `.approve` capabilities.
+`tenant.people_merges.read`, `.preview`, `.approve`, and `.execute` capabilities.
+
+Execution adds a forced-RLS alias registry and append-only move ledger. The alias identifies the
+durable source-to-canonical mapping without deleting either Person. Each moved, ended, recreated,
+preserved, invalidated, or archived record receives a non-sensitive ledger key plus before/after
+fingerprints. The operation stores a plan version so execution can refuse approvals created before
+the planner could enumerate transitive authorization dependencies such as role assignments and
+sessions.
 
 This foundation intentionally exposes no execution function. Preview/approval, execution, and
 reversal ship as independently reviewable security increments; an intermediate deployment cannot
@@ -71,10 +78,11 @@ other sensitive values. UI labels are resolved through separately authorized Per
 ## Migration path and rollback
 
 Migration 0040 establishes the role, forced-RLS tables, immutable anchors, versioned capabilities,
-and a no-execution safety boundary. A later migration adds guarded preview and approval functions,
-followed by an execution ledger and then reversal/manual-recovery authority. The legacy
-`person_merge_evidence` prototype remains non-authoritative until its development callers are
-removed.
+and a no-execution safety boundary. Migration 0041 adds guarded preview and approval functions.
+Migration 0042 adds the versioned execution plan, durable alias registry, and immutable move ledger
+without yet exposing an executor. A later migration adds the guarded executor, followed by
+reversal/manual-recovery authority. The legacy `person_merge_evidence` prototype remains
+non-authoritative until its development callers are removed.
 
 Rollback may disable creation and approval, but must preserve operations, preview items, events,
 aliases, and audit evidence. Once execution exists, rollback must never restore a source Person by

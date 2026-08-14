@@ -58,6 +58,7 @@ export const CAPABILITIES = Object.freeze({
   PEOPLE_MERGES_READ: 'tenant.people_merges.read',
   PEOPLE_MERGES_PREVIEW: 'tenant.people_merges.preview',
   PEOPLE_MERGES_APPROVE: 'tenant.people_merges.approve',
+  PEOPLE_MERGES_EXECUTE: 'tenant.people_merges.execute',
   STUDENTS_CREATE: 'tenant.students.create',
   STUDENTS_READ: 'tenant.students.read',
   STUDENTS_UPDATE: 'tenant.students.update',
@@ -188,6 +189,10 @@ export const CAPABILITY_REGISTRY = Object.freeze({
     scopes: tenantBroadScopes,
   },
   [CAPABILITIES.PEOPLE_MERGES_APPROVE]: {
+    resourceKinds: [RESOURCE_KINDS.PERSON_MERGE],
+    scopes: tenantBroadScopes,
+  },
+  [CAPABILITIES.PEOPLE_MERGES_EXECUTE]: {
     resourceKinds: [RESOURCE_KINDS.PERSON_MERGE],
     scopes: tenantBroadScopes,
   },

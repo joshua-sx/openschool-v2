@@ -711,7 +711,7 @@ describe('capability Policy Decisions', () => {
     )
   })
 
-  it('requires recent AAL2 authentication for person merge preview and approval', () => {
+  it('requires recent AAL2 authentication for person merge preview, approval, and execution', () => {
     const resource = {
       kind: 'person_merge',
       tenantId: 'tenant-1',
@@ -755,6 +755,18 @@ describe('capability Policy Decisions', () => {
         .filter((obligation) => obligation.kind === 'audit')
         .map(({ event }) => event),
       ['person_merge.approve']
+    )
+    const execution = decision({
+      ...request,
+      capability: CAPABILITIES.PEOPLE_MERGES_EXECUTE,
+      context: context({ assuranceLevel: 'aal2', authenticatedAt: NOW.toISOString() }),
+    })
+    assert.equal(execution.effect, 'allow')
+    assert.deepEqual(
+      execution.obligations
+        .filter((obligation) => obligation.kind === 'audit')
+        .map(({ event }) => event),
+      ['person_merge.execute']
     )
     assert.equal(
       decision({
@@ -904,6 +916,7 @@ describe('versioned Role Template bundles', () => {
       [CAPABILITIES.PEOPLE_MERGES_READ, ['org_admin', 'school_admin']],
       [CAPABILITIES.PEOPLE_MERGES_PREVIEW, ['org_admin', 'school_admin']],
       [CAPABILITIES.PEOPLE_MERGES_APPROVE, ['org_admin', 'school_admin']],
+      [CAPABILITIES.PEOPLE_MERGES_EXECUTE, ['org_admin', 'school_admin']],
       [CAPABILITIES.STUDENTS_CREATE, ['org_admin', 'school_admin', 'staff']],
       [
         CAPABILITIES.STUDENTS_READ,

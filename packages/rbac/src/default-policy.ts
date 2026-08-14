@@ -172,6 +172,11 @@ function tenantRoleTemplates(options: {
                 SCOPES.ORGANIZATION_SUBTREE,
                 personMergeAdmin('person_merge.approve'),
               ] as const,
+              [
+                CAPABILITIES.PEOPLE_MERGES_EXECUTE,
+                SCOPES.ORGANIZATION_SUBTREE,
+                personMergeAdmin('person_merge.execute'),
+              ] as const,
             ]
           : []),
         [CAPABILITIES.STUDENTS_CREATE, SCOPES.ORGANIZATION_SUBTREE, recorded('student.create')],
@@ -316,6 +321,11 @@ function tenantRoleTemplates(options: {
                 CAPABILITIES.PEOPLE_MERGES_APPROVE,
                 SCOPES.SCHOOL,
                 personMergeAdmin('person_merge.approve'),
+              ] as const,
+              [
+                CAPABILITIES.PEOPLE_MERGES_EXECUTE,
+                SCOPES.SCHOOL,
+                personMergeAdmin('person_merge.execute'),
               ] as const,
             ]
           : []),

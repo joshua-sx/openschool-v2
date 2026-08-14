@@ -805,4 +805,24 @@ describe('database migration baseline', () => {
       'approval must reject the initiating Account'
     )
   })
+
+  it('installs a forced-RLS Person merge alias and immutable move ledger', () => {
+    const migration = readFileSync(join(migrationsDirectory, '0042_brave_maelstrom.sql'), 'utf8')
+    for (const expected of [
+      'CREATE TABLE "person_merge_aliases"',
+      'CREATE TABLE "person_merge_moves"',
+      '"plan_version" integer DEFAULT 1 NOT NULL',
+      '"execution_digest" text',
+      'person_merge_aliases_tenant_source_unique',
+      'person_merge_moves_operation_sequence_unique',
+      'ALTER TABLE "person_merge_aliases" FORCE ROW LEVEL SECURITY',
+      'ALTER TABLE "person_merge_moves" FORCE ROW LEVEL SECURITY',
+      'person_merge_moves_append_only',
+      'people_merged_alias_immutable',
+      'OLD.plan_version IS DISTINCT FROM NEW.plan_version',
+      "'tenant.people_merges.execute'",
+    ]) {
+      assert.equal(migration.includes(expected), true, `execution ledger must include ${expected}`)
+    }
+  })
 })
