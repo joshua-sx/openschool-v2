@@ -659,19 +659,19 @@ BEGIN
 
   -- No reviewed operational reference may remain on the source. Table locks keep this assertion
   -- stable through commit and the installed guards reject future references to the archived alias.
-  IF EXISTS (SELECT 1 FROM public.account_links WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id AND status IN ('pending', 'active', 'suspended'))
-    OR EXISTS (SELECT 1 FROM public.contact_profiles WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
-    OR EXISTS (SELECT 1 FROM public.student_profiles WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
-    OR EXISTS (SELECT 1 FROM public.guardian_profiles WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
-    OR EXISTS (SELECT 1 FROM public.employee_profiles WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
-    OR EXISTS (SELECT 1 FROM public.teacher_profiles WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
-    OR EXISTS (SELECT 1 FROM public.affiliations WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
-    OR EXISTS (SELECT 1 FROM public.person_relationships WHERE tenant_id = v_tenant_id AND (subject_person_id = v_operation.source_person_id OR related_person_id = v_operation.source_person_id))
-    OR EXISTS (SELECT 1 FROM public.household_memberships WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
-    OR EXISTS (SELECT 1 FROM public.school_enrollments WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
-    OR EXISTS (SELECT 1 FROM public.section_staff_assignments WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
-    OR EXISTS (SELECT 1 FROM public.section_roster_memberships WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
-    OR EXISTS (SELECT 1 FROM public.account_invitations WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
+  IF EXISTS (SELECT 1 FROM public.account_links AS source_link WHERE source_link.tenant_id = v_tenant_id AND source_link.person_id = v_operation.source_person_id AND source_link.status IN ('pending', 'active', 'suspended'))
+    OR EXISTS (SELECT 1 FROM public.contact_profiles AS source_contact WHERE source_contact.tenant_id = v_tenant_id AND source_contact.person_id = v_operation.source_person_id)
+    OR EXISTS (SELECT 1 FROM public.student_profiles AS source_student WHERE source_student.tenant_id = v_tenant_id AND source_student.person_id = v_operation.source_person_id)
+    OR EXISTS (SELECT 1 FROM public.guardian_profiles AS source_guardian WHERE source_guardian.tenant_id = v_tenant_id AND source_guardian.person_id = v_operation.source_person_id)
+    OR EXISTS (SELECT 1 FROM public.employee_profiles AS source_employee WHERE source_employee.tenant_id = v_tenant_id AND source_employee.person_id = v_operation.source_person_id)
+    OR EXISTS (SELECT 1 FROM public.teacher_profiles AS source_teacher WHERE source_teacher.tenant_id = v_tenant_id AND source_teacher.person_id = v_operation.source_person_id)
+    OR EXISTS (SELECT 1 FROM public.affiliations AS source_affiliation WHERE source_affiliation.tenant_id = v_tenant_id AND source_affiliation.person_id = v_operation.source_person_id)
+    OR EXISTS (SELECT 1 FROM public.person_relationships AS source_relationship WHERE source_relationship.tenant_id = v_tenant_id AND (source_relationship.subject_person_id = v_operation.source_person_id OR source_relationship.related_person_id = v_operation.source_person_id))
+    OR EXISTS (SELECT 1 FROM public.household_memberships AS source_household WHERE source_household.tenant_id = v_tenant_id AND source_household.person_id = v_operation.source_person_id)
+    OR EXISTS (SELECT 1 FROM public.school_enrollments AS source_enrollment WHERE source_enrollment.tenant_id = v_tenant_id AND source_enrollment.person_id = v_operation.source_person_id)
+    OR EXISTS (SELECT 1 FROM public.section_staff_assignments AS source_staff WHERE source_staff.tenant_id = v_tenant_id AND source_staff.person_id = v_operation.source_person_id)
+    OR EXISTS (SELECT 1 FROM public.section_roster_memberships AS source_roster WHERE source_roster.tenant_id = v_tenant_id AND source_roster.person_id = v_operation.source_person_id)
+    OR EXISTS (SELECT 1 FROM public.account_invitations AS source_invitation WHERE source_invitation.tenant_id = v_tenant_id AND source_invitation.person_id = v_operation.source_person_id)
   THEN
     RAISE EXCEPTION 'PERSON_MERGE_OPERATIONAL_REFERENCE_REMAINS' USING ERRCODE = '40001';
   END IF;
