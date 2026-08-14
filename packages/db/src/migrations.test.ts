@@ -819,6 +819,7 @@ describe('database migration baseline', () => {
       'ALTER TABLE "person_merge_moves" FORCE ROW LEVEL SECURITY',
       'person_merge_moves_append_only',
       'people_merged_alias_immutable',
+      'CREATE FUNCTION "openschool_private"."protect_merged_person_alias"()\nRETURNS trigger\nLANGUAGE plpgsql\nSECURITY DEFINER',
       'OLD.plan_version IS DISTINCT FROM NEW.plan_version',
       "'tenant.people_merges.execute'",
     ]) {

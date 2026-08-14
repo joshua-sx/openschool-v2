@@ -329,6 +329,7 @@ FOR EACH ROW EXECUTE FUNCTION "openschool_private"."reject_person_merge_append_o
 CREATE FUNCTION "openschool_private"."protect_merged_person_alias"()
 RETURNS trigger
 LANGUAGE plpgsql
+SECURITY DEFINER
 SET search_path = pg_catalog
 AS $function$
 BEGIN
