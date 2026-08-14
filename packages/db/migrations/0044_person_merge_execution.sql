@@ -203,7 +203,7 @@ BEGIN
   FROM public.people AS person
   WHERE person.tenant_id = NEW.tenant_id AND person.id = v_person_id
   FOR SHARE;
-  IF NOT FOUND OR v_status NOT IN ('active', 'suspended') THEN
+  IF FOUND AND v_status NOT IN ('active', 'suspended') THEN
     RAISE EXCEPTION 'PERSON_REFERENCE_NOT_OPERATIONAL' USING ERRCODE = '23514';
   END IF;
   RETURN NEW;

@@ -865,6 +865,7 @@ describe('database migration baseline', () => {
     for (const expected of [
       "'merge_executed'",
       'guard_operational_person_reference',
+      "IF FOUND AND v_status NOT IN ('active', 'suspended')",
       'IN SHARE ROW EXCLUSIVE MODE',
       'assert_person_merge_plan_v2_current',
       'PERSON_MERGE_APPROVAL_CHANGED',
