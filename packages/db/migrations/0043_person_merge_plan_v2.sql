@@ -181,6 +181,106 @@ BEGIN
 
   PERFORM set_config('app.merge_source_person_id', v_operation.source_person_id::text, true);
 
+  -- Version 1 discovers every Person foreign key. Version 2 distinguishes current facts that
+  -- must move from terminal evidence that must remain attached to the historical Person.
+  UPDATE public.person_merge_preview_items AS item
+  SET disposition = 'preserve_history', conflict_code = NULL,
+    metadata = item.metadata || jsonb_build_object('lifecycle', 'terminal')
+  FROM public.account_links AS link
+  WHERE item.tenant_id = v_tenant_id AND item.operation_id = p_operation_id
+    AND item.relation_name = 'account_links'
+    AND link.tenant_id = v_tenant_id AND link.person_id = v_operation.source_person_id
+    AND link.status IN ('revoked', 'expired')
+    AND encode(digest(convert_to(to_jsonb(link)::text, 'UTF8'), 'sha256'), 'hex')
+      = item.row_fingerprint;
+
+  UPDATE public.person_merge_preview_items AS item
+  SET disposition = 'preserve_history', conflict_code = NULL,
+    metadata = item.metadata || jsonb_build_object('lifecycle', 'terminal')
+  FROM public.affiliations AS affiliation
+  WHERE item.tenant_id = v_tenant_id AND item.operation_id = p_operation_id
+    AND item.relation_name = 'affiliations'
+    AND affiliation.tenant_id = v_tenant_id
+    AND affiliation.person_id = v_operation.source_person_id
+    AND affiliation.status = 'revoked'
+    AND encode(digest(convert_to(to_jsonb(affiliation)::text, 'UTF8'), 'sha256'), 'hex')
+      = item.row_fingerprint;
+
+  UPDATE public.person_merge_preview_items AS item
+  SET disposition = 'preserve_history', conflict_code = NULL,
+    metadata = item.metadata || jsonb_build_object('lifecycle', 'terminal')
+  FROM public.person_relationships AS relationship
+  WHERE item.tenant_id = v_tenant_id AND item.operation_id = p_operation_id
+    AND item.relation_name = 'person_relationships'
+    AND relationship.tenant_id = v_tenant_id AND relationship.status = 'revoked'
+    AND v_operation.source_person_id IN (
+      relationship.subject_person_id, relationship.related_person_id
+    )
+    AND encode(digest(convert_to(to_jsonb(relationship)::text, 'UTF8'), 'sha256'), 'hex')
+      = item.row_fingerprint;
+
+  UPDATE public.person_merge_preview_items AS item
+  SET disposition = 'preserve_history', conflict_code = NULL,
+    metadata = item.metadata || jsonb_build_object('lifecycle', 'terminal')
+  FROM public.household_memberships AS membership
+  WHERE item.tenant_id = v_tenant_id AND item.operation_id = p_operation_id
+    AND item.relation_name = 'household_memberships'
+    AND membership.tenant_id = v_tenant_id
+    AND membership.person_id = v_operation.source_person_id
+    AND membership.status = 'ended'
+    AND encode(digest(convert_to(to_jsonb(membership)::text, 'UTF8'), 'sha256'), 'hex')
+      = item.row_fingerprint;
+
+  UPDATE public.person_merge_preview_items AS item
+  SET disposition = 'preserve_history', conflict_code = NULL,
+    metadata = item.metadata || jsonb_build_object('lifecycle', 'terminal')
+  FROM public.school_enrollments AS enrollment
+  WHERE item.tenant_id = v_tenant_id AND item.operation_id = p_operation_id
+    AND item.relation_name = 'school_enrollments'
+    AND enrollment.tenant_id = v_tenant_id
+    AND enrollment.person_id = v_operation.source_person_id
+    AND enrollment.status <> 'enrolled'
+    AND encode(digest(convert_to(to_jsonb(enrollment)::text, 'UTF8'), 'sha256'), 'hex')
+      = item.row_fingerprint;
+
+  UPDATE public.person_merge_preview_items AS item
+  SET disposition = 'preserve_history', conflict_code = NULL,
+    metadata = item.metadata || jsonb_build_object('lifecycle', 'terminal')
+  FROM public.section_staff_assignments AS assignment
+  WHERE item.tenant_id = v_tenant_id AND item.operation_id = p_operation_id
+    AND item.relation_name = 'section_staff_assignments'
+    AND assignment.tenant_id = v_tenant_id
+    AND assignment.person_id = v_operation.source_person_id
+    AND assignment.status = 'ended'
+    AND encode(digest(convert_to(to_jsonb(assignment)::text, 'UTF8'), 'sha256'), 'hex')
+      = item.row_fingerprint;
+
+  UPDATE public.person_merge_preview_items AS item
+  SET disposition = 'preserve_history', conflict_code = NULL,
+    metadata = item.metadata || jsonb_build_object('lifecycle', 'terminal')
+  FROM public.section_roster_memberships AS membership
+  WHERE item.tenant_id = v_tenant_id AND item.operation_id = p_operation_id
+    AND item.relation_name = 'section_roster_memberships'
+    AND membership.tenant_id = v_tenant_id
+    AND membership.person_id = v_operation.source_person_id
+    AND membership.status = 'ended'
+    AND encode(digest(convert_to(to_jsonb(membership)::text, 'UTF8'), 'sha256'), 'hex')
+      = item.row_fingerprint;
+
+  UPDATE public.person_merge_preview_items AS item
+  SET disposition = CASE WHEN invitation.status = 'pending'
+      THEN 'block' ELSE 'preserve_history' END,
+    conflict_code = CASE WHEN invitation.status = 'pending'
+      THEN 'PENDING_INVITATION_REQUIRES_RESOLUTION' ELSE NULL END,
+    metadata = item.metadata || jsonb_build_object('lifecycle', invitation.status)
+  FROM public.account_invitations AS invitation
+  WHERE item.tenant_id = v_tenant_id AND item.operation_id = p_operation_id
+    AND item.relation_name = 'account_invitations'
+    AND invitation.tenant_id = v_tenant_id
+    AND invitation.person_id = v_operation.source_person_id
+    AND encode(digest(convert_to(to_jsonb(invitation)::text, 'UTF8'), 'sha256'), 'hex')
+      = item.row_fingerprint;
+
   INSERT INTO public.person_merge_preview_items (
     tenant_id, review_school_id, operation_id, category, relation_name, record_key,
     direction, disposition, row_fingerprint, metadata, created_at

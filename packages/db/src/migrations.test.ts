@@ -847,6 +847,8 @@ describe('database migration baseline', () => {
       'TARGET_SCHOOL_ENROLLMENT_EXISTS',
       'TARGET_SECTION_STAFF_EXISTS',
       'TARGET_SECTION_ROSTER_EXISTS',
+      'PENDING_INVITATION_REQUIRES_RESOLUTION',
+      "jsonb_build_object('lifecycle', 'terminal')",
       "'plan:2:'",
       'assert_person_merge_plan_v2_current',
       'approve_person_merge_preview_v1',
