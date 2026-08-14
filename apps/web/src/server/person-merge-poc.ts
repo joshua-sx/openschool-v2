@@ -450,7 +450,7 @@ async function runProof(): Promise<void> {
       true
     )
     assert.equal(
-      moves.some(({ action }) => action === 'repoint'),
+      moves.some(({ action }) => action === 'end_and_recreate'),
       true
     )
     assert.equal(
@@ -461,8 +461,17 @@ async function runProof(): Promise<void> {
     const proofLinks = await admin
       .select()
       .from(accountLinks)
-      .where(eq(accountLinks.issuanceReason, 'Person merge execution proof'))
-    assert.equal(proofLinks[0]?.personId, targetPersonId)
+      .where(eq(accountLinks.accountId, LINKED_ACCOUNT_ID))
+    assert.equal(
+      proofLinks.some(
+        ({ personId, status }) => personId === sourcePersonId && status === 'revoked'
+      ),
+      true
+    )
+    assert.equal(
+      proofLinks.some(({ personId, status }) => personId === targetPersonId && status === 'active'),
+      true
+    )
     const [revokedSession] = await admin
       .select()
       .from(accountSessions)
