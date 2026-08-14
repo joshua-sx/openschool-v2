@@ -45,8 +45,10 @@ const ORG_ADMIN_ACCOUNT = '00000000-0000-4000-8000-000000000201'
 const ORG_ADMIN_PERSON = '00000000-0000-4000-8000-000000000901'
 const RUN_ID = crypto.randomUUID()
 const NOW = new Date()
+const LINKED_ACCOUNT_ID = crypto.randomUUID()
 const SCHOOL_SESSION_ID = `person-merge-school-${RUN_ID}`
 const ORG_SESSION_ID = `person-merge-org-${RUN_ID}`
+const LINKED_SESSION_ID = `person-merge-linked-${RUN_ID}`
 
 function assertDisposable(): void {
   if (process.env.ALLOW_PERSON_MERGE_POC !== 'true') {
@@ -169,6 +171,13 @@ async function runProof(): Promise<void> {
   const [firstPersonId, secondPersonId] = [sourcePersonId, targetPersonId].sort()
   const duplicateCaseId = crypto.randomUUID()
   try {
+    await admin.insert(accounts).values({
+      id: LINKED_ACCOUNT_ID,
+      identityProvider: 'supabase',
+      providerSubject: `person-merge-proof-${RUN_ID}`,
+      primaryEmail: `person-merge-proof-${RUN_ID}@example.test`,
+      status: 'active',
+    })
     await admin.insert(accountSessions).values([
       {
         accountId: SCHOOL_ADMIN_ACCOUNT,
@@ -190,6 +199,15 @@ async function runProof(): Promise<void> {
         reauthenticatedAt: NOW,
         expiresAt: new Date(NOW.getTime() + 60 * 60_000),
       },
+      {
+        accountId: LINKED_ACCOUNT_ID,
+        providerSessionId: LINKED_SESSION_ID,
+        status: 'active',
+        assuranceLevel: 'aal1',
+        securityVersion: 1,
+        authenticatedAt: NOW,
+        expiresAt: new Date(NOW.getTime() + 60 * 60_000),
+      },
     ])
     await admin.insert(people).values([
       {
@@ -209,7 +227,7 @@ async function runProof(): Promise<void> {
     ])
     await admin.insert(accountLinks).values({
       tenantId: TENANT_ID,
-      accountId: ORG_ADMIN_ACCOUNT,
+      accountId: LINKED_ACCOUNT_ID,
       personId: sourcePersonId,
       status: 'active',
       validFrom: NOW,
@@ -440,12 +458,6 @@ async function runProof(): Promise<void> {
       true
     )
 
-    const [movedLink] = await admin
-      .select()
-      .from(accountLinks)
-      .where(eq(accountLinks.accountId, ORG_ADMIN_ACCOUNT))
-      .orderBy(asc(accountLinks.createdAt))
-    assert.ok(movedLink)
     const proofLinks = await admin
       .select()
       .from(accountLinks)
@@ -454,12 +466,12 @@ async function runProof(): Promise<void> {
     const [revokedSession] = await admin
       .select()
       .from(accountSessions)
-      .where(eq(accountSessions.providerSessionId, ORG_SESSION_ID))
+      .where(eq(accountSessions.providerSessionId, LINKED_SESSION_ID))
     assert.equal(revokedSession?.status, 'revoked')
     const [invalidatedAccount] = await admin
       .select()
       .from(accounts)
-      .where(eq(accounts.id, ORG_ADMIN_ACCOUNT))
+      .where(eq(accounts.id, LINKED_ACCOUNT_ID))
     assert.equal(Number(invalidatedAccount?.membershipVersion), 2)
     assert.equal(Number(invalidatedAccount?.securityVersion), 2)
 
@@ -531,7 +543,13 @@ async function runProof(): Promise<void> {
     try {
       await admin
         .delete(accountSessions)
-        .where(inArray(accountSessions.providerSessionId, [SCHOOL_SESSION_ID, ORG_SESSION_ID]))
+        .where(
+          inArray(accountSessions.providerSessionId, [
+            SCHOOL_SESSION_ID,
+            ORG_SESSION_ID,
+            LINKED_SESSION_ID,
+          ])
+        )
     } finally {
       await admin.$client.end({ timeout: 5 })
     }
