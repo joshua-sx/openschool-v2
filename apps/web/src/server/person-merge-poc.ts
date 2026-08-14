@@ -230,7 +230,7 @@ async function runProof(): Promise<void> {
           schoolApprovalDecision,
           {
             operationId: preview.operationId,
-            expectedOperationVersion: 1,
+            expectedOperationVersion: 2,
             expectedPreviewDigest: preview.previewDigest,
             reason: 'The initiating administrator must not approve',
           }
@@ -251,7 +251,7 @@ async function runProof(): Promise<void> {
           orgApprovalDecision,
           {
             operationId: preview.operationId,
-            expectedOperationVersion: 1,
+            expectedOperationVersion: 2,
             expectedPreviewDigest: preview.previewDigest,
             reason: 'A changed Person must invalidate the reviewed preview',
           }
@@ -270,13 +270,13 @@ async function runProof(): Promise<void> {
       orgApprovalDecision,
       {
         operationId: preview.operationId,
-        expectedOperationVersion: 1,
+        expectedOperationVersion: 2,
         expectedPreviewDigest: preview.previewDigest,
         reason: 'Independently verified current evidence and dependency digest',
       }
     )
     assert.equal(approval.status, 'approved')
-    assert.equal(approval.version, 2)
+    assert.equal(approval.version, 3)
 
     const [operation] = await admin
       .select()
@@ -303,7 +303,7 @@ async function runProof(): Promise<void> {
       .orderBy(asc(personMergeEvents.version))
     assert.deepEqual(
       events.map(({ eventType }) => eventType),
-      ['preview_created', 'approval_granted']
+      ['preview_created', 'preview_created', 'approval_granted']
     )
     assert.ok(
       (

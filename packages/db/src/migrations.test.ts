@@ -825,4 +825,34 @@ describe('database migration baseline', () => {
       assert.equal(migration.includes(expected), true, `execution ledger must include ${expected}`)
     }
   })
+
+  it('finalizes dependency-complete Person merge plan version 2', () => {
+    const migration = readFileSync(
+      join(migrationsDirectory, '0043_person_merge_plan_v2.sql'),
+      'utf8'
+    )
+    for (const expected of [
+      'create_person_merge_preview_v1',
+      'finalize_person_merge_preview_v2',
+      "'kind', 'derived_dependency'",
+      "'path', 'affiliation_role'",
+      "'path', 'account_invalidation'",
+      "'path', 'account_session'",
+      "'path', 'legacy_enrollment_grade'",
+      'TARGET_ACCOUNT_LINK_EXISTS',
+      'TARGET_AFFILIATION_EXISTS',
+      'TARGET_HOUSEHOLD_MEMBERSHIP_EXISTS',
+      'TARGET_RELATIONSHIP_EXISTS',
+      'TARGET_SCHOOL_ENROLLMENT_EXISTS',
+      'TARGET_SECTION_STAFF_EXISTS',
+      'TARGET_SECTION_ROSTER_EXISTS',
+      "'plan:2:'",
+      'assert_person_merge_plan_v2_current',
+      'approve_person_merge_preview_v1',
+      'PERSON_MERGE_DERIVED_DEPENDENCY_SET_CHANGED',
+      'Person merge plan v2 implementation helpers are exposed',
+    ]) {
+      assert.equal(migration.includes(expected), true, `plan v2 must include ${expected}`)
+    }
+  })
 })
