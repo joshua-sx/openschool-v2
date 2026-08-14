@@ -856,4 +856,27 @@ describe('database migration baseline', () => {
       assert.equal(migration.includes(expected), true, `plan v2 must include ${expected}`)
     }
   })
+
+  it('executes approved Person merges atomically through one guarded authority', () => {
+    const migration = readFileSync(
+      join(migrationsDirectory, '0044_person_merge_execution.sql'),
+      'utf8'
+    )
+    for (const expected of [
+      "'merge_executed'",
+      'guard_operational_person_reference',
+      'IN SHARE ROW EXCLUSIVE MODE',
+      'assert_person_merge_plan_v2_current',
+      'PERSON_MERGE_APPROVAL_CHANGED',
+      'PERSON_MERGE_OPERATIONAL_REFERENCE_REMAINS',
+      "SET status = 'revoked'",
+      'membership_version = account.membership_version + 1',
+      'CREATE FUNCTION "openschool_private"."execute_person_merge"',
+      "'person.merge.execute'",
+      "'audit.event.committed'",
+      'Person merge execution authority is misconfigured',
+    ]) {
+      assert.equal(migration.includes(expected), true, `execution must include ${expected}`)
+    }
+  })
 })

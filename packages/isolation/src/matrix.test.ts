@@ -5,7 +5,7 @@ import { ISOLATION_EVIDENCE_IDS, ISOLATION_MATRIX, evaluateIsolationMatrixGate }
 const metadata = {
   commit: 'abc123',
   ciRun: 'local',
-  migration: '0043_person_merge_plan_v2',
+  migration: '0044_person_merge_execution',
   postgresVersion: '17.10',
   roleEvidenceDigest: 'a'.repeat(64),
   policyEvidenceDigest: 'b'.repeat(64),
