@@ -6,6 +6,9 @@ ALTER TABLE "person_duplicate_case_events" ADD CONSTRAINT "person_duplicate_case
 GRANT UPDATE ON TABLE "accounts", "account_sessions"
   TO "openschool_person_merge_manager";
 --> statement-breakpoint
+GRANT INSERT ON TABLE "account_links"
+  TO "openschool_person_merge_manager";
+--> statement-breakpoint
 GRANT INSERT ON TABLE "person_duplicate_case_events", "audit_events", "audit_outbox"
   TO "openschool_person_merge_manager";
 --> statement-breakpoint
@@ -96,6 +99,16 @@ CREATE POLICY "account_sessions_person_merge_manager_update" ON "account_session
         )::uuid
     )
   ) WITH CHECK (true);
+--> statement-breakpoint
+CREATE POLICY "account_links_person_merge_manager_insert" ON "account_links"
+  AS PERMISSIVE FOR INSERT TO "openschool_person_merge_manager" WITH CHECK (
+    session_user = 'openschool_runtime'
+    AND current_user = 'openschool_person_merge_manager'
+    AND tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid
+    AND person_id = nullif(current_setting('app.merge_target_person_id', true), '')::uuid
+    AND nullif(current_setting('app.policy_capability', true), '')
+      = 'tenant.people_merges.execute'
+  );
 --> statement-breakpoint
 CREATE POLICY "audit_events_person_merge_manager_insert" ON "audit_events"
   AS PERMISSIVE FOR INSERT TO "openschool_person_merge_manager" WITH CHECK (
@@ -280,6 +293,8 @@ DECLARE
   v_item record;
   v_account_record record;
   v_session_record record;
+  v_link_record public.account_links%ROWTYPE;
+  v_replacement_id uuid;
   v_changed_count integer;
   v_sequence integer := 0;
   v_invalidation_count integer := 0;
@@ -393,6 +408,9 @@ BEGIN
   PERFORM set_config(
     'app.merge_source_person_id', v_operation.source_person_id::text, true
   );
+  PERFORM set_config(
+    'app.merge_target_person_id', v_operation.target_person_id::text, true
+  );
   PERFORM openschool_private.assert_person_merge_plan_v2_current(p_operation_id);
 
   -- Invalidate identity caches and active sessions before moving Account links.
@@ -502,13 +520,85 @@ BEGIN
     );
   END LOOP;
 
-  -- Repoint only reviewed operational dependencies. Dynamic identifiers come exclusively from
+  -- Account links are identity evidence, so their Person anchor is never rewritten. End the
+  -- reviewed source fact and create a replacement for the canonical Person instead.
+  FOR v_item IN
+    SELECT item.*
+    FROM public.person_merge_preview_items AS item
+    WHERE item.tenant_id = v_tenant_id AND item.operation_id = p_operation_id
+      AND item.relation_name = 'account_links'
+      AND item.metadata->>'column' = 'person_id'
+      AND item.disposition = 'end_and_recreate'
+    ORDER BY item.record_key
+  LOOP
+    SELECT link.* INTO v_link_record
+    FROM public.account_links AS link
+    WHERE link.tenant_id = v_tenant_id
+      AND link.person_id = v_operation.source_person_id
+      AND link.status IN ('pending', 'active', 'suspended')
+      AND encode(
+        digest(convert_to(to_jsonb(link)::text, 'UTF8'), 'sha256'), 'hex'
+      ) = v_item.row_fingerprint
+    FOR UPDATE;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'PERSON_MERGE_DEPENDENCY_CHANGED' USING ERRCODE = '40001';
+    END IF;
+
+    UPDATE public.account_links AS link
+    SET status = 'revoked',
+      valid_until = CASE
+        WHEN link.valid_from IS NULL OR link.valid_from < v_now THEN v_now
+        ELSE link.valid_from + interval '1 microsecond'
+      END,
+      revoked_at = v_now,
+      revoked_by_account_id = v_account_id,
+      revocation_reason = 'Person merge execution: ' || btrim(p_reason),
+      updated_at = v_now
+    WHERE link.tenant_id = v_tenant_id AND link.id = v_link_record.id;
+
+    v_replacement_id := gen_random_uuid();
+    INSERT INTO public.account_links (
+      id, tenant_id, account_id, person_id, status, valid_from, valid_until,
+      issued_by_account_id, issuance_reason, activated_at, created_at, updated_at
+    ) VALUES (
+      v_replacement_id, v_tenant_id, v_link_record.account_id,
+      v_operation.target_person_id, v_link_record.status,
+      CASE WHEN v_link_record.status = 'pending' THEN v_link_record.valid_from ELSE v_now END,
+      CASE
+        WHEN v_link_record.status = 'pending' THEN v_link_record.valid_until
+        WHEN v_link_record.valid_until > v_now THEN v_link_record.valid_until
+        ELSE NULL
+      END,
+      v_account_id, 'Person merge execution: ' || btrim(p_reason),
+      CASE WHEN v_link_record.status = 'active' THEN v_now ELSE NULL END,
+      v_now, v_now
+    );
+    SELECT encode(
+      digest(convert_to(to_jsonb(link)::text, 'UTF8'), 'sha256'), 'hex'
+    ) INTO v_after_fingerprint
+    FROM public.account_links AS link
+    WHERE link.tenant_id = v_tenant_id AND link.id = v_replacement_id;
+    v_sequence := v_sequence + 1;
+    INSERT INTO public.person_merge_moves (
+      tenant_id, review_school_id, operation_id, sequence, relation_name,
+      source_record_key, replacement_record_key, action, before_fingerprint,
+      after_fingerprint, created_at
+    ) VALUES (
+      v_tenant_id, v_operation.review_school_id, p_operation_id, v_sequence,
+      'account_links', v_link_record.id::text, v_replacement_id::text,
+      'end_and_recreate', v_item.row_fingerprint, v_after_fingerprint, v_now
+    );
+  END LOOP;
+
+  -- Repoint only reviewed operational dependencies that are not versioned identity evidence.
+  -- Dynamic identifiers come exclusively from
   -- immutable preview metadata that was generated from PostgreSQL's FK catalog and revalidated.
   FOR v_item IN
     SELECT item.*
     FROM public.person_merge_preview_items AS item
     WHERE item.tenant_id = v_tenant_id AND item.operation_id = p_operation_id
       AND item.metadata ? 'column' AND item.disposition = 'end_and_recreate'
+      AND item.relation_name <> 'account_links'
     ORDER BY item.relation_name, item.record_key, item.direction
   LOOP
     IF v_item.relation_name !~ '^[a-z][a-z0-9_]{0,62}$'
@@ -569,7 +659,7 @@ BEGIN
 
   -- No reviewed operational reference may remain on the source. Table locks keep this assertion
   -- stable through commit and the installed guards reject future references to the archived alias.
-  IF EXISTS (SELECT 1 FROM public.account_links WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
+  IF EXISTS (SELECT 1 FROM public.account_links WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id AND status IN ('pending', 'active', 'suspended'))
     OR EXISTS (SELECT 1 FROM public.contact_profiles WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
     OR EXISTS (SELECT 1 FROM public.student_profiles WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
     OR EXISTS (SELECT 1 FROM public.guardian_profiles WHERE tenant_id = v_tenant_id AND person_id = v_operation.source_person_id)
