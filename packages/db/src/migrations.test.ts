@@ -805,4 +805,81 @@ describe('database migration baseline', () => {
       'approval must reject the initiating Account'
     )
   })
+
+  it('installs a forced-RLS Person merge alias and immutable move ledger', () => {
+    const migration = readFileSync(join(migrationsDirectory, '0042_brave_maelstrom.sql'), 'utf8')
+    for (const expected of [
+      'CREATE TABLE "person_merge_aliases"',
+      'CREATE TABLE "person_merge_moves"',
+      '"plan_version" integer DEFAULT 1 NOT NULL',
+      '"execution_digest" text',
+      'person_merge_aliases_tenant_source_unique',
+      'person_merge_moves_operation_sequence_unique',
+      'ALTER TABLE "person_merge_aliases" FORCE ROW LEVEL SECURITY',
+      'ALTER TABLE "person_merge_moves" FORCE ROW LEVEL SECURITY',
+      'person_merge_moves_append_only',
+      'people_merged_alias_immutable',
+      'CREATE FUNCTION "openschool_private"."protect_merged_person_alias"()\nRETURNS trigger\nLANGUAGE plpgsql\nSECURITY DEFINER',
+      'OLD.plan_version IS DISTINCT FROM NEW.plan_version',
+      "'tenant.people_merges.execute'",
+    ]) {
+      assert.equal(migration.includes(expected), true, `execution ledger must include ${expected}`)
+    }
+  })
+
+  it('finalizes dependency-complete Person merge plan version 2', () => {
+    const migration = readFileSync(
+      join(migrationsDirectory, '0043_person_merge_plan_v2.sql'),
+      'utf8'
+    )
+    for (const expected of [
+      'create_person_merge_preview_v1',
+      'finalize_person_merge_preview_v2',
+      "'kind', 'derived_dependency'",
+      "'path', 'affiliation_role'",
+      "'path', 'account_invalidation'",
+      "'path', 'account_session'",
+      "'path', 'legacy_enrollment_grade'",
+      'TARGET_ACCOUNT_LINK_EXISTS',
+      'TARGET_AFFILIATION_EXISTS',
+      'TARGET_HOUSEHOLD_MEMBERSHIP_EXISTS',
+      'TARGET_RELATIONSHIP_EXISTS',
+      'TARGET_SCHOOL_ENROLLMENT_EXISTS',
+      'TARGET_SECTION_STAFF_EXISTS',
+      'TARGET_SECTION_ROSTER_EXISTS',
+      'PENDING_INVITATION_REQUIRES_RESOLUTION',
+      "jsonb_build_object('lifecycle', 'terminal')",
+      "'plan:2:'",
+      'assert_person_merge_plan_v2_current',
+      'approve_person_merge_preview_v1',
+      'PERSON_MERGE_DERIVED_DEPENDENCY_SET_CHANGED',
+      'Person merge plan v2 implementation helpers are exposed',
+    ]) {
+      assert.equal(migration.includes(expected), true, `plan v2 must include ${expected}`)
+    }
+  })
+
+  it('executes approved Person merges atomically through one guarded authority', () => {
+    const migration = readFileSync(
+      join(migrationsDirectory, '0044_person_merge_execution.sql'),
+      'utf8'
+    )
+    for (const expected of [
+      "'merge_executed'",
+      'guard_operational_person_reference',
+      "IF FOUND AND v_status NOT IN ('active', 'suspended')",
+      'IN SHARE ROW EXCLUSIVE MODE',
+      'assert_person_merge_plan_v2_current',
+      'PERSON_MERGE_APPROVAL_CHANGED',
+      'PERSON_MERGE_OPERATIONAL_REFERENCE_REMAINS',
+      "SET status = 'revoked'",
+      'membership_version = account.membership_version + 1',
+      'CREATE FUNCTION "openschool_private"."execute_person_merge"',
+      "'person_merge.execute'",
+      "'audit.event.committed'",
+      'Person merge execution authority is misconfigured',
+    ]) {
+      assert.equal(migration.includes(expected), true, `execution must include ${expected}`)
+    }
+  })
 })

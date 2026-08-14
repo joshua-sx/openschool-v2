@@ -60,16 +60,29 @@ export const PERSON_MERGE_EVENT_TYPES = [
   'manual_recovery_required',
 ] as const
 
+export const PERSON_MERGE_ALIAS_STATUSES = ['active', 'reversed'] as const
+
+export const PERSON_MERGE_MOVE_ACTIONS = [
+  'repoint',
+  'end_and_recreate',
+  'preserve_history',
+  'invalidate',
+  'archive_source',
+] as const
+
 export type PersonMergeOperationStatus = (typeof PERSON_MERGE_OPERATION_STATUSES)[number]
 export type PersonMergePreviewCategory = (typeof PERSON_MERGE_PREVIEW_CATEGORIES)[number]
 export type PersonMergePreviewDisposition = (typeof PERSON_MERGE_PREVIEW_DISPOSITIONS)[number]
 export type PersonMergeEventType = (typeof PERSON_MERGE_EVENT_TYPES)[number]
+export type PersonMergeAliasStatus = (typeof PERSON_MERGE_ALIAS_STATUSES)[number]
+export type PersonMergeMoveAction = (typeof PERSON_MERGE_MOVE_ACTIONS)[number]
 
 const mergeCapabilities = sql`
   nullif(current_setting('app.policy_capability', true), '') IN (
     'tenant.people_merges.read',
     'tenant.people_merges.preview',
-    'tenant.people_merges.approve'
+    'tenant.people_merges.approve',
+    'tenant.people_merges.execute'
   )
 `
 
@@ -102,9 +115,12 @@ export const personMergeOperations = pgTable(
     targetPersonId: uuid('target_person_id').notNull(),
     status: text('status', { enum: PERSON_MERGE_OPERATION_STATUSES }).notNull(),
     currentVersion: integer('current_version').default(1).notNull(),
+    planVersion: integer('plan_version').default(1).notNull(),
     previewDigest: text('preview_digest').notNull(),
+    executionDigest: text('execution_digest'),
     dependencyCount: integer('dependency_count').default(0).notNull(),
     conflictCount: integer('conflict_count').default(0).notNull(),
+    invalidationCount: integer('invalidation_count').default(0).notNull(),
     initiatedByAccountId: uuid('initiated_by_account_id')
       .references(() => accounts.id, { onDelete: 'restrict', onUpdate: 'restrict' })
       .notNull(),
@@ -182,14 +198,21 @@ export const personMergeOperations = pgTable(
       'person_merge_operations_people_check',
       sql`${table.sourcePersonId} <> ${table.targetPersonId}`
     ),
-    check('person_merge_operations_version_check', sql`${table.currentVersion} > 0`),
+    check(
+      'person_merge_operations_version_check',
+      sql`${table.currentVersion} > 0 AND ${table.planVersion} > 0`
+    ),
     check(
       'person_merge_operations_hash_check',
-      sql`${table.duplicateEvidenceHash} ~ '^[0-9a-f]{64}$' AND ${table.previewDigest} ~ '^[0-9a-f]{64}$'`
+      sql`${table.duplicateEvidenceHash} ~ '^[0-9a-f]{64}$'
+        AND ${table.previewDigest} ~ '^[0-9a-f]{64}$'
+        AND (${table.executionDigest} IS NULL OR ${table.executionDigest} ~ '^[0-9a-f]{64}$')`
     ),
     check(
       'person_merge_operations_count_check',
-      sql`${table.dependencyCount} >= 0 AND ${table.conflictCount} >= 0 AND ${table.conflictCount} <= ${table.dependencyCount}`
+      sql`${table.dependencyCount} >= 0 AND ${table.conflictCount} >= 0
+        AND ${table.conflictCount} <= ${table.dependencyCount}
+        AND ${table.invalidationCount} >= 0`
     ),
     check(
       'person_merge_operations_reason_check',
@@ -205,7 +228,8 @@ export const personMergeOperations = pgTable(
     check(
       'person_merge_operations_execution_check',
       sql`${table.status} NOT IN ('executed', 'reversed', 'manual_recovery')
-        OR (${table.executedByAccountId} IS NOT NULL AND ${table.executedAt} IS NOT NULL)`
+        OR (${table.executedByAccountId} IS NOT NULL AND ${table.executedAt} IS NOT NULL
+          AND ${table.executionDigest} IS NOT NULL)`
     ),
     check(
       'person_merge_operations_reversal_check',
@@ -224,6 +248,179 @@ export const personMergeOperations = pgTable(
       withCheck: sql`false`,
     }),
     pgPolicy('person_merge_operations_manager_all', {
+      for: 'all',
+      to: 'openschool_person_merge_manager',
+      using: managerAccess(table.tenantId, table.reviewSchoolId),
+      withCheck: managerAccess(table.tenantId, table.reviewSchoolId),
+    }),
+  ]
+).enableRLS()
+
+export const personMergeAliases = pgTable(
+  'person_merge_aliases',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .references(() => tenants.id, { onDelete: 'restrict', onUpdate: 'restrict' })
+      .notNull(),
+    reviewSchoolId: uuid('review_school_id').notNull(),
+    operationId: uuid('operation_id').notNull(),
+    sourcePersonId: uuid('source_person_id').notNull(),
+    targetPersonId: uuid('target_person_id').notNull(),
+    status: text('status', { enum: PERSON_MERGE_ALIAS_STATUSES }).default('active').notNull(),
+    version: integer('version').default(1).notNull(),
+    mergedAt: timestamp('merged_at', { withTimezone: true }).notNull(),
+    reversedAt: timestamp('reversed_at', { withTimezone: true }),
+    reversedByAccountId: uuid('reversed_by_account_id').references(() => accounts.id, {
+      onDelete: 'restrict',
+      onUpdate: 'restrict',
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique('person_merge_aliases_tenant_id_id_unique').on(table.tenantId, table.id),
+    unique('person_merge_aliases_tenant_source_unique').on(table.tenantId, table.sourcePersonId),
+    unique('person_merge_aliases_tenant_operation_unique').on(table.tenantId, table.operationId),
+    foreignKey({
+      name: 'person_merge_aliases_tenant_operation_fk',
+      columns: [table.tenantId, table.operationId],
+      foreignColumns: [personMergeOperations.tenantId, personMergeOperations.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('restrict'),
+    foreignKey({
+      name: 'person_merge_aliases_tenant_school_fk',
+      columns: [table.tenantId, table.reviewSchoolId],
+      foreignColumns: [schools.tenantId, schools.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('restrict'),
+    foreignKey({
+      name: 'person_merge_aliases_tenant_source_fk',
+      columns: [table.tenantId, table.sourcePersonId],
+      foreignColumns: [people.tenantId, people.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('restrict'),
+    foreignKey({
+      name: 'person_merge_aliases_tenant_target_fk',
+      columns: [table.tenantId, table.targetPersonId],
+      foreignColumns: [people.tenantId, people.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('restrict'),
+    index('person_merge_aliases_target_idx').on(table.tenantId, table.targetPersonId, table.status),
+    check(
+      'person_merge_aliases_people_check',
+      sql`${table.sourcePersonId} <> ${table.targetPersonId}`
+    ),
+    check('person_merge_aliases_status_check', sql`${table.status} IN ('active', 'reversed')`),
+    check('person_merge_aliases_version_check', sql`${table.version} > 0`),
+    check(
+      'person_merge_aliases_reversal_check',
+      sql`${table.status} <> 'reversed'
+        OR (${table.reversedAt} IS NOT NULL AND ${table.reversedByAccountId} IS NOT NULL)`
+    ),
+    pgPolicy('person_merge_aliases_runtime_select', {
+      for: 'select',
+      to: 'openschool_runtime',
+      using: runtimeRead(table.tenantId, table.reviewSchoolId),
+    }),
+    pgPolicy('person_merge_aliases_runtime_write_deny', {
+      for: 'all',
+      to: 'openschool_runtime',
+      using: sql`false`,
+      withCheck: sql`false`,
+    }),
+    pgPolicy('person_merge_aliases_manager_all', {
+      for: 'all',
+      to: 'openschool_person_merge_manager',
+      using: managerAccess(table.tenantId, table.reviewSchoolId),
+      withCheck: managerAccess(table.tenantId, table.reviewSchoolId),
+    }),
+  ]
+).enableRLS()
+
+export const personMergeMoves = pgTable(
+  'person_merge_moves',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .references(() => tenants.id, { onDelete: 'restrict', onUpdate: 'restrict' })
+      .notNull(),
+    reviewSchoolId: uuid('review_school_id').notNull(),
+    operationId: uuid('operation_id').notNull(),
+    sequence: integer('sequence').notNull(),
+    relationName: text('relation_name').notNull(),
+    sourceRecordKey: text('source_record_key').notNull(),
+    replacementRecordKey: text('replacement_record_key'),
+    action: text('action', { enum: PERSON_MERGE_MOVE_ACTIONS }).notNull(),
+    beforeFingerprint: text('before_fingerprint').notNull(),
+    afterFingerprint: text('after_fingerprint').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique('person_merge_moves_tenant_id_id_unique').on(table.tenantId, table.id),
+    unique('person_merge_moves_operation_sequence_unique').on(
+      table.tenantId,
+      table.operationId,
+      table.sequence
+    ),
+    unique('person_merge_moves_operation_record_unique').on(
+      table.tenantId,
+      table.operationId,
+      table.relationName,
+      table.sourceRecordKey
+    ),
+    foreignKey({
+      name: 'person_merge_moves_tenant_operation_fk',
+      columns: [table.tenantId, table.operationId],
+      foreignColumns: [personMergeOperations.tenantId, personMergeOperations.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('restrict'),
+    foreignKey({
+      name: 'person_merge_moves_tenant_school_fk',
+      columns: [table.tenantId, table.reviewSchoolId],
+      foreignColumns: [schools.tenantId, schools.id],
+    })
+      .onDelete('restrict')
+      .onUpdate('restrict'),
+    index('person_merge_moves_operation_idx').on(
+      table.tenantId,
+      table.operationId,
+      table.sequence,
+      table.id
+    ),
+    check('person_merge_moves_sequence_check', sql`${table.sequence} > 0`),
+    check(
+      'person_merge_moves_action_check',
+      sql`${table.action} IN ('repoint', 'end_and_recreate', 'preserve_history', 'invalidate', 'archive_source')`
+    ),
+    check(
+      'person_merge_moves_text_check',
+      sql`char_length(${table.relationName}) BETWEEN 3 AND 128
+        AND char_length(${table.sourceRecordKey}) BETWEEN 1 AND 512
+        AND (${table.replacementRecordKey} IS NULL
+          OR char_length(${table.replacementRecordKey}) BETWEEN 1 AND 512)`
+    ),
+    check(
+      'person_merge_moves_hash_check',
+      sql`${table.beforeFingerprint} ~ '^[0-9a-f]{64}$'
+        AND ${table.afterFingerprint} ~ '^[0-9a-f]{64}$'`
+    ),
+    pgPolicy('person_merge_moves_runtime_select', {
+      for: 'select',
+      to: 'openschool_runtime',
+      using: runtimeRead(table.tenantId, table.reviewSchoolId),
+    }),
+    pgPolicy('person_merge_moves_runtime_write_deny', {
+      for: 'all',
+      to: 'openschool_runtime',
+      using: sql`false`,
+      withCheck: sql`false`,
+    }),
+    pgPolicy('person_merge_moves_manager_all', {
       for: 'all',
       to: 'openschool_person_merge_manager',
       using: managerAccess(table.tenantId, table.reviewSchoolId),
@@ -412,3 +609,5 @@ export const personMergeEvents = pgTable(
 export type PersonMergeOperation = typeof personMergeOperations.$inferSelect
 export type PersonMergePreviewItem = typeof personMergePreviewItems.$inferSelect
 export type PersonMergeEvent = typeof personMergeEvents.$inferSelect
+export type PersonMergeAlias = typeof personMergeAliases.$inferSelect
+export type PersonMergeMove = typeof personMergeMoves.$inferSelect

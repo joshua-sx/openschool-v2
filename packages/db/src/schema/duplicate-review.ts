@@ -171,6 +171,7 @@ export const personDuplicateCaseEvents = pgTable(
         'evidence_no_longer_matches',
         'marked_distinct',
         'merge_approval_requested',
+        'merge_executed',
       ],
     }).notNull(),
     score: integer('score').notNull(),
@@ -212,7 +213,7 @@ export const personDuplicateCaseEvents = pgTable(
     check('person_duplicate_case_events_version_check', sql`${table.version} > 0`),
     check(
       'person_duplicate_case_events_type_check',
-      sql`${table.eventType} IN ('candidate_detected', 'evidence_refreshed', 'evidence_no_longer_matches', 'marked_distinct', 'merge_approval_requested')`
+      sql`${table.eventType} IN ('candidate_detected', 'evidence_refreshed', 'evidence_no_longer_matches', 'marked_distinct', 'merge_approval_requested', 'merge_executed')`
     ),
     check('person_duplicate_case_events_score_check', sql`${table.score} BETWEEN 0 AND 100`),
     check(

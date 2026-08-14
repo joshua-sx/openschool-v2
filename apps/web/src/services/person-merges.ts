@@ -37,6 +37,22 @@ export interface PersonMergeApprovalResult extends Record<string, unknown> {
   approvedAt: Date
 }
 
+export interface ExecutePersonMergeInput {
+  operationId: string
+  expectedOperationVersion: number
+  expectedPreviewDigest: string
+  reason: string
+}
+
+export interface PersonMergeExecutionResult extends Record<string, unknown> {
+  operationId: string
+  status: 'executed'
+  version: number
+  executionDigest: string
+  invalidationCount: number
+  executedAt: Date
+}
+
 function assertPersonMergePreviewScope(
   databaseContext: TenantDatabaseContext,
   context: PolicyContext,
@@ -61,6 +77,22 @@ function assertPersonMergeApprovalScope(
   assertDatabasePolicyContext(databaseContext, context)
   if (
     decision.capability !== CAPABILITIES.PEOPLE_MERGES_APPROVE ||
+    !context.tenantId ||
+    decision.queryConstraints.length < 1 ||
+    decision.queryConstraints.some((constraint) => constraint.kind === 'platform')
+  ) {
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'POLICY_SCOPE_MISMATCH' })
+  }
+}
+
+function assertPersonMergeExecutionScope(
+  databaseContext: TenantDatabaseContext,
+  context: PolicyContext,
+  decision: AllowedPolicyDecision
+): void {
+  assertDatabasePolicyContext(databaseContext, context)
+  if (
+    decision.capability !== CAPABILITIES.PEOPLE_MERGES_EXECUTE ||
     !context.tenantId ||
     decision.queryConstraints.length < 1 ||
     decision.queryConstraints.some((constraint) => constraint.kind === 'platform')
@@ -101,6 +133,34 @@ function normalizePreviewError(error: unknown): unknown {
       return new TRPCError({
         code: 'CONFLICT',
         message: 'A merge workflow already exists for the source Person',
+        cause: error,
+      })
+    default:
+      return error
+  }
+}
+
+function normalizeExecutionError(error: unknown): unknown {
+  if (error instanceof TRPCError) return error
+  switch (databaseErrorCode(error)) {
+    case '40001':
+      return new TRPCError({ code: 'CONFLICT', message: 'MERGE_APPROVAL_CHANGED', cause: error })
+    case '42501':
+      return new TRPCError({
+        code: 'NOT_FOUND',
+        message: 'Merge operation not found',
+        cause: error,
+      })
+    case '22023':
+      return new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'Merge execution is invalid',
+        cause: error,
+      })
+    case '23505':
+      return new TRPCError({
+        code: 'CONFLICT',
+        message: 'The Person merge was already executed',
         cause: error,
       })
     default:
@@ -250,6 +310,70 @@ export async function approvePersonMergePreview(
       throw new AggregateError(
         [normalized, auditError],
         'Person merge approval and failure audit both failed'
+      )
+    }
+    throw normalized
+  }
+}
+
+export async function executePersonMerge(
+  databaseContext: TenantDatabaseContext,
+  context: PolicyContext,
+  decision: AllowedPolicyDecision,
+  input: ExecutePersonMergeInput
+): Promise<PersonMergeExecutionResult> {
+  assertPersonMergeExecutionScope(databaseContext, context, decision)
+  const reason = input.reason.normalize('NFKC').trim().replace(/\s+/g, ' ')
+  if (reason.length < 3 || reason.length > 512) {
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'Reason must be 3–512 characters' })
+  }
+  if (!/^[0-9a-f]{64}$/.test(input.expectedPreviewDigest)) {
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'Preview digest is invalid' })
+  }
+
+  try {
+    return await withPolicyTenantTransaction(
+      databaseContext,
+      toDatabasePolicyContext(decision),
+      async (db) => {
+        const rows = await db.execute<PersonMergeExecutionResult>(sql`
+          select
+            operation_id as "operationId",
+            status,
+            version,
+            execution_digest as "executionDigest",
+            invalidation_count as "invalidationCount",
+            executed_at as "executedAt"
+          from openschool_private.execute_person_merge(
+            ${input.operationId}::uuid,
+            ${input.expectedOperationVersion}::integer,
+            ${input.expectedPreviewDigest},
+            ${reason}
+          )
+        `)
+        const result = rows[0]
+        if (!result) throw new TRPCError({ code: 'CONFLICT', message: 'MERGE_APPROVAL_CHANGED' })
+        // The database authority writes the success audit event and outbox row in the same
+        // transaction as the identity mutation; duplicating it here would weaken idempotency.
+        return result
+      }
+    )
+  } catch (error) {
+    const normalized = normalizeExecutionError(error)
+    try {
+      await recordAuditAttempt(databaseContext, context, decision, {
+        eventType: 'person_merge.execute',
+        outcome:
+          normalized instanceof TRPCError && normalized.code === 'NOT_FOUND' ? 'denied' : 'failed',
+        targetType: 'person_merge_operation',
+        targetId: input.operationId,
+        dataClasses: ['student_personal', 'credential'],
+        change: { changedFields: ['execution'] },
+      })
+    } catch (auditError) {
+      throw new AggregateError(
+        [normalized, auditError],
+        'Person merge execution and failure audit both failed'
       )
     }
     throw normalized
