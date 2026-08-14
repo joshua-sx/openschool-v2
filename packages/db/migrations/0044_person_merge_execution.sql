@@ -108,7 +108,7 @@ CREATE POLICY "audit_events_person_merge_manager_insert" ON "audit_events"
     AND request_id = nullif(current_setting('app.request_id', true), '')
     AND correlation_id = nullif(current_setting('app.correlation_id', true), '')
     AND capability = 'tenant.people_merges.execute'
-    AND event_type = 'person.merge.execute'
+    AND event_type = 'person_merge.execute'
     AND target_type = 'person_merge_operation'
     AND source = 'web'
   );
@@ -123,7 +123,7 @@ CREATE POLICY "audit_outbox_person_merge_manager_insert" ON "audit_outbox"
     AND context ->> 'requestId' = nullif(current_setting('app.request_id', true), '')
     AND correlation_id = nullif(current_setting('app.correlation_id', true), '')
     AND topic = 'audit.event.committed'
-    AND payload ->> 'eventType' = 'person.merge.execute'
+    AND payload ->> 'eventType' = 'person_merge.execute'
   );
 --> statement-breakpoint
 DO $policies$
@@ -711,7 +711,7 @@ BEGIN
     data_classes, change_summary, purpose, source, retention_class,
     content_hash, created_at
   ) VALUES (
-    v_audit_event_id, v_now, 1, 'person.merge.execute', 'succeeded', v_tenant_id,
+    v_audit_event_id, v_now, 1, 'person_merge.execute', 'succeeded', v_tenant_id,
     v_operation.review_school_id, 'account', v_account_id, v_person_id,
     'tenant.people_merges.execute', v_policy_version,
     jsonb_build_object(
@@ -734,7 +734,7 @@ BEGIN
     status, attempt_count, available_at, created_at, updated_at
   ) VALUES (
     v_audit_outbox_id, v_tenant_id, v_audit_event_id, v_now,
-    'audit.event.committed', 'person.merge.execute:' || p_operation_id::text,
+    'audit.event.committed', 'person_merge.execute:' || p_operation_id::text,
     v_correlation_id,
     jsonb_build_object(
       'tenantId', v_tenant_id, 'requestId', v_request_id,
@@ -743,7 +743,7 @@ BEGIN
     ),
     jsonb_build_object(
       'auditEventId', v_audit_event_id, 'eventVersion', 1,
-      'eventType', 'person.merge.execute', 'outcome', 'succeeded',
+      'eventType', 'person_merge.execute', 'outcome', 'succeeded',
       'targetType', 'person_merge_operation', 'targetId', p_operation_id
     ),
     'pending', 'pending', 0, v_now, v_now, v_now

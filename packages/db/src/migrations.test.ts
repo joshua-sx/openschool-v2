@@ -873,7 +873,7 @@ describe('database migration baseline', () => {
       "SET status = 'revoked'",
       'membership_version = account.membership_version + 1',
       'CREATE FUNCTION "openschool_private"."execute_person_merge"',
-      "'person.merge.execute'",
+      "'person_merge.execute'",
       "'audit.event.committed'",
       'Person merge execution authority is misconfigured',
     ]) {

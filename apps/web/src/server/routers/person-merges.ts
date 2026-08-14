@@ -1,4 +1,8 @@
-import { approvePersonMergePreview, createPersonMergePreview } from '@/services/person-merges'
+import {
+  approvePersonMergePreview,
+  createPersonMergePreview,
+  executePersonMerge,
+} from '@/services/person-merges'
 import { CAPABILITIES } from '@openschool/rbac'
 import { z } from 'zod'
 import { protectedProcedure, router } from '../trpc'
@@ -37,5 +41,19 @@ export const personMergesRouter = router({
     )
     .mutation(({ ctx, input }) =>
       approvePersonMergePreview(ctx.requestContext, ctx.policyContext, ctx.policyDecision, input)
+    ),
+  execute: protectedProcedure(CAPABILITIES.PEOPLE_MERGES_EXECUTE, {
+    requestedScope: 'school',
+  })
+    .input(
+      z.object({
+        operationId: z.uuid(),
+        expectedOperationVersion: z.number().int().positive(),
+        expectedPreviewDigest: z.string().regex(/^[0-9a-f]{64}$/),
+        reason: z.string().trim().min(3).max(512),
+      })
+    )
+    .mutation(({ ctx, input }) =>
+      executePersonMerge(ctx.requestContext, ctx.policyContext, ctx.policyDecision, input)
     ),
 })
