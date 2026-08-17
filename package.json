@@ -61,7 +61,7 @@
     "@openschool/isolation": "workspace:*",
     "@types/node": "^20.19.33",
     "dotenv": "^17.2.3",
-    "turbo": "^2.10.8",
+    "turbo": "^2.10.9",
     "typescript": "^5.9.3"
   },
   "resolutions": {

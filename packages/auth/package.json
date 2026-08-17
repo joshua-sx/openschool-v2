@@ -18,8 +18,8 @@
     "@openschool/db": "workspace:*",
     "@openschool/isolation": "workspace:*",
     "@openschool/rbac": "workspace:*",
-    "@supabase/supabase-js": "^2.111.0",
-    "@supabase/ssr": "^0.5.0",
+    "@supabase/supabase-js": "^2.112.3",
+    "@supabase/ssr": "^0.12.4",
     "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
