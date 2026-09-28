@@ -10,7 +10,7 @@
   "dependencies": {
     "@openschool/db": "workspace:*",
     "@openschool/rbac": "workspace:*",
-    "drizzle-orm": "^0.45.2"
+    "drizzle-orm": "^0.45.3"
   },
   "devDependencies": {
     "typescript": "^5.7.0"

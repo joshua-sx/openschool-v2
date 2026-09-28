@@ -30,12 +30,12 @@
   "dependencies": {
     "@openschool/config": "workspace:*",
     "@openschool/isolation": "workspace:*",
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "^0.45.3",
     "postgres": "^3.4.0"
   },
   "devDependencies": {
     "dotenv": "^17.2.3",
-    "drizzle-kit": "^0.31.10",
+    "drizzle-kit": "^0.31.11",
     "typescript": "^5.7.0"
   }
 }

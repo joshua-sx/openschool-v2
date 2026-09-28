@@ -18,9 +18,9 @@
     "@openschool/db": "workspace:*",
     "@openschool/isolation": "workspace:*",
     "@openschool/rbac": "workspace:*",
-    "@supabase/supabase-js": "^2.111.0",
-    "@supabase/ssr": "^0.5.0",
-    "drizzle-orm": "^0.45.2"
+    "@supabase/supabase-js": "^2.117.1",
+    "@supabase/ssr": "^0.12.7",
+    "drizzle-orm": "^0.45.3"
   },
   "devDependencies": {
     "postgres": "^3.4.0",
